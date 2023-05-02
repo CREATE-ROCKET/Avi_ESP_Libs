@@ -1,0 +1,25 @@
+name: Dispatch
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    steps:
+      - name: Repository Dispatch1
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          repository: Luftalian/Avi_73J_template
+          event-type: update
+      # - name: Repository Dispatch2
+      #   uses: peter-evans/repository-dispatch@v2
+      #   with:
+      #     token: ${{ secrets.REPO_GITHUB_TOKEN }}
+      #     repository: something/something
+      #     event-type: update
