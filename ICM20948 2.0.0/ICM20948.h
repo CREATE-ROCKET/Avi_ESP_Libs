@@ -73,7 +73,7 @@ void ICM::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
 }
 uint8_t ICM::WhoAmI()
 {
-    return ICMSPI->readByte(0x80 | 0x06, deviceHandle);
+    return ICMSPI->readByte(0x80 | ICM_WhoAmI_Adress, deviceHandle);
 }
 
 void ICM::Get(int16_t *rx, uint8_t *rx_buf)
