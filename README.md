@@ -3,7 +3,9 @@
 - H3LIS331 1.2.0
 - ICM20948 2.0.0
 - LPS25HB 1.0.0
-- LogBoard67 1.0.0
+- LogBoard67 1.2.2
 - LogTIMER 1.0.0
 - S25FL512S 1.2.1
 - SPICREATE 2.0.0
+- Log67Serial 1.1.0
+- Log67Timer 1.0.0
