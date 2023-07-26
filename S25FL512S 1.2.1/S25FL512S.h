@@ -1,12 +1,13 @@
+// Copyright [2023] <CREATE-ROCKET>
 // version: 1.2.1
 #pragma once
 
 #ifndef SPIFlash_H
 #define SPIFlash_H
-#include <SPICREATE.h> // 2.0.0
 #include <Arduino.h>
+#include <SPICREATE.h>  // 2.0.0
 
-using namespace arduino::esp32::spi::dma;
+using arduino::esp32::spi::dma::SPICreate;
 
 #define CMD_RDID 0x9f
 #define CMD_READ 0x03
@@ -24,7 +25,8 @@ using namespace arduino::esp32::spi::dma;
 #define CMD_RDSR 0x05
 
 #define ADDRESS_LENGTH 32
-// #define PAGE_LENGTH 512 // You can change this number to an aliquot part of 512.
+// #define PAGE_LENGTH 512 // You can change this number to an aliquot part of
+// 512.
 #define PAGE_LENGTH 256
 
 // SPI Flashの最大のアドレス (1回で1/2ページ書き込んでいる点に注意)
@@ -41,14 +43,14 @@ uint8_t flashRead[256];
 uint8_t flashRead1[256];
 uint8_t flashRead2[256];
 
-class Flash
-{
+class Flash {
     int CS;
     int deviceHandle{-1};
     SPICREATE::SPICreate *flashSPI;
 
-public:
-    void begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq = 8000000);
+   public:
+    void begin(SPICREATE::SPICreate *targetSPI, int cs,
+               uint32_t freq = 8000000);
     uint32_t checkAddress(uint32_t FlashAddress);
     uint32_t setFlashAddress();
     void erase();
@@ -56,8 +58,7 @@ public:
     void read(uint32_t addr, uint8_t *rx);
 };
 
-void Flash::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
-{
+void Flash::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq) {
     CS = cs;
     flashSPI = targetSPI;
     spi_device_interface_config_t if_cfg = {};
@@ -79,8 +80,7 @@ void Flash::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
     deviceHandle = flashSPI->addDevice(&if_cfg, cs);
     uint8_t readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
 
-    while (readStatus != 0)
-    {
+    while (readStatus != 0) {
         readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
         delay(100);
     }
@@ -88,16 +88,14 @@ void Flash::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
     return;
 }
 
-uint32_t Flash::checkAddress(uint32_t FlashAddress)
-{
+uint32_t Flash::checkAddress(uint32_t FlashAddress) {
     count++;
     // if (count >= 20) // これ以上行くとページの途中を読むことになる。
     // {
     //   Serial.printf("FlashAddress: %u\n", FlashAddress);
     //   return FlashAddress;
     // }
-    if ((FlashAddress + 0x100) >= SPI_FLASH_MAX_ADDRESS)
-    {
+    if ((FlashAddress + 0x100) >= SPI_FLASH_MAX_ADDRESS) {
         // Serial.printf("FlashAddress: %u\n", FlashAddress);
         // Serial.printf("count: %u\n", count);
         return SPI_FLASH_MAX_ADDRESS;
@@ -106,58 +104,48 @@ uint32_t Flash::checkAddress(uint32_t FlashAddress)
     delay(1);
     Flash::read(FlashAddress + 0x100, flashRead2);
     delay(1);
-    if (flashRead1[0] != 0xFF)
-    {
-        if (flashRead2[0] != 0xFF)
-        {
+    if (flashRead1[0] != 0xFF) {
+        if (flashRead2[0] != 0xFF) {
             // ++
             // Serial.println("---");
-            // uint32_t a = FlashAddress + SPI_FLASH_MAX_ADDRESS / pow(2, count);
-            // Serial.printf("FlashAddress: %u\n", a);
+            // uint32_t a = FlashAddress + SPI_FLASH_MAX_ADDRESS / pow(2,
+            // count); Serial.printf("FlashAddress: %u\n", a);
             // Serial.printf("count: %u\n", count);
-            return checkAddress(FlashAddress + SPI_FLASH_MAX_ADDRESS / pow(2, count));
-        }
-        else
-        {
+            return checkAddress(FlashAddress +
+                                SPI_FLASH_MAX_ADDRESS / pow(2, count));
+        } else {
             // Serial.printf("FlashAddress: %u\n", FlashAddress);
             return FlashAddress;
         }
-    }
-    else
-    {
-        if (flashRead2[0] != 0xFF)
-        {
+    } else {
+        if (flashRead2[0] != 0xFF) {
             // Serial.printf("FlashAddress: %u\n", FlashAddress);
             // Serial.println("error");
             return 0;
-        }
-        else
-        {
+        } else {
             // --
             // Serial.printf("FlashAddress: %u\n", FlashAddress);
-            return checkAddress(FlashAddress - SPI_FLASH_MAX_ADDRESS / pow(2, count));
+            return checkAddress(FlashAddress -
+                                SPI_FLASH_MAX_ADDRESS / pow(2, count));
         }
     }
 }
 
-uint32_t Flash::setFlashAddress()
-{
-    while (SPIFlashLatestAddress <= 0x1000)
-    {
+uint32_t Flash::setFlashAddress() {
+    while (SPIFlashLatestAddress <= 0x1000) {
         Flash::read(SPIFlashLatestAddress, flashRead);
         // Serial.printf("SPIFlashLatestAddress: %u\n", SPIFlashLatestAddress);
         // Serial.print(flashRead[0]);
         delay(1);
         // Serial.print("\n");
-        if (flashRead[0] == 0xFF)
-        {
+        if (flashRead[0] == 0xFF) {
             Serial.println("255");
             return SPIFlashLatestAddress;
         }
         SPIFlashLatestAddress += 0x100;
-        if (SPIFlashLatestAddress >= SPI_FLASH_MAX_ADDRESS)
-        {
-            // Serial.printf("SPIFlashLatestAddress: %u\n", SPIFlashLatestAddress);
+        if (SPIFlashLatestAddress >= SPI_FLASH_MAX_ADDRESS) {
+            // Serial.printf("SPIFlashLatestAddress: %u\n",
+            // SPIFlashLatestAddress);
             return SPIFlashLatestAddress;
         }
     }
@@ -165,19 +153,16 @@ uint32_t Flash::setFlashAddress()
     return SPIFlashLatestAddress;
 }
 
-void Flash::erase()
-{
+void Flash::erase() {
     Serial.println("start erase");
-    if (flashSPI == NULL)
-    {
+    if (flashSPI == NULL) {
         return;
     }
 
     flashSPI->sendCmd(CMD_WREN, deviceHandle);
     flashSPI->sendCmd(CMD_BE, deviceHandle);
     uint8_t readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
-    while (readStatus != 0)
-    {
+    while (readStatus != 0) {
         readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
         Serial.print(",");
         delay(100);
@@ -185,8 +170,7 @@ void Flash::erase()
     Serial.println("Bulk Erased");
     return;
 }
-void Flash::write(uint32_t addr, uint8_t *tx)
-{
+void Flash::write(uint32_t addr, uint8_t *tx) {
     flashSPI->sendCmd(CMD_WREN, deviceHandle);
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
@@ -194,18 +178,18 @@ void Flash::write(uint32_t addr, uint8_t *tx)
     comm.cmd = CMD_4PP;
     comm.addr = addr;
     comm.tx_buffer = tx;
-    comm.user = (void *)&CS;
+    comm.user = reinterpret_cast<void *>(&CS);
 
     spi_transaction_ext_t spi_transaction = {};
     spi_transaction.base = comm;
     spi_transaction.command_bits = 8;
     spi_transaction.address_bits = ADDRESS_LENGTH;
 
-    flashSPI->transmit((spi_transaction_t *)&spi_transaction, deviceHandle);
+    flashSPI->transmit(reinterpret_cast<spi_transaction_t *>(&spi_transaction),
+                       deviceHandle);
     return;
 }
-void Flash::read(uint32_t addr, uint8_t *rx)
-{
+void Flash::read(uint32_t addr, uint8_t *rx) {
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
     comm.length = (PAGE_LENGTH)*8;
@@ -213,13 +197,14 @@ void Flash::read(uint32_t addr, uint8_t *rx)
     comm.addr = addr;
     comm.tx_buffer = NULL;
     comm.rx_buffer = rx;
-    comm.user = (void *)CS;
+    comm.user = reinterpret_cast<void *>(CS);
 
     spi_transaction_ext_t spi_transaction = {};
     spi_transaction.base = comm;
     spi_transaction.command_bits = 8;
     spi_transaction.address_bits = ADDRESS_LENGTH;
-    flashSPI->transmit((spi_transaction_t *)&spi_transaction, deviceHandle);
+    flashSPI->transmit(reinterpret_cast<spi_transaction_t *>(&spi_transaction),
+                       deviceHandle);
 }
 
 #endif

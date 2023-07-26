@@ -1,10 +1,11 @@
+// Copyright [2023] <CREATE-ROCKET>
 // version: 1.0.0
 #pragma once
 
 #ifndef LPS_H
 #define LPS_H
-#include <SPICREATE.h> // 2.0.0
 #include <Arduino.h>
+#include <SPICREATE.h>  // 2.0.0
 
 #define LPS_Data_Adress_0 0x28
 #define LPS_Data_Adress_1 0x29
@@ -16,23 +17,23 @@
 #define LPS_Settig_Value 0x08
 #define LPS_WhoAmI_Adress 0x0F
 
-class LPS
-{
+class LPS {
     int CS;
     int deviceHandle{-1};
     SPICREATE::SPICreate *LPSSPI;
 
-public:
+   public:
     uint32_t PlessureRaw;
     int Plessure;
-    void begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq = 8000000);
+    void begin(SPICREATE::SPICreate *targetSPI, int cs,
+               uint32_t freq = 8000000);
     uint8_t WhoAmI();
     void Get(uint8_t *rx);
-    // (uint32_t)rx[2] << 16 | (uint32_t)rx[1] << 8 | (uint32_t)rx[0] means pressure
+    // (uint32_t)rx[2] << 16 | (uint32_t)rx[1] << 8 | (uint32_t)rx[0] means
+    // pressure
 };
 
-void LPS::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
-{
+void LPS::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq) {
     CS = cs;
     LPSSPI = targetSPI;
     spi_device_interface_config_t if_cfg = {};
@@ -57,14 +58,12 @@ void LPS::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
 
     return;
 }
-uint8_t LPS::WhoAmI()
-{
+uint8_t LPS::WhoAmI() {
     return LPSSPI->readByte(LPS_WhoAmI_Adress | 0x80, deviceHandle);
     // registor 0x0F and you'll get 0d177 or 0xb1 or 0b10110001
 }
 
-void LPS::Get(uint8_t *rx)
-{
+void LPS::Get(uint8_t *rx) {
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
     comm.length = (14) * 8;
@@ -72,7 +71,7 @@ void LPS::Get(uint8_t *rx)
 
     comm.tx_buffer = NULL;
     comm.rx_buffer = NULL;
-    comm.user = (void *)CS;
+    comm.user = reinterpret_cast<void *>(CS);
 
     spi_transaction_ext_t spi_transaction = {};
     spi_transaction.base = comm;
@@ -81,8 +80,9 @@ void LPS::Get(uint8_t *rx)
     rx[0] = LPSSPI->readByte(LPS_Data_Adress_0 | 0x80, deviceHandle);
     rx[1] = LPSSPI->readByte(LPS_Data_Adress_1 | 0x80, deviceHandle);
     rx[2] = LPSSPI->readByte(LPS_Data_Adress_2 | 0x80, deviceHandle);
-    PlessureRaw = (uint32_t)rx[2] << 16 | (uint32_t)rx[1] << 8 | (uint32_t)rx[0];
-    Plessure = (int)PlessureRaw * 100 / 4096;
+    PlessureRaw =
+        (uint32_t)rx[2] << 16 | (uint32_t)rx[1] << 8 | (uint32_t)rx[0];
+    Plessure = static_cast<int>(PlessureRaw * 100 / 4096);
     return;
 }
 
