@@ -38,3 +38,10 @@ jobs:
           repository: Avi-73/Avi_73J_template
           event-type: update
     
+
+      - name: Repository Dispatch1
+        uses: peter-evans/repository-dispatch@v2
+        with:
+          token: ${{ secrets.REPO_GITHUB_TOKEN }}
+          repository: Luftalian/PlatformIO_directory_template
+          event-type: update
