@@ -20,6 +20,7 @@ private:
     /*送信をロックする用の変数*/
     bool isSendingLocked = 0;
     uint8_t msgNoSendingMSG;
+    uint32_t timeSendingMSG;
 
     void makepacket();
     int recieveFromWirelessmodule();
@@ -30,6 +31,7 @@ public:
     bool isSendAvileable();
     void sendTelemetry();
     int recieveData();
+    int checkWirelessmodule();
 };
 
 /**
@@ -141,6 +143,7 @@ int NEC920::send(uint8_t *packet)
     isSendingLocked = 1;
     msgNoSendingMSG = packet[4];
     Ser.write(packet, packet[2]);
+    timeSendingMSG = micros();
 
     return 0;
 }
@@ -196,6 +199,31 @@ int NEC920::recieveData(uint8_t *getParam)
         }
     }
     return 0;
+}
+
+/**
+ * @brief ワイヤレスモジュールの状態を確認する関数
+ *
+ * @return int 0なら正常，1なら異常，reset端子による再起動を推奨
+ */
+int NEC920::checkWirelessmodule()
+{
+    if (isSendingLocked == 0)
+    {
+        return 0;
+    }
+    else if (isSendingLocked == 1)
+    {
+        if (micros() - timeSendingMSG > 1000000)
+        {
+            isSendingLocked = 0;
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
 }
 
 #endif /* NEC_920_HPP */
