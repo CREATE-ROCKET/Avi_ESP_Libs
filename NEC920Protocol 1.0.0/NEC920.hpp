@@ -22,15 +22,15 @@ private:
     uint8_t msgNoSendingMSG;
     uint32_t timeSendingMSG;
 
-    void makepacket();
+    void makepacket(uint8_t *packet, uint8_t msgID, uint8_t msgNo, uint8_t dstID[4], uint8_t srcID[4], uint8_t *parameter, uint8_t parameterLength);
     int recieveFromWirelessmodule();
-    int send();
+    int send(uint8_t *packet);
 
 public:
-    void begin();
+    void begin(HardwareSerial _Ser, uint8_t power, uint8_t channel, uint8_t rf_band, uint8_t cs_mode);
     bool isSendAvileable();
-    void sendTelemetry();
-    int recieveData();
+    void sendTelemetry(uint8_t *parameter, uint8_t parameterLength, uint8_t msgID = 0x13, uint8_t msgNo, uint8_t dstID[4]);
+    int recieveData(uint8_t *getParam);
     int checkWirelessmodule();
 };
 
