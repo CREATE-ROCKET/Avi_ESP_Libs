@@ -77,7 +77,6 @@ uint8_t ICM::WhoAmI() {
 }
 
 void ICM::Get(int16_t *rx, uint8_t *rx_buf) {
-
     // uint8_t rx_buf[12];
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
