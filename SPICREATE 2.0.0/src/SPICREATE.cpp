@@ -7,6 +7,7 @@ void csSet(spi_transaction_t *t) {
 }
 void csReset(spi_transaction_t *t) {
     digitalWrite(static_cast<int>(t->user), LOW);
+
     return;
 }
 SPICREATE_BEGIN

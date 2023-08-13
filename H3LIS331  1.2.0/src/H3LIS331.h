@@ -4,6 +4,7 @@
 
 #ifndef H3LIS331_H
 #define H3LIS331_H
+
 #include <Arduino.h>
 #include <SPICREATE.h>  // 2.0.0
 

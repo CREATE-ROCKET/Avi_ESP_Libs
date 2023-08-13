@@ -58,6 +58,7 @@ void LPS::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq) {
 
     return;
 }
+
 uint8_t LPS::WhoAmI() {
     return LPSSPI->readByte(LPS_WhoAmI_Adress | 0x80, deviceHandle);
     // registor 0x0F and you'll get 0d177 or 0xb1 or 0b10110001

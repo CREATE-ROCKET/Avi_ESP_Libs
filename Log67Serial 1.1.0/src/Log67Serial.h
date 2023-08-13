@@ -5,7 +5,6 @@
 #ifndef Log67Serial_H
 #define Log67Serial_H
 #include <Arduino.h>
-
 class Log67Serial {
    private:
     unsigned int64 time_serial1 = 0;

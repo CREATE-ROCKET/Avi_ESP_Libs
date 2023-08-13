@@ -9,10 +9,12 @@
 #include <SPI.h>
 #include <driver/spi_master.h>
 
+
 #include <deque>
 
 void csSet(spi_transaction_t *t);
 void csReset(spi_transaction_t *t);
+
 namespace arduino {
 namespace esp32 {
 namespace spi {
