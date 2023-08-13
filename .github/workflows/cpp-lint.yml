@@ -9,8 +9,7 @@ jobs:
       with:
         python-version: 3.x
     - run: pip install cpplint
-    - run: cpplint --help
-    - run: cpplint --filter=-whitespace/indent --recursive src/* &> cpplint.txt
+    - run: cpplint --filter=-whitespace/indent --recursive ./* &> cpplint.txt
       id: error_execution
       continue-on-error: true
     - run: echo "## C++ lint Checker" > comments
