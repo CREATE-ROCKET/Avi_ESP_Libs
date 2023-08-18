@@ -35,4 +35,6 @@ void loop() {
     }
     delay(1000);
 }
-// Copyright [2023] <CREATE TokyoTech>
+/*
+Copyright [2023] <CREATE TokyoTech>
+*/
