@@ -1,3 +1,6 @@
+/*
+Copyright [2023] <CREATE TokyoTech>
+*/
 #include <Arduino.h>
 #include <LPS25HB.h>
 #include <SPICREATE.h>
@@ -35,6 +38,3 @@ void loop() {
     }
     delay(1000);
 }
-/*
-Copyright [2023] <CREATE TokyoTech>
-*/
