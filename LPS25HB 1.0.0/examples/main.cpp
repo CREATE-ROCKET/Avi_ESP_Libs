@@ -15,12 +15,12 @@ void setup() {
     Serial.begin(115200);
     Serial.println("serial set done");
     delay(100);
-    spi.begin(VSPI, SCK, MISO, MOSI);
+    spi.begin(VSPI, SCK, MISO, MOSI);//SPI通信の使用するモジュール、使用するピンの設定
     Serial.println("spi set done");
     delay(100);
-    lps.begin(&spi, CS, 5000000);
+    lps.begin(&spi, CS, 5000000);//LPSのCSピン、SPI通信の設定
     Serial.println("lps set done");
-    uint8_t a = lps.WhoAmI();
+    uint8_t a = lps.WhoAmI();//LPSのwhoamiを取得
     Serial.print("lps whoami is");
     Serial.println(a);
 }
@@ -32,12 +32,12 @@ void loop() {
     }
     if (flag > 0) {
         uint8_t data[3] = {};
-        lps.Get(data);
+        lps.Get(data);//生データを三つに分けて取得
         for (int i = 0; i < 3; i++) {
             Serial.print(data[i]);
             Serial.print(",\t");
         }
-        Serial.println(lps.Plessure);
+        Serial.println(lps.Plessure);//生データから計算して気圧を表示
     }
     delay(1000);
 }
