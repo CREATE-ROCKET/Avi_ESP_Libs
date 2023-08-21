@@ -11,8 +11,7 @@ Copyright [2023] <CREATE TokyoTech>
 SPICREATE::SPICreate spi;
 LPS lps;
 int flag = 0;
-void setup()
-{
+void setup(){
     Serial.begin(115200);
     Serial.println("serial set done");
     delay(100);
@@ -25,21 +24,16 @@ void setup()
     Serial.print("lps whoami is");
     Serial.println(a);
 }
-void loop()
-{
-    if (Serial.available())
-    {
-        if (Serial.read() == 'l')
-        {
+void loop(){
+    if (Serial.available()){
+        if (Serial.read() == 'l'){
             flag = 1;
         }
     }
-    if (flag > 0)
-    {
+    if (flag > 0){
         uint8_t data[3] = {};
         lps.Get(data);
-        for (int i = 0; i < 3; i++)
-        {
+        for (int i = 0; i < 3; i++){
             Serial.print(data[i]);
             Serial.print(",\t");
         }
