@@ -237,9 +237,12 @@ void NEC920::setRfConf(uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t 
  */
 int NEC920::isWirelessModuleDead()
 {
-    if (micros() - timeSendingMSG > 1000000)
+    if (isSendingLocked == 1)
     {
-        return 1;
-    }
+        if (micros() - timeSendingMSG > 1000000)
+        {
+            return 1;
+        }
+        }
     return 0;
 }
