@@ -152,11 +152,11 @@ int NEC920::recieve()
             {
                 if (getMsgID(rxbff) == 0x00)
                 {
-                    ESP_LOGV("NEC920", "ACK:%02X",getMsgNo(rxbff));
+                    ESP_LOGV("NEC920", "ACK(success):%02X", getMsgNo(rxbff));
                 }
                 else
                 {
-                    ESP_LOGV("NEC920", "NACK");
+                    ESP_LOGV("NEC920", "ACK(fail):%02X", getMsgNo(rxbff));
                 }
                 isMsgRecieved = 0;
                 isSendingLocked = 0;
@@ -228,4 +228,18 @@ void NEC920::setRfConf(uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t 
     uint8_t packet[17];
     makepacket(packet, 0x21, 0x00, srcID, srcID, parameter, 4);
     ser->write(packet, 17);
+}
+
+/**
+ * @brief 無線モジュールの生存確認関数
+ *
+ * @return int 0...生存 1...死亡
+ */
+int NEC920::isWirelessModuleDead()
+{
+    if (micros() - timeSendingMSG > 1000000)
+    {
+        return 1;
+    }
+    return 0;
 }

@@ -46,6 +46,8 @@ public:
     int getMsgNo(uint8_t *arr);
 
     void setRfConf(uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode);
+
+    int isWirelessModuleDead();
 };
 
 #endif
