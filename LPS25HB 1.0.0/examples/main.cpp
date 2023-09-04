@@ -11,6 +11,7 @@ Copyright [2023] <CREATE TokyoTech>
 SPICREATE::SPICreate spi;
 LPS lps;
 int flag = 0;
+const int SPIFREQ = 5000000;
 void setup() {
     Serial.begin(115200);
     Serial.println("serial set done");
@@ -19,7 +20,7 @@ void setup() {
     spi.begin(VSPI, SCK, MISO, MOSI);
     Serial.println("spi set done");
     delay(100);
-    lps.begin(&spi, CS, 5000000);  // LPSのCSピン、SPI通信の設定
+    lps.begin(&spi, CS, SPIFREQ);  // LPSのCSピン、SPI通信の設定
     Serial.println("lps set done");
     uint8_t a = lps.WhoAmI();  // LPSのwhoamiを取得
     Serial.print("lps whoami is");
