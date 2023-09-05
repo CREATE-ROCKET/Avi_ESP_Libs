@@ -1,3 +1,7 @@
+/*
+Copyright [2023] <CREATE TokyoTech>
+*/
+
 #include <Arduino.h>
 #include <SPIflash.h>
 
