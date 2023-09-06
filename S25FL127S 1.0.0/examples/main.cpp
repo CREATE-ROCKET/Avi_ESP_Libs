@@ -1,3 +1,7 @@
+/*
+Copyright [2023] <CREATE TokyoTech>
+*/
+
 #include <Arduino.h>
 #include <SPIflash.h>
 
@@ -25,7 +29,7 @@ void setup() {
     SPIC1.begin(VSPI, SCK1, MISO1, MOSI1);
     // Flashの初期化
     flash1.begin(&SPIC1, flashCS, SPIFREQ);
-
+    // Flashのデータを一括消去
     flash1.erase();
 }
 
@@ -38,10 +42,10 @@ void loop() {
             tx[i] = i;
         }
         // 書き込み
-        flash1.write(count * 256, tx);
+        flash1.write(count * 0x100, tx);
         delay(1000);
         // 読み込み
-        flash1.read(count * 256, rx);
+        flash1.read(count * 0x100, rx);
         // 読み込んだデータをシリアルで表示
         Serial.print("at page ");
         Serial.println(count + 1);
