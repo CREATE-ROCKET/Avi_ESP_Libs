@@ -18,6 +18,8 @@ uint8_t rx[256] = {};
 SPICREATE::SPICreate SPIC1;
 Flash flash1;
 
+const int PageSize = 0x100;
+
 // SPIflash S25FL127S用サンプルコード
 
 void setup() {
@@ -42,10 +44,10 @@ void loop() {
             tx[i] = i;
         }
         // 書き込み
-        flash1.write(count * 0x100, tx);
+        flash1.write(count * PageSize, tx);
         delay(1000);
         // 読み込み
-        flash1.read(count * 0x100, rx);
+        flash1.read(count * PageSize, rx);
         // 読み込んだデータをシリアルで表示
         Serial.print("at page ");
         Serial.println(count + 1);
