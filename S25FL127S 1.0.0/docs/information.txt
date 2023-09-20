@@ -1,0 +1,8 @@
+S25FL127SはInfineon Technologies社製の不揮発性メモリである。
+NOR型フラッシュメモリ技術を採用しているため信頼性の高いデータ保持とデータの高速な読み取りが可能である。
+SPIと呼ばれる通信プロトコルを介して制御される。
+CREATEでは主に取得した気圧・加速度・角速度・GPSなどのデータの記録に用いられる。
+
+↓datasheet
+
+https://www.infineon.com/dgdl/Infineon-S25FL127S_128-Mb_(16_MB)_3.0_V_SPI_Flash_Memory-DataSheet-v11_00-EN.pdf?fileId=8ac78c8c7d0d8da4017d0ecfa58c49f7

@@ -1,0 +1,40 @@
+name: cpplint
+on: [push, pull_request]
+jobs:
+  cpplint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.x
+    - run: pip install cpplint
+    - run: cpplint --filter=-whitespace/indent --recursive ./* &> cpplint.txt
+      id: error_execution
+      continue-on-error: true
+    - run: echo "## C++ lint Checker" > comments
+
+    - name: Check cpplint status
+      if: ${{ github.event_name == 'pull_request' && steps.error_execution.outcome != 'failure' }}
+      run: |
+        echo "### No cpplint errors found :tada:" >> comments
+
+    - name: Check cpplint status
+      if: ${{ github.event_name == 'pull_request' && steps.error_execution.outcome == 'failure' }}
+      run: |
+          echo "### cpplint errors found :warning:" >> comments
+          sed -e "1i \`\`\`bash" cpplint.txt > cpplint_with_code_block.txt
+          sed -e '$a \`\`\`' cpplint_with_code_block.txt > cpplint_with_code_block_final.txt
+          less cpplint_with_code_block_final.txt >> comments
+
+    - name: Post log comments
+      if: ${{ github.event_name == 'pull_request' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        URL: ${{ github.event.pull_request.html_url }}
+      run:
+        gh pr comment -F ./comments "${URL}"
+
+    - name: Check cpplint status
+      if: ${{ steps.error_execution.outcome == 'failure' }}
+      run: exit 1

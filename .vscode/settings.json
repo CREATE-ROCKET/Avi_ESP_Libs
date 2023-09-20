@@ -1,0 +1,6 @@
+{
+    "C_Cpp.clang_format_fallbackStyle": "{ BasedOnStyle: Google, IndentWidth: 4 }",
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "C_Cpp.errorSquiggles": "disabled",
+}

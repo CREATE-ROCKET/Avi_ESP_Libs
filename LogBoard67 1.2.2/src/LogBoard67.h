@@ -1,15 +1,16 @@
+// Copyright [2023] <CREATE-ROCKET>
 // version: 1.2.2
 #pragma once
 
 #ifndef LogBoard67_H
 #define LogBoard67_H
 #include <Arduino.h>
-#include <SPICREATE.h>  // 2.0.0
-#include <S25FL512S.h>  // 1.2.1
-#include <H3LIS331.h>   // 1.2.0
-#include <ICM20948.h>   // 2.0.0
-#include <LPS25HB.h>    // 1.0.0
-#include <Log67Timer.h> // 1.0.0
+#include <H3LIS331.h>    // 1.2.0
+#include <ICM20948.h>    // 2.0.0
+#include <LPS25HB.h>     // 1.0.0
+#include <Log67Timer.h>  // 1.0.0
+#include <S25FL512S.h>   // 1.2.1
+#include <SPICREATE.h>   // 2.0.0
 
 // センサのクラス
 H3LIS331 H3lis331;
@@ -20,9 +21,8 @@ Flash flash1;
 // Timerクラスのインスタンス化
 Log67Timer timer;
 
-class LogBoard67
-{
-private:
+class LogBoard67 {
+   private:
     // SPI_FlashBuffは送る配列
     uint8_t SPI_FlashBuff[256] = {};
 
@@ -30,19 +30,17 @@ private:
     int CountSPIFlashDataSetExistInBuff = 0;
 
     // 時間
-    unsigned long Record_time;
+    unsigned int64 Record_time;
 
     // 気圧の回数の測定(5回に1回)
     uint8_t count_lps = 0;
 
-public:
+   public:
     void RoutineWork();
 };
 
-void LogBoard67::RoutineWork()
-{
-    if (SPIFlashLatestAddress >= SPI_FLASH_MAX_ADDRESS)
-    {
+void LogBoard67::RoutineWork() {
+    if (SPIFlashLatestAddress >= SPI_FLASH_MAX_ADDRESS) {
         Serial.printf("SPIFlashLatestAddress: %u\n", SPIFlashLatestAddress);
         // Serial2.write("SPI Flash is full");
         // Serial2.write("Started At: ");
@@ -52,8 +50,7 @@ void LogBoard67::RoutineWork()
         return;
     }
     // Serial.println("Running");
-    if (timer.start_flag)
-    {
+    if (timer.start_flag) {
         timer.start_time = micros();
         timer.start_flag = false;
     }
@@ -66,44 +63,44 @@ void LogBoard67::RoutineWork()
     uint8_t lps_rx[3] = {};
     // CountSPIFlashDataSetExistInBuffは列。indexは行。
     // 時間をとる
-    for (int index = 0; index < 4; index++)
-    {
-        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] = 0xFF & (Record_time >> (8 * index));
+    for (int index = 0; index < 4; index++) {
+        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] =
+            0xFF & (Record_time >> (8 * index));
     }
 
     // 加速度をとる
     H3lis331.Get2(H3lisReceiveData, H3lis_rx_buf);
     icm20948.Get(Icm20948ReceiveData, Icm20948_rx_buf);
-    for (int index = 4; index < 10; index++)
-    {
-        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] = H3lis_rx_buf[index - 4];
+    for (int index = 4; index < 10; index++) {
+        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] =
+            H3lis_rx_buf[index - 4];
     }
 
     // ICM20948の加速度をとる
-    for (int index = 10; index < 16; index++)
-    {
-        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] = Icm20948_rx_buf[index - 10];
+    for (int index = 10; index < 16; index++) {
+        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] =
+            Icm20948_rx_buf[index - 10];
     }
 
     // ICM20948の角速度をとる
-    for (int index = 16; index < 22; index++)
-    {
-        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] = Icm20948_rx_buf[index - 10];
+    for (int index = 16; index < 22; index++) {
+        SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] =
+            Icm20948_rx_buf[index - 10];
     }
 
     // ICM20948の地磁気をとる
     // for (int index = 22; index < 28; index++)
     // {
-    //   SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] = Icm20948_rx_buf[index - 10];
+    //   SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] =
+    //   Icm20948_rx_buf[index - 10];
     // }
 
     // LPSの気圧をとる
-    if (count_lps % 20 == 0)
-    {
+    if (count_lps % 20 == 0) {
         Lps25.Get(lps_rx);
-        for (int index = 28; index < 31; index++)
-        {
-            SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] = lps_rx[index - 28];
+        for (int index = 28; index < 31; index++) {
+            SPI_FlashBuff[32 * CountSPIFlashDataSetExistInBuff + index] =
+                lps_rx[index - 28];
             count_lps = 0;
         }
     }
@@ -112,8 +109,7 @@ void LogBoard67::RoutineWork()
     CountSPIFlashDataSetExistInBuff++;
 
     // 8個のデータが溜まったらSPIFlashに書き込む
-    if (CountSPIFlashDataSetExistInBuff >= 8)
-    {
+    if (CountSPIFlashDataSetExistInBuff >= 8) {
         // データの書き込み
         flash1.write(SPIFlashLatestAddress, SPI_FlashBuff);
         // アドレスの更新

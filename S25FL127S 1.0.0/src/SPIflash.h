@@ -1,12 +1,13 @@
+// Copyright [2023] <CREATE-ROCKET>
 // version: 1.0.0
 #pragma once
 
 #ifndef SPIFlash_H
 #define SPIFlash_H
-#include <SPICREATE.h> // 2.0.0
 #include <Arduino.h>
+#include <SPICREATE.h>  // 2.0.0
 
-using namespace arduino::esp32::spi::dma;
+using arduino::esp32::spi::dma::SPICreate;
 
 #define CMD_RDID 0x9f
 #define CMD_READ 0x03
@@ -18,21 +19,20 @@ using namespace arduino::esp32::spi::dma;
 #define CMD_PP 0x02
 #define CMD_RDSR 0x05
 
-class Flash
-{
+class Flash {
     int CS;
     int deviceHandle{-1};
     SPICREATE::SPICreate *flashSPI;
 
-public:
-    void begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq = 8000000);
+   public:
+    void begin(SPICREATE::SPICreate *targetSPI, int cs,
+               uint32_t freq = 8000000);
     void erase();
     void write(uint32_t addr, uint8_t *tx);
     void read(uint32_t addr, uint8_t *rx);
 };
 
-void Flash::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
-{
+void Flash::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq) {
     CS = cs;
     flashSPI = targetSPI;
     spi_device_interface_config_t if_cfg = {};
@@ -54,27 +54,23 @@ void Flash::begin(SPICREATE::SPICreate *targetSPI, int cs, uint32_t freq)
     deviceHandle = flashSPI->addDevice(&if_cfg, cs);
     uint8_t readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
 
-    while (readStatus != 0)
-    {
+    while (readStatus != 0) {
         readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
         delay(100);
     }
     delay(100);
     return;
 }
-void Flash::erase()
-{
+void Flash::erase() {
     Serial.println("start erase");
-    if (flashSPI == NULL)
-    {
+    if (flashSPI == NULL) {
         return;
     }
 
     flashSPI->sendCmd(CMD_WREN, deviceHandle);
     flashSPI->sendCmd(CMD_BE, deviceHandle);
     uint8_t readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
-    while (readStatus != 0)
-    {
+    while (readStatus != 0) {
         readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
         Serial.print(",");
         delay(100);
@@ -82,8 +78,7 @@ void Flash::erase()
     Serial.println("Bulk Erased");
     return;
 }
-void Flash::write(uint32_t addr, uint8_t *tx)
-{
+void Flash::write(uint32_t addr, uint8_t *tx) {
     flashSPI->sendCmd(CMD_WREN, deviceHandle);
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
@@ -91,18 +86,18 @@ void Flash::write(uint32_t addr, uint8_t *tx)
     comm.cmd = CMD_PP;
     comm.addr = addr;
     comm.tx_buffer = tx;
-    comm.user = (void *)&CS;
+    comm.user = reinterpret_cast<void *>(&CS);
 
     spi_transaction_ext_t spi_transaction = {};
     spi_transaction.base = comm;
     spi_transaction.command_bits = 8;
     spi_transaction.address_bits = 24;
 
-    flashSPI->transmit((spi_transaction_t *)&spi_transaction, deviceHandle);
+    flashSPI->transmit(reinterpret_cast<void *>(&spi_transaction),
+                       deviceHandle);
     return;
 }
-void Flash::read(uint32_t addr, uint8_t *rx)
-{
+void Flash::read(uint32_t addr, uint8_t *rx) {
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
     comm.length = (256) * 8;
@@ -110,13 +105,14 @@ void Flash::read(uint32_t addr, uint8_t *rx)
     comm.addr = addr;
     comm.tx_buffer = NULL;
     comm.rx_buffer = rx;
-    comm.user = (void *)CS;
+    comm.user = reinterpret_cast<void *>(CS);
 
     spi_transaction_ext_t spi_transaction = {};
     spi_transaction.base = comm;
     spi_transaction.command_bits = 8;
     spi_transaction.address_bits = 24;
-    flashSPI->transmit((spi_transaction_t *)&spi_transaction, deviceHandle);
+    flashSPI->transmit(reinterpret_cast<spi_transaction_t *>(&spi_transaction),
+                       deviceHandle);
 }
 
 #endif
