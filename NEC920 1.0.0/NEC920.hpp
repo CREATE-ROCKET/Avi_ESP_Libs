@@ -46,11 +46,20 @@ private:
     uint8_t getMsgNo(uint8_t *arr);
     uint8_t getMsgParam(uint8_t *arr);
 
+    /*-----------------ブート時間制御関係-----------------*/
+    bool lastBootTimeValid = 0;
+    uint32_t lastBootTime = 0;
+    void setBootTime();
+
 public:
+    /*-----------------ブート時間制御関係-----------------*/
+    uint8_t isBootFinished(uint32_t threshold_us);
+
     /*-----------------端子インターフェースの関数-----------------*/
     void setPin(uint8_t pin920Reset, uint8_t pin920Wakeup, uint8_t pin920Mode);
     void goSleep();
     void goWakeUp();
+    void reboot();
 
     /*-----------------シリアルポート関係の関数-----------------*/
     void beginSerial(HardwareSerial *serial, uint32_t baudrate, uint8_t rx, uint8_t tx);

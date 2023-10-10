@@ -77,6 +77,39 @@ uint8_t NEC920::getMsgParam(uint8_t *arr)
     return rxbff[2];
 }
 
+/*-----------------ブート時間制御関係-----------------*/
+
+void NEC920::setBootTime()
+{
+    lastBootTimeValid = 1;
+    lastBootTime = micros();
+}
+
+/**
+ * @brief ブート時間が閾値を超えたか確認する関数
+ *
+ * @param threshold_us 閾値[us] (データシートでは400,000us)
+ */
+uint8_t NEC920::isBootFinished(uint32_t threshold_us)
+{
+    if (lastBootTimeValid == 0)
+    {
+        return 1;
+    }
+    else
+    {
+        if ((micros() - lastBootTime) > threshold_us)
+        {
+            lastBootTimeValid = 0;
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
+    }
+}
+
 /*-----------------端子インターフェースの関数-----------------*/
 
 /**
@@ -97,6 +130,8 @@ void NEC920::setPin(uint8_t pin920Reset, uint8_t pin920Wakeup, uint8_t pin920Mod
     digitalWrite(pin920Reset, HIGH);
     digitalWrite(pin920Wakeup, HIGH);
     pinMode(pin920Mode, INPUT);
+
+    setBootTime();
 }
 
 /**
@@ -211,6 +246,8 @@ uint8_t NEC920::recieve()
     }
     return 0;
 }
+
+/*-----------------各種コマンド-----------------*/
 
 /**
  * @brief 無線設定関数
