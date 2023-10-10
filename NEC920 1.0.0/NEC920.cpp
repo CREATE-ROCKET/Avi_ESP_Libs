@@ -72,14 +72,13 @@ uint8_t NEC920::getMsgParam(uint8_t *arr)
     {
         arr[i] = rxbff[i];
     }
-    isMsgRecieved = 0;
 
     return rxbff[2];
 }
 
 /*-----------------ブート時間制御関係-----------------*/
 
-void NEC920::setBootTime()
+void NEC920::setLastBootTime()
 {
     lastBootTimeValid = 1;
     lastBootTime = micros();
@@ -110,6 +109,38 @@ uint8_t NEC920::isBootFinished(uint32_t threshold_us)
     }
 }
 
+void NEC920::startReboot()
+{
+    nowRebooting = 1;
+    rebootStartTime = micros();
+    digitalWrite(pin920Reset, LOW);
+}
+
+/**
+ * @brief 無線モジュールのリセットを行う関数
+ *
+ * @param threshold_us リセット完了までの時間[us] (データシートでは10,000us)
+ * @return uint8_t 0...リセット完了 1...リセット中
+ */
+uint8_t NEC920::doReboot(uint32_t threshold_us)
+{
+    if (nowRebooting == 0)
+    {
+        return 0;
+    }
+    else
+    {
+        if ((micros() - rebootStartTime) > threshold_us)
+        {
+            nowRebooting = 0;
+            digitalWrite(pin920Reset, HIGH);
+            setLastBootTime();
+            return 0;
+        }
+        return 1;
+    }
+}
+
 /*-----------------端子インターフェースの関数-----------------*/
 
 /**
@@ -131,7 +162,7 @@ void NEC920::setPin(uint8_t pin920Reset, uint8_t pin920Wakeup, uint8_t pin920Mod
     digitalWrite(pin920Wakeup, HIGH);
     pinMode(pin920Mode, INPUT);
 
-    setBootTime();
+    setLastBootTime();
 }
 
 /**
@@ -202,7 +233,7 @@ uint8_t NEC920::recieve()
         return 0;
     }
 
-    while (ser->available() > 0)
+    while (ser->available())
     {
         if (rxIndex == 0)
         {
@@ -255,7 +286,7 @@ uint8_t NEC920::recieve()
  *
  * @return uint8_t 0...成功 1...失敗
  */
-uint8_t NEC920::setRfConf(uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode)
+uint8_t NEC920::setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode)
 {
     uint8_t parameter[4];
     parameter[0] = Power;
@@ -263,7 +294,7 @@ uint8_t NEC920::setRfConf(uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8
     parameter[2] = RF_Band;
     parameter[3] = CS_Mode;
     uint8_t packet[17];
-    makepacket(packet, 0x21, 0x71, dummyID, dummyID, parameter, 4);
+    makepacket(packet, 0x21, msgNo, dummyID, dummyID, parameter, 4);
     ser->write(packet, 17);
 
     while (recieve() == 0)
@@ -272,6 +303,7 @@ uint8_t NEC920::setRfConf(uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8
     }
     uint8_t RfConfResult = getMsgID(rxbff);
     ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", RfConfResult, getMsgNo(rxbff));
+    isMsgRecieved = 0;
     if (RfConfResult == NEC920CONSTS::MSGID_RETURN_OK)
     {
         ESP_LOGV("NEC920", "RfConf Success");
