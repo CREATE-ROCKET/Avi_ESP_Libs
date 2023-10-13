@@ -31,9 +31,9 @@ private:
     uint32_t timeSendingLastMSG;
 
     /*受信用変数*/
-    uint8_t rxbff[256];
+    uint8_t rxBff[256];
     uint8_t rxIndex = 0;
-    bool isMsgRecieved = 0;
+    bool isContainDatainRxBff = 0;
 
     /*ピン*/
     uint8_t pin920Reset;  // output L...リセット開始
@@ -70,6 +70,7 @@ public:
 
     /*-----------------送受信コア-----------------*/
     uint8_t recieve();
+    void dataUseEnd();
 
     /*-----------------各種コマンド-----------------*/
     uint8_t setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode);

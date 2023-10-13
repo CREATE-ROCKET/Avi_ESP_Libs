@@ -64,16 +64,16 @@ uint8_t NEC920::getMsgNo(uint8_t *arr)
  */
 uint8_t NEC920::getMsgParam(uint8_t *arr)
 {
-    if (isMsgRecieved == 0)
+    if (isContainDatainRxBff == 0)
     {
         return 0;
     }
-    for (int i = 0; i < rxbff[2]; i++)
+    for (int i = 0; i < rxBff[2]; i++)
     {
-        arr[i] = rxbff[i];
+        arr[i] = rxBff[i];
     }
 
-    return rxbff[2];
+    return rxBff[2];
 }
 
 /*-----------------ブート時間制御関係-----------------*/
@@ -217,8 +217,8 @@ uint8_t NEC920::isSerialValid()
 
 /**
  * @brief 受信関数
- * 無線通信モジュールからの受信を行う関数，受信したデータはrxbffに格納される．
- * 受信したデータはisMsgRecievedで管理され，isMsgRecievedが1の時は受信済み．
+ * 無線通信モジュールからの受信を行う関数，受信したデータはrxBffに格納される．
+ * 受信したデータはisContainDatainRxBffで管理され，isContainDatainRxBffが1の時は受信済み．
  * @return int 0...メッセージはない　1...メッセージがある
  */
 uint8_t NEC920::recieve()
@@ -228,7 +228,7 @@ uint8_t NEC920::recieve()
         return 0;
     }
 
-    if (isMsgRecieved == 1)
+    if (isContainDatainRxBff == 1)
     {
         return 0;
     }
@@ -239,7 +239,7 @@ uint8_t NEC920::recieve()
         {
             if (ser->read() == NEC920CONSTS::HEADER_0)
             {
-                rxbff[rxIndex] = NEC920CONSTS::HEADER_0;
+                rxBff[rxIndex] = NEC920CONSTS::HEADER_0;
                 rxIndex++;
             }
         }
@@ -247,7 +247,7 @@ uint8_t NEC920::recieve()
         {
             if (ser->read() == NEC920CONSTS::HEADER_1)
             {
-                rxbff[rxIndex] = NEC920CONSTS::HEADER_1;
+                rxBff[rxIndex] = NEC920CONSTS::HEADER_1;
                 rxIndex++;
             }
             else
@@ -257,25 +257,30 @@ uint8_t NEC920::recieve()
         }
         else if (rxIndex == 2)
         {
-            rxbff[rxIndex] = ser->read();
+            rxBff[rxIndex] = ser->read();
             rxIndex++;
         }
-        else if ((rxIndex > 2) && (rxbff[2] - 1 == rxIndex))
+        else if ((rxIndex > 2) && (rxBff[2] - 1 == rxIndex))
         {
             // 受信完了
-            rxbff[rxIndex] = ser->read();
+            rxBff[rxIndex] = ser->read();
             rxIndex = 0;
-            isMsgRecieved = 1;
+            isContainDatainRxBff = 1;
 
             return 1;
         }
         else
         {
-            rxbff[rxIndex] = ser->read();
+            rxBff[rxIndex] = ser->read();
             rxIndex++;
         }
     }
     return 0;
+}
+
+void NEC920::dataUseEnd()
+{
+    isContainDatainRxBff = 0;
 }
 
 /*-----------------各種コマンド-----------------*/
@@ -301,9 +306,9 @@ uint8_t NEC920::setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t
     {
         NOP();
     }
-    uint8_t RfConfResult = getMsgID(rxbff);
-    ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", RfConfResult, getMsgNo(rxbff));
-    isMsgRecieved = 0;
+    uint8_t RfConfResult = getMsgID(rxBff);
+    ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", RfConfResult, getMsgNo(rxBff));
+    dataUseEnd();
     if (RfConfResult == NEC920CONSTS::MSGID_RETURN_OK)
     {
         ESP_LOGV("NEC920", "RfConf Success");
