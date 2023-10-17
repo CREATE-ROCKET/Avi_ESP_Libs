@@ -2,6 +2,7 @@
 
 - H3LIS331 1.2.0
 - ICM20948 2.0.0
+- ICM20602 1.0.0
 - LPS25HB 1.0.0
 - LogBoard67 1.2.2
 - LogTIMER 1.0.0
