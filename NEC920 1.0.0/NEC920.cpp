@@ -1,5 +1,4 @@
 #include "NEC920.hpp"
-#include "Arduino.h"
 
 /*-----------------パケット操作関係の関数-----------------*/
 
@@ -55,26 +54,6 @@ uint8_t NEC920::getMsgID(uint8_t *arr)
 uint8_t NEC920::getMsgNo(uint8_t *arr)
 {
     return arr[4];
-}
-
-/**
- * @brief 受信データを取得する関数
- *
- * @param arr 受信データを格納する配列
- * @return int 受信データの長さ
- */
-uint8_t NEC920::getMsgParam(uint8_t *arr)
-{
-    if (isContainDatainRxBff == 0)
-    {
-        return 0;
-    }
-    for (int i = 0; i < rxBff[2]; i++)
-    {
-        arr[i] = rxBff[i];
-    }
-
-    return rxBff[2];
 }
 
 /*-----------------ブート時間制御関係-----------------*/
@@ -268,6 +247,7 @@ uint8_t NEC920::recieve()
             rxIndex = 0;
             isContainDatainRxBff = 1;
 
+            canSendMsg = 1;
             return 1;
         }
         else
@@ -303,24 +283,29 @@ void NEC920::setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF
     uint8_t packet[17];
     makepacket(packet, 0x21, msgNo, dummyID, dummyID, parameter, 4);
     ser->write(packet, 17);
+    canSendMsg = 0;
+    lastSendMsgNo = msgNo;
+    lastMsgSendTime = micros();
+}
 
-    // while (recieve() == 0)
-    // {
-    //     NOP();
-    // }
-    // uint8_t RfConfResult = getMsgID(rxBff);
-    // ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", RfConfResult, getMsgNo(rxBff));
-    // dataUseEnd();
-    // if (RfConfResult == NEC920CONSTS::MSGID_RETURN_OK)
-    // {
-    //     ESP_LOGV("NEC920", "RfConf Success");
-    //     return 0;
-    // }
-    // else
-    // {
-    //     ESP_LOGV("NEC920", "RfConf Failed");
-    //     return 1;
-    // }
+uint8_t NEC920::isRecieveCmdResult()
+{
+    if (getMsgID(rxBff) == NEC920CONSTS::MSGID_RETURN_OK)
+    {
+        return 1;
+    }
+    else if (getMsgID(rxBff) == NEC920CONSTS::MSGID_RETURN_NG)
+    {
+        return 1;
+    }
+    else if (getMsgID(rxBff) == NEC920CONSTS::MSGID_SEND_RESEND)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
 }
 
 /**
@@ -331,7 +316,6 @@ void NEC920::setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF
  */
 uint8_t NEC920::checkCmdResult(uint8_t msgNo)
 {
-    ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", getMsgID(rxBff), getMsgNo(rxBff));
     if (getMsgID(rxBff) == NEC920CONSTS::MSGID_RETURN_OK)
     {
         if (getMsgNo(rxBff) == msgNo)
@@ -346,5 +330,80 @@ uint8_t NEC920::checkCmdResult(uint8_t msgNo)
     else
     {
         return 1;
+    }
+}
+
+uint8_t NEC920::canSendMsgCheck()
+{
+    return canSendMsg;
+}
+
+/**
+ * @brief
+ *
+ * @param msgID 0x11...再送あり 0x13...再送なし
+ * @param msgNo
+ * @param dst 送信先デバイスID
+ * @param src 送信元デバイスID
+ * @param data 送信データ
+ * @param dataLength 送信データの長さ
+ */
+void NEC920::sendTxCmd(uint8_t msgID, uint8_t msgNo, uint8_t *dst, uint8_t *data, uint8_t dataLength)
+{
+    uint8_t packet[NEC920CONSTS::PACKET_MAX_LENGTH];
+    makepacket(packet, msgID, msgNo, dst, dummyID, data, dataLength);
+    ser->write(packet, dataLength + 13);
+    canSendMsg = 0;
+    lastSendMsgNo = msgNo;
+    lastMsgSendTime = micros();
+}
+
+uint8_t NEC920::isRecieveCmdData()
+{
+    if (getMsgID(rxBff) == NEC920CONSTS::MSGID_SEND)
+    {
+        return 1;
+    }
+    else if (getMsgID(rxBff) == NEC920CONSTS::MSGID_SEND_NORESEND)
+    {
+        return 1;
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+uint8_t NEC920::getRecieveData(uint8_t *arr)
+{
+    if (isContainDatainRxBff == 0)
+    {
+        return 0;
+    }
+    for (int i = 0; i < rxBff[2]; i++)
+    {
+        arr[i] = rxBff[i];
+    }
+
+    return rxBff[2];
+}
+
+uint8_t NEC920::isModuleDeadByTimeout(uint32_t timeout_us)
+{
+    if (canSendMsg == 1)
+    {
+        return 0;
+    }
+    else
+    {
+        if ((micros() - lastMsgSendTime) > timeout_us)
+        {
+            canSendMsg = 1;
+            return 1;
+        }
+        else
+        {
+            return 0;
+        }
     }
 }

@@ -13,6 +13,7 @@ namespace NEC920CONSTS
     constexpr uint8_t PACKET_MAX_LENGTH = 254;
 
     constexpr uint8_t MSGID_SEND = 0x11;
+    constexpr uint8_t MSGID_SEND_RESEND = 0x12;
     constexpr uint8_t MSGID_SEND_NORESEND = 0x13;
     constexpr uint8_t MSGID_RETURN_OK = 0x00;
     constexpr uint8_t MSGID_RETURN_NG = 0x01;
@@ -24,6 +25,11 @@ private:
     uint8_t dummyID[4] = {0xFF, 0xFF, 0xFF, 0xFF};
 
     HardwareSerial *ser;
+
+    /*送信関係用*/
+    uint8_t canSendMsg = 1; /** 送信可能かどうか 0...送信不可 1...送信可*/
+    uint8_t lastSendMsgNo;
+    uint32_t lastMsgSendTime /**us*/;
 
     /*受信用変数*/
     uint8_t rxBff[256];
@@ -39,7 +45,6 @@ private:
     uint8_t makepacket(uint8_t *packet, uint8_t msgID, uint8_t msgNo, uint8_t *dst, uint8_t *src, uint8_t *parameter, uint8_t parameterLength);
     uint8_t getMsgID(uint8_t *arr);
     uint8_t getMsgNo(uint8_t *arr);
-    uint8_t getMsgParam(uint8_t *arr);
 
     /*-----------------ブート時間制御関係-----------------*/
     bool lastBootTimeValid = 0;
@@ -69,7 +74,13 @@ public:
 
     /*-----------------各種コマンド-----------------*/
     void setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode);
+    uint8_t isRecieveCmdResult();
     uint8_t checkCmdResult(uint8_t msgNo);
+    uint8_t canSendMsgCheck();
+    void sendTxCmd(uint8_t msgID, uint8_t msgNo, uint8_t *dst, uint8_t *data, uint8_t dataLength);
+    uint8_t isRecieveCmdData();
+    uint8_t getRecieveData(uint8_t *arr);
+    uint8_t isModuleDeadByTimeout(uint32_t timeout_us);
 };
 
 #endif
