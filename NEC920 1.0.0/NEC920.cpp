@@ -1,4 +1,5 @@
 #include "NEC920.hpp"
+#include "Arduino.h"
 
 /*-----------------パケット操作関係の関数-----------------*/
 
@@ -230,7 +231,7 @@ uint8_t NEC920::recieve()
 
     if (isContainDatainRxBff == 1)
     {
-        return 0;
+        return 1;
     }
 
     while (ser->available())
@@ -291,7 +292,8 @@ void NEC920::dataUseEnd()
  *
  * @return uint8_t 0...成功 1...失敗
  */
-uint8_t NEC920::setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode)
+
+void NEC920::setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode)
 {
     uint8_t parameter[4];
     parameter[0] = Power;
@@ -302,21 +304,47 @@ uint8_t NEC920::setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t
     makepacket(packet, 0x21, msgNo, dummyID, dummyID, parameter, 4);
     ser->write(packet, 17);
 
-    while (recieve() == 0)
+    // while (recieve() == 0)
+    // {
+    //     NOP();
+    // }
+    // uint8_t RfConfResult = getMsgID(rxBff);
+    // ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", RfConfResult, getMsgNo(rxBff));
+    // dataUseEnd();
+    // if (RfConfResult == NEC920CONSTS::MSGID_RETURN_OK)
+    // {
+    //     ESP_LOGV("NEC920", "RfConf Success");
+    //     return 0;
+    // }
+    // else
+    // {
+    //     ESP_LOGV("NEC920", "RfConf Failed");
+    //     return 1;
+    // }
+}
+
+/**
+ * @brief コマンドの実行結果を確認する関数
+ *
+ * @param msgNo コマンドの識別番号
+ * @return uint8_t 0...成功 1...失敗
+ */
+uint8_t NEC920::checkCmdResult(uint8_t msgNo)
+{
+    ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", getMsgID(rxBff), getMsgNo(rxBff));
+    if (getMsgID(rxBff) == NEC920CONSTS::MSGID_RETURN_OK)
     {
-        NOP();
-    }
-    uint8_t RfConfResult = getMsgID(rxBff);
-    ESP_LOGV("NEC920", "returnMsg ID:%02X No:%02X", RfConfResult, getMsgNo(rxBff));
-    dataUseEnd();
-    if (RfConfResult == NEC920CONSTS::MSGID_RETURN_OK)
-    {
-        ESP_LOGV("NEC920", "RfConf Success");
-        return 0;
+        if (getMsgNo(rxBff) == msgNo)
+        {
+            return 0;
+        }
+        else
+        {
+            return 1;
+        }
     }
     else
     {
-        ESP_LOGV("NEC920", "RfConf Failed");
         return 1;
     }
 }

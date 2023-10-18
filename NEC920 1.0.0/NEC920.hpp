@@ -25,11 +25,6 @@ private:
 
     HardwareSerial *ser;
 
-    /*送信をロックする用の変数*/
-    bool isSendingLocked = 0;
-    uint8_t msgNoLastSendingMSG;
-    uint32_t timeSendingLastMSG;
-
     /*受信用変数*/
     uint8_t rxBff[256];
     uint8_t rxIndex = 0;
@@ -73,7 +68,8 @@ public:
     void dataUseEnd();
 
     /*-----------------各種コマンド-----------------*/
-    uint8_t setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode);
+    void setRfConf(uint8_t msgNo, uint8_t Power, uint8_t Channel, uint8_t RF_Band, uint8_t CS_Mode);
+    uint8_t checkCmdResult(uint8_t msgNo);
 };
 
 #endif
