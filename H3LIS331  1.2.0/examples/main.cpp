@@ -1,3 +1,6 @@
+// Copyright [2023] <CREATE-ROCKET>
+// version: 1.2.0
+
 #include <Arduino.h>
 #include <H3LIS331.h>
 #include <SPICREATE.h>
@@ -46,5 +49,5 @@ void loop() {
         Serial.print(rx[1]);
         Serial.print(",");
         Serial.println(rx[2]);
-        }
+    }
 }
