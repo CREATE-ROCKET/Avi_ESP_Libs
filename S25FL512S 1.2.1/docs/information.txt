@@ -1,0 +1,4 @@
+記憶素子の一種で高速な書き込みが可能であるが容量が比較的小さい。
+
+データシート
+    https://www.infineon.com/dgdl/Infineon-S25FL512S_512_Mb_(64_MB)_3.0_V_SPI_Flash_Memory-DataSheet-v20_00-EN.pdf?fileId=8ac78c8c7d0d8da4017d0ed046ae4b53
