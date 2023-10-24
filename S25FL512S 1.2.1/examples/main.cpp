@@ -1,3 +1,4 @@
+// Copyright [2023] <CREATE-ROCKET>
 #include <Arduino.h>
 #include <S25FL512S.h>
 
