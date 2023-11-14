@@ -1,0 +1,2 @@
+9軸（3軸加速度＋３軸角速度＋３軸地磁気）を計測できるセンサー
+https://product.ydk.com/ja/search/sensor/mortion-inertial/imu/ifo?part_no=ICM-20948
