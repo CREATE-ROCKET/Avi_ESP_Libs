@@ -28,7 +28,7 @@ void setup() {
 
     // WhoAmI
     uint8_t a;
-    a = H3lis331.WhoImI();
+    a = H3lis331.WhoAmI();
     Serial.print("WhoAmI:");
     Serial.println(a);
     if (a == 0x32) {
@@ -41,13 +41,15 @@ void setup() {
 
 void loop() {
     // put your main code here, to run repeatedly:
-    if (WhoAmI_Ok == true) {
-        int16_t rx[3];
-        H3lis331.Get(rx);
-        Serial.print(rx[0]);
-        Serial.print(",");
-        Serial.print(rx[1]);
-        Serial.print(",");
-        Serial.println(rx[2]);
-    }
+    // if (WhoAmI_Ok == true) {
+    //     int16_t rx[3];
+    //     H3lis331.Get(rx);
+    //     Serial.print(rx[0]);
+    //     Serial.print(",");
+    //     Serial.print(rx[1]);
+    //     Serial.print(",");
+    //     Serial.println(rx[2]);
+    //     delay(10000);
+
+    // }
 }
