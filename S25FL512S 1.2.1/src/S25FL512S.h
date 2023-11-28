@@ -43,10 +43,20 @@ uint8_t flashRead[256];
 uint8_t flashRead1[256];
 uint8_t flashRead2[256];
 
+typedef enum {
+    deleting = 0,
+    not_deleting,
+    unexpected,
+} erase_status_code_define;
+
 class Flash {
     int CS;
     int deviceHandle{-1};
     SPICREATE::SPICreate *flashSPI;
+    erase_status_code_define erase_status_code =
+        erase_status_code_define::not_deleting;
+    xTaskHandle xEraseHandle;
+    IRAM_ATTR void eraser(void *parameters);
 
    public:
     void begin(SPICREATE::SPICreate *targetSPI, int cs,
@@ -54,6 +64,10 @@ class Flash {
     uint32_t checkAddress(uint32_t FlashAddress);
     uint32_t setFlashAddress();
     void erase();
+    void erase_silent(const char *const pcName = "eraser",
+                      const uint32_t usStackDepth = 8192, int uxPriority = 1,
+                      int xCoreID = PRO_CPU_NUM);
+    int erase_status();
     void write(uint32_t addr, uint8_t *tx);
     void read(uint32_t addr, uint8_t *rx);
 };
@@ -154,10 +168,12 @@ uint32_t Flash::setFlashAddress() {
 }
 
 void Flash::erase() {
-    Serial.println("start erase");
     if (flashSPI == NULL) {
         return;
     }
+
+    Serial.println("start erase");
+    erase_status_code = erase_status_code_define::deleting;
 
     flashSPI->sendCmd(CMD_WREN, deviceHandle);
     flashSPI->sendCmd(CMD_BE, deviceHandle);
@@ -168,13 +184,56 @@ void Flash::erase() {
         delay(100);
     }
     Serial.println("Bulk Erased");
+    erase_status_code = erase_status_code_define::not_deleting;
     return;
 }
+
+void Flash::erase_silent(const char *const pcName = "eraser",
+                         const uint32_t usStackDepth = 8192, int uxPriority = 1,
+                         int xCoreID = PRO_CPU_NUM) {
+    if (flashSPI == NULL) {
+        return;
+    }
+    parameter eTaskState status = eTaskGetState(xEraseHandle);
+    if (status != eDeleted) {
+        return;
+    }
+    xTaskCreateUniversal(eraser, pcName, usStackDepth, &Flash, uxPriority,
+                         &xEraseHandle, xCoreID);
+}
+
+void Flash::erase_status() { return erase_status_code; }
+
+IRAM_ATTR void eraser(void *parameters) {
+    flash = *(Flash *)parameters;
+    portTickType xLastWakeTime = xTaskGetTickCount();
+    if (flash.flashSPI == NULL) {
+        return;
+    }
+
+    erase_status_code = erase_status_code_define::deleting;
+
+    flashSPI->sendCmd(CMD_WREN, flash.deviceHandle);
+    flashSPI->sendCmd(CMD_BE, flash.deviceHandle);
+    uint8_t readStatus = flashSPI->readByte(CMD_RDSR, flash.deviceHandle);
+    for (;;) {
+        if (readStatus != 0) {
+            readStatus = flashSPI->readByte(CMD_RDSR, flash.deviceHandle);
+        } else {
+            break;
+        }
+        vTaskDelayUntil(&xLastWakeTime,
+                        100 / portTICK_PERIOD_MS);  // 100ms = 10Hz
+    }
+    erase_status_code = erase_status_code_define::not_deleting;
+    vTaskDelete(flash.xEraseHandle);
+}
+
 void Flash::write(uint32_t addr, uint8_t *tx) {
     flashSPI->sendCmd(CMD_WREN, deviceHandle);
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
-    comm.length = (PAGE_LENGTH)*8;
+    comm.length = (PAGE_LENGTH) * 8;
     comm.cmd = CMD_4PP;
     comm.addr = addr;
     comm.tx_buffer = tx;
@@ -192,7 +251,7 @@ void Flash::write(uint32_t addr, uint8_t *tx) {
 void Flash::read(uint32_t addr, uint8_t *rx) {
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
-    comm.length = (PAGE_LENGTH)*8;
+    comm.length = (PAGE_LENGTH) * 8;
     comm.cmd = CMD_4READ;
     comm.addr = addr;
     comm.tx_buffer = NULL;
