@@ -167,7 +167,7 @@ uint32_t Flash::setFlashAddress()
 
 void Flash::erase()
 {
-    Serial.println("start erase");
+    // Serial.println("start erase");
     if (flashSPI == NULL)
     {
         return;
@@ -179,10 +179,10 @@ void Flash::erase()
     while (readStatus != 0)
     {
         readStatus = flashSPI->readByte(CMD_RDSR, deviceHandle);
-        Serial.print(",");
+        // Serial.print(",");
         delay(100);
     }
-    Serial.println("Bulk Erased");
+    // Serial.println("Bulk Erased");
     return;
 }
 void Flash::write(uint32_t addr, uint8_t *tx)
