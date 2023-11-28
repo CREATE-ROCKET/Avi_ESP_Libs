@@ -2,6 +2,11 @@
 Copyright [2023] <CREATE TokyoTech>
 */
 
+#pragma once
+
+#ifndef S25FL512S_1_2_1_EXAMPLES_ERASE_SILENT_H_
+#define S25FL512S_1_2_1_EXAMPLES_ERASE_SILENT_H_
+
 #include <Arduino.h>
 #include <S25FL512S.h>
 
@@ -68,3 +73,5 @@ void loop() {
         delay(100);
     }
 }
+
+#endif  // S25FL512S_1_2_1_EXAMPLES_ERASE_SILENT_H_
