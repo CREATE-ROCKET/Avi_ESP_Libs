@@ -3,9 +3,7 @@ Copyright [2023] <CREATE TokyoTech>
 */
 
 #include <Arduino.h>
-#include <S25FL512.h>
-
-#define SPIFREQ 5000000
+#include <S25FL512S.h>
 
 uint8_t tx[256] = {};
 uint8_t rx[256] = {};
@@ -14,6 +12,7 @@ uint8_t rx[256] = {};
 #define SCK1 33
 #define MISO1 25
 #define MOSI1 26
+#define SPIFREQ SPI_MASTER_FREQ_8M
 
 SPICREATE::SPICreate SPIC1;
 Flash flash1;
@@ -35,9 +34,10 @@ void setup() {
     // Flashのデータを一括消去開始
     flash1.erase_silent();
 
-    while (flash1.erase_status_code != erase_status_code_define::not_deleting) {
+    while (flash1.erase_status() == erase_status_code_define::deleting) {
         // ここに消去中の処理を書く
-        Serial.Println("Deleting Now!");
+        Serial.println("Deleting Now!");
+        Serial.println(flash1.erase_status());
         delay(100);  // ここは何秒でもいい
     }
 }
