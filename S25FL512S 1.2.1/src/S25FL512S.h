@@ -169,7 +169,8 @@ uint32_t Flash::setFlashAddress() {
 }
 
 IRAM_ATTR void eraser(void* parameters) {
-    Flash flash = *(Flash*)parameters;
+    Flash flash = *(reinterpret_cast<Flash*>(parameters));
+
     portTickType xLastWakeTime = xTaskGetTickCount();
     SPICREATE::SPICreate* flashSPI = flash.getSPI();
     if (flashSPI == NULL) {
