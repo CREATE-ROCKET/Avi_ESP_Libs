@@ -1,4 +1,8 @@
-記憶素子の一種で高速な書き込みが可能である。
+S25FL512SはInfineon Technologies社製の不揮発性メモリである。
+NOR型フラッシュメモリ技術を採用しているため信頼性の高いデータ保持とデータの高速な読み取りが可能である。
+SPIと呼ばれる通信プロトコルを介して制御される。
+S25FL127Sの容量が16MBなのに対して、S25FL512Sの容量は64MBである。
+CREATEでは主に取得した気圧・加速度・角速度・GPSなどのデータの記録に用いられる。
 
 データシート
     https://www.infineon.com/dgdl/Infineon-S25FL512S_512_Mb_(64_MB)_3.0_V_SPI_Flash_Memory-DataSheet-v20_00-EN.pdf?fileId=8ac78c8c7d0d8da4017d0ed046ae4b53
