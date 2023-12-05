@@ -18,6 +18,7 @@ SPICREATE::SPICreate SPIC;
 Flash flash1;
 
 const int PageSize = 0x100;
+uint32_t Addr;
 
 // SPIflash S25FL512S用サンプルコード
 
@@ -32,23 +33,23 @@ void setup() {
     flash1.begin(&SPIC, flashCS, SPIFREQ);
     // Flashのデータを一括消去
     flash1.erase();
-
-    int count = 0;
+    // 空いているところを探す
+    Addr = flash1.setFlashAddress();
 }
+
+int count = 0;
 
 void loop() {
     if (count < 3) {
-        // 空いているところを探す
-        uint32_t Addr = flash1.setFlashAddress();
         // 書き込むデータを作る
         for (int i = 0; i < 256; i++) {
             tx[i] = i;
         }
         // 書き込み
-        flash1.write(Addr, tx);
+        flash1.write(Addr + count * PageSize, tx);
         delay(1000);
         // 読み込み
-        flash1.read(Addr, rx);
+        flash1.read(Addr + count * PageSize, rx);
         // 読み込んだデータをシリアルで表示
         Serial.print("at page ");
         Serial.println(count + 1);

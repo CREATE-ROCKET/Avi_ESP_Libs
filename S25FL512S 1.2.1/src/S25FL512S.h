@@ -37,16 +37,16 @@ uint32_t SPI_FLASH_MAX_ADDRESS = 0x8000000;
 // 0x000はreboot対策のどこまでSPI Flashに書き込んだかを記録するページ
 // setup()で初期値でも0x100にしている
 uint32_t SPIFlashLatestAddress = 0x000;
-
-uint8_t count = 1;
 uint8_t flashRead[256];
 uint8_t flashRead1[256];
 uint8_t flashRead2[256];
 
 class Flash {
+   private:
     int CS;
     int deviceHandle{-1};
     SPICREATE::SPICreate *flashSPI;
+    uint8_t count = 1;
 
    public:
     void begin(SPICREATE::SPICreate *targetSPI, int cs,
@@ -174,7 +174,7 @@ void Flash::write(uint32_t addr, uint8_t *tx) {
     flashSPI->sendCmd(CMD_WREN, deviceHandle);
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
-    comm.length = (PAGE_LENGTH)*8;
+    comm.length = (PAGE_LENGTH) * 8;
     comm.cmd = CMD_4PP;
     comm.addr = addr;
     comm.tx_buffer = tx;
@@ -192,7 +192,7 @@ void Flash::write(uint32_t addr, uint8_t *tx) {
 void Flash::read(uint32_t addr, uint8_t *rx) {
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
-    comm.length = (PAGE_LENGTH)*8;
+    comm.length = (PAGE_LENGTH) * 8;
     comm.cmd = CMD_4READ;
     comm.addr = addr;
     comm.tx_buffer = NULL;
