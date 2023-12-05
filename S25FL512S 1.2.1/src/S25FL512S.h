@@ -29,6 +29,7 @@ using arduino::esp32::spi::dma::SPICreate;
 // 512.
 #define PAGE_LENGTH 256
 
+
 typedef enum {
     deleting = 0,
     not_deleting,
@@ -36,6 +37,7 @@ typedef enum {
 } erase_status_code_define;
 
 class Flash {
+   private:
     int CS;
     int deviceHandle{-1};
     SPICREATE::SPICreate* flashSPI;
