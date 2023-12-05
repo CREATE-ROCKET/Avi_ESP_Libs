@@ -30,7 +30,6 @@ void setup() {
 }
 
 void loop() {
-    
     icm20948.Get(ICM_data, ICM_data_raw);
     Serial.print(ICM_data[0]);
     Serial.print(",");
