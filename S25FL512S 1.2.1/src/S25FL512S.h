@@ -29,24 +29,23 @@ using arduino::esp32::spi::dma::SPICreate;
 // 512.
 #define PAGE_LENGTH 256
 
-// SPI Flashの最大のアドレス (1回で1/2ページ書き込んでいる点に注意)
-// (512 * 1024 * 1024 / 8 / 256 ページ * 256) * 2 = 524288 * 256
-uint32_t SPI_FLASH_MAX_ADDRESS = 0x8000000;
-
-// SPIFlashLatestAddressは書き込むアドレス。初期値は0x000
-// 0x000はreboot対策のどこまでSPI Flashに書き込んだかを記録するページ
-// setup()で初期値でも0x100にしている
-uint32_t SPIFlashLatestAddress = 0x000;
-uint8_t flashRead[256];
-uint8_t flashRead1[256];
-uint8_t flashRead2[256];
-
 class Flash {
    private:
     int CS;
     int deviceHandle{-1};
     SPICREATE::SPICreate *flashSPI;
     uint8_t count = 1;
+    // SPI Flashの最大のアドレス (1回で1/2ページ書き込んでいる点に注意)
+    // (512 * 1024 * 1024 / 8 / 256 ページ * 256) * 2 = 524288 * 256
+    uint32_t SPI_FLASH_MAX_ADDRESS = 0x8000000;
+
+    // SPIFlashLatestAddressは書き込むアドレス。初期値は0x000
+    // 0x000はreboot対策のどこまでSPI Flashに書き込んだかを記録するページ
+    // setup()で初期値でも0x100にしている
+    uint32_t SPIFlashLatestAddress = 0x000;
+    uint8_t flashRead[256];
+    uint8_t flashRead1[256];
+    uint8_t flashRead2[256];
 
    public:
     void begin(SPICREATE::SPICreate *targetSPI, int cs,
