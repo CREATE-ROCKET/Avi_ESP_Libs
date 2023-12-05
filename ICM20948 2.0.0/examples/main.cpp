@@ -6,10 +6,10 @@ Copyright [2023] <CREATE TokyoTech>
 #include <ICM20948.h>
 #include <SPICREATE.h>
 
-#define ICMSCK 33   
-#define ICMMISO 25  
-#define ICMMOSI 26  
-#define ICMCS 27    
+#define ICMSCK 33
+#define ICMMISO 25
+#define ICMMOSI 26
+#define ICMCS 27
 #define SPIFREQ 1200000
 
 ICM icm20948;
