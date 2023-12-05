@@ -16,7 +16,11 @@ ICM icm20948;
 
 SPICREATE::SPICreate SPIC;
 
+int16_t ICM_data[6];
+uint8_t ICM_data_raw[14];
+
 void setup() {
+  delay(3000);
     Serial.begin(115200);
     SPIC.begin(VSPI, ICMSCK, ICMMISO, ICMMOSI);
     icm20948.begin(&SPIC, ICMCS, SPIFREQ);
@@ -26,8 +30,7 @@ void setup() {
 }
 
 void loop() {
-    int16_t ICM_data[6];
-    uint8_t ICM_data_raw[14];
+    
     icm20948.Get(ICM_data, ICM_data_raw);
     Serial.print(ICM_data[0]);
     Serial.print(",");
@@ -40,4 +43,5 @@ void loop() {
     Serial.print(ICM_data[4]);
     Serial.print(",");
     Serial.println(ICM_data[5]);
+    delay(1000);
 }
