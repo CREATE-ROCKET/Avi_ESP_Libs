@@ -55,14 +55,14 @@ uint8_t ICM::WhoAmI()
 
 /**
  * @fn
- * ICMから加速度、角速度、タイムスタンプを取得
+ * ICMから加速度、角速度を取得
  */
 void ICM::Get(int16_t *rx)
 {
-    uint8_t rx_buf[14];
+    uint8_t rx_buf[12];
     spi_transaction_t comm = {};
     comm.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
-    comm.length = (14) * 8;
+    comm.length = (12) * 8;
     comm.cmd = ICM_Data_Adress | 0x80;
 
     comm.tx_buffer = NULL;
@@ -80,7 +80,6 @@ void ICM::Get(int16_t *rx)
     rx[3] = (rx_buf[6] << 8 | rx_buf[7]);
     rx[4] = (rx_buf[8] << 8 | rx_buf[9]);
     rx[5] = (rx_buf[10] << 8 | rx_buf[11]);
-    rx[6] = (rx_buf[12] << 8 | rx_buf[13]);
     return;
 }
 #endif
