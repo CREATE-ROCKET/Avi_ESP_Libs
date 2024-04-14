@@ -1,0 +1,5 @@
+H3LIS331は、デジタル I²C/SPI シリアル インターフェイス標準出力を備えた、高 g、低電力、高性能 3 軸線形加速度計です。
+高度な省電力とスマートなスリープからウェイクアップ機能を可能にする超低電力動作モードを備えています。
+ユーザーが動的に選択可能な±100g/±200g/±400g のフルスケールを備えており、0.5 Hz ～ 1 kHz の出力データレートで加速度を測定できます。
+H3LIS331は、小型薄型プラスチック ランド グリッド アレイ パッケージ (LGA) で提供され、-40 °C ～ +85 °C の拡張温度範囲での動作が保証されています。
+DataSheet：https://www.st.com/content/ccc/resource/technical/document/datasheet/3e/48/02/c7/a4/e6/41/bb/DM00053090.pdf/files/DM00053090.pdf/jcr:content/translations/en.DM00053090.pdf
