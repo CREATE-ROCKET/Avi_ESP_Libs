@@ -92,6 +92,7 @@ bool SPICreate::rmDevice(int deviceHandle)
         // printf("[ERROR] SPI bus remove device failed : %d\n", e);
         return false;
     }
+    return true;
 }
 void SPICreate::sendCmd(uint8_t cmd, int deviceHandle)
 {
