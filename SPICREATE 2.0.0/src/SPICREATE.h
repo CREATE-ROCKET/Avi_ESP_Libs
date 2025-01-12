@@ -26,7 +26,13 @@ namespace arduino
                     spi_device_handle_t handle[10];
                     int CSs[10];
                     int deviceNum{0};
-                    spi_host_device_t host{HSPI_HOST};
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+                    spi_host_device_t host{SPI2_HOST};
+#elif CONFIG_IDF_TARGET_ESP32
+                    spi_host_device_t host{HSPI_HOST}
+#else
+#error "No supported board specified!!!"
+#endif
                     uint8_t mode{SPI_MODE3}; // must be 1 or 3
                     int dma_chan{1};         // must be 1 or 2
                     int max_size{4094};      // default size
@@ -53,8 +59,8 @@ namespace arduino
                     void pollTransmit(spi_transaction_t *transaction, int deviceHandle);
                 };
             } // dma
-        }     // spi
-    }         // esp32
+        } // spi
+    } // esp32
 } // arduino
 
 #ifndef SPICREATE_BEGIN
