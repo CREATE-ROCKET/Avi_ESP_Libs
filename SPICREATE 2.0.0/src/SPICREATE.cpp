@@ -63,8 +63,9 @@ int SPICreate::addDevice(spi_device_interface_config_t *if_cfg, int cs)
 
     if_cfg->spics_io_num = cs;
 
-    if (deviceNum > 9)
+    if (deviceNum > 3)
     {
+        ESP_LOGE("SPICreate", "SPI Peripherels can add only 3 devices");
         return 0;
     }
     esp_err_t e = spi_bus_add_device(host, if_cfg, &handle[deviceNum]);

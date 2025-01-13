@@ -8,6 +8,7 @@
 #include <SPI.h>
 #include <driver/spi_master.h>
 #include <deque>
+#include <esp_log.h>
 
 void csSet(spi_transaction_t *t);
 void csReset(spi_transaction_t *t);
@@ -23,7 +24,7 @@ namespace arduino
                 class SPICreate
                 {
                     spi_bus_config_t bus_cfg = {};
-                    spi_device_handle_t handle[10];
+                    spi_device_handle_t handle[3];
                     int deviceNum{0};
                     spi_host_device_t host{HSPI_HOST};
                     uint8_t mode{SPI_MODE3}; // must be 1 or 3
