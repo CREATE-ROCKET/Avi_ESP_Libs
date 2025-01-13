@@ -1,15 +1,6 @@
 // version: 2.0.0
 #include "SPICREATE.h" // 2.0.0
-void csSet(spi_transaction_t *t)
-{
-    digitalWrite((int)t->user, HIGH);
-    return;
-}
-void csReset(spi_transaction_t *t)
-{
-    digitalWrite((int)t->user, LOW);
-    return;
-}
+
 SPICREATE_BEGIN
 
 bool SPICreate::begin(uint8_t spi_bus, int8_t sck, int8_t miso, int8_t mosi, uint32_t f)
@@ -69,9 +60,9 @@ bool SPICreate::end()
 int SPICreate::addDevice(spi_device_interface_config_t *if_cfg, int cs)
 {
     deviceNum++;
-    CSs[deviceNum] = cs;
-    pinMode(cs, OUTPUT);
-    digitalWrite(cs, HIGH);
+
+    if_cfg->spics_io_num = cs;
+
     if (deviceNum > 9)
     {
         return 0;
@@ -100,7 +91,6 @@ void SPICreate::sendCmd(uint8_t cmd, int deviceHandle)
     comm.flags = SPI_TRANS_USE_TXDATA;
     comm.length = 8;
     comm.tx_data[0] = cmd;
-    comm.user = (void *)CSs[deviceHandle];
     pollTransmit(&comm, deviceHandle);
 }
 uint8_t SPICreate::readByte(uint8_t addr, int deviceHandle)
@@ -109,7 +99,6 @@ uint8_t SPICreate::readByte(uint8_t addr, int deviceHandle)
     comm.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
     comm.tx_data[0] = addr;
     comm.length = 16;
-    comm.user = (void *)CSs[deviceHandle];
     pollTransmit(&comm, deviceHandle);
     return comm.rx_data[1];
 }
@@ -138,9 +127,7 @@ void SPICreate::transmit(uint8_t *tx, uint8_t *rx, int size, int deviceHandle)
 
 void SPICreate::transmit(spi_transaction_t *transaction, int deviceHandle)
 {
-    digitalWrite(CSs[deviceHandle], LOW);
     esp_err_t e = spi_device_transmit(handle[deviceHandle], transaction);
-    digitalWrite(CSs[deviceHandle], HIGH);
     return;
 }
 void SPICreate::pollTransmit(spi_transaction_t *transaction, int deviceHandle)
