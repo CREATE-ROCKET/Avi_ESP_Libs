@@ -7,43 +7,23 @@ bool SPICreate::begin(uint8_t spi_bus, int8_t sck, int8_t miso, int8_t mosi, uin
 {
 
     frequency = f;
-    if ((sck == -1) && (miso == -1) && (mosi == -1))
-    {
-        bus_cfg.sclk_io_num = (spi_bus == VSPI) ? SCK : 14;
-        bus_cfg.miso_io_num = (spi_bus == VSPI) ? MISO : 12;
-        bus_cfg.mosi_io_num = (spi_bus == VSPI) ? MOSI : 13;
-    }
-    else
-    {
-        bus_cfg.sclk_io_num = sck;
-        bus_cfg.miso_io_num = miso;
-        bus_cfg.mosi_io_num = mosi;
-    }
-
+    bus_cfg.sclk_io_num = (sck < 0) ? 14 : sck;
+    bus_cfg.miso_io_num = (miso < 0) ? 12 : miso;
+    bus_cfg.mosi_io_num = (mosi < 0) ? 13 : mosi;
     bus_cfg.max_transfer_sz = max_size;
 
-    if ((mode != SPI_MODE1) && (mode != SPI_MODE3))
-    {
-        mode = SPI_MODE3;
+
+    if (mode != 1 && mode != 3) {
+        mode = 3;
     }
 
-    host = (spi_bus == HSPI) ? HSPI_HOST : VSPI_HOST;
-    dma_chan = 1;
-    if (spi_bus == VSPI)
-    {
-        dma_chan = 1;
-    }
-    if (spi_bus == HSPI)
-    {
-        dma_chan = 2;
-    }
-    esp_err_t e = spi_bus_initialize(host, &bus_cfg, dma_chan);
-    if (e != ESP_OK)
-    {
-        // printf("[ERROR] SPI bus initialize failed : %d\n", e);
+    host = host_in; 
+
+    esp_err_t e = spi_bus_initialize(host, &bus_cfg, SPI_DMA_CH_AUTO);
+    if (e != ESP_OK) {
+        ESP_LOGE("SPICreate", "SPI bus initialize failed : %d", e);
         return false;
     }
-
     return true;
 }
 bool SPICreate::end()
