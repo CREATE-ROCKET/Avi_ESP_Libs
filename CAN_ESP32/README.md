@@ -129,12 +129,6 @@ char文字列は、最後にnull文字(int型で0)が来ている必要があり
 #define CAN_RX 17 // CAN ICのTXに接続しているピン
 #define CAN_TX 18 // CAN ICのRXに接続しているピン
 
-C#include <CAN.h>
-#include <Arduino.h>
-
-#define CAN_RX 17 // CAN ICのTXに接続しているピン
-#define CAN_TX 18 // CAN ICのRXに接続しているピン
-
 CAN_CREATE CAN(true); // 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる
 
 void setup()
