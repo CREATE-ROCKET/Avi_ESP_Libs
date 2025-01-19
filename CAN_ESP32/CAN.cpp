@@ -7,6 +7,10 @@
 #include <stdint.h>
 #include <driver/twai.h>
 #include <driver/gpio.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
+#include <freertos/queue.h>
+#include <freertos/semphr.h>
 #include <string.h>
 
 #ifdef DEBUG
@@ -16,6 +20,36 @@
 #include <esp_log.h>
 #endif
 #endif
+
+TaskHandle_t CanWatchDogTaskHandle;
+
+/**
+ * ESP32 twai_driverは
+ */
+void CanWatchDog(void *pvParameter)
+{
+    twai_status_info_t twai_status;
+    for (;;)
+    {
+        if (twai_get_status_info(&twai_status) == ESP_OK)
+        {
+            if (twai_status.state == TWAI_STATE_BUS_OFF)
+            {
+                if (twai_initiate_recovery() == ESP_ERR_INVALID_STATE)
+                {
+                    // TODO
+                    pr_debug("[FATAL ERROR] twai driver is bus_off state and cannot recovery");
+                }
+            }
+        }
+        /* ESP_OK以外は
+            ESP_ERR_INVALID_ARG: Arguments are invalid
+            ESP_ERR_INVALID_STATE: TWAI driver is not installed
+            なので一旦無視
+        */
+        vTaskDelay(500 / portTICK_PERIOD_MS); // 0.5秒おきに
+    }
+}
 
 // private関数
 void CAN_CREATE::bus_on()
@@ -144,6 +178,11 @@ int CAN_CREATE::_begin(long baudRate)
         return 4;
     }
     already_begin = true;
+
+    if (CanWatchDogTaskHandle)
+    {
+        vTaskResume(&CanWatchDogTaskHandle);
+    }
     return 0;
 }
 
@@ -216,7 +255,7 @@ int CAN_CREATE::_sendLine(int id, char *data, int num, uint32_t waitTime)
  *  return_new 古いreturn手法を用いるか否か true推奨
  *             falseにした場合、setPin begin read sendPacket関数のみを用いる必要がある
  */
-CAN_CREATE::CAN_CREATE(bool is_new)
+CAN_CREATE::CAN_CREATE(bool is_new, bool enableCanWatchDog)
 {
     _rx = GPIO_NUM_MAX;
     _tx = GPIO_NUM_MAX;
@@ -229,6 +268,11 @@ CAN_CREATE::CAN_CREATE(bool is_new)
         pr_debug("Warning: This library runs in legacy compatible mode.\r\n"
                  "In this mode, only setPin, begin, read, and sendPacket functions can be used.\r\n"
                  "If you want to use the newer mode, please use CAN_CREATE(true);");
+    }
+    if (enableCanWatchDog)
+    {
+        xTaskCreatePinnedToCore(CanWatchDog, "CanWatchDog", 1024, NULL, tskIDLE_PRIORITY, &CanWatchDogTaskHandle, tskNO_AFFINITY);
+        vTaskSuspend(CanWatchDogTaskHandle);
     }
 }
 
@@ -301,6 +345,7 @@ void CAN_CREATE::end()
     {
         pr_debug("[ERROR] failed to uninstall twai driver %d", result);
     }
+    vTaskDelete(CanWatchDogTaskHandle);
 }
 
 int test()
