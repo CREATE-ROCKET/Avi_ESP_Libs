@@ -29,6 +29,7 @@
 #define DEBUG
 
 #ifdef DEBUG
+#ifndef pr_debug
 #ifdef ARDUINO
 
 inline void pr_debug_checker(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
@@ -55,6 +56,7 @@ inline void pr_debug_checker(const char *fmt, ...) {}
 #endif
 #else
 #define pr_debug(fmt, ...)
+#endif
 #endif
 
 typedef struct
