@@ -8,7 +8,6 @@
 #include <driver/twai.h>
 #include <driver/gpio.h>
 #include <freertos/FreeRTOS.h>
-#include <freertos/semphr.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 #include <string.h>
@@ -322,6 +321,7 @@ int CAN_CREATE::begin(long baudRate)
  */
 int CAN_CREATE::begin(long baudRate, int rx, int tx, int id, int bus_off)
 {
+    old_mode_block;
     setPins(rx, tx, id, bus_off);
     return _begin(baudRate);
 }
