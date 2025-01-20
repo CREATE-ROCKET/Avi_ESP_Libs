@@ -188,8 +188,81 @@ void loop()
 }
 ```
 
+### 送信ステータスを得られるようにした例
+
+```cpp
+#include <CAN.h>
+#include <Arduino.h>
+
+#define CAN_RX 17 // CAN ICのTXに接続しているピン
+#define CAN_TX 18 // CAN ICのRXに接続しているピン
+
+CAN_CREATE CAN(true); // 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる
+
+void setup()
+{
+  Serial.begin(115200);
+  while (!Serial)
+    ;
+  delay(1000);
+
+  Serial.println("CAN Sender");
+  // 100 kbpsでCANを動作させる
+  if (CAN.begin(100E3, CAN_RX, CAN_TX, 10))
+  {
+    Serial.println("Starting CAN failed!");
+    while (1)
+      ;
+  }
+}
+
+void loop()
+{
+  if (CAN.available()) // CAN受信用
+  {
+    // CANを受信していたら実行される
+    char Data;
+    if (CAN.read(&Data))
+    { // エラーの場合の処理
+      Serial.println("failed to get CAN data");
+    }
+    else
+      Serial.printf("Can received!!!: %c\n", Data);
+  }
+  if (Serial.available())
+  {
+    char cmd = Serial.read();
+    Serial.println(cmd);
+    if (CAN.sendChar(cmd))
+    {
+      Serial.println("failed to send CAN data");
+    }
+
+    // CREATE_CANライブラリが裏で処理を終わらせるための待ち時間 statusを見るために必要
+    delay(100);
+    switch (CAN.getStatus())
+    {
+    case can_err::CAN_SUCCESS:
+      Serial.println("Success to Send!!!");
+      break;
+    case can_err::CAN_NO_ALERTS:
+      Serial.println("CREATE_CAN driver isn't done yet");
+      break;
+    case can_err::CAN_BUS_ERROR:
+      Serial.println("Got a bus error on the CAN such as ACK Error");
+      break;
+    case can_err::CAN_TX_FAILED:
+      Serial.println("Can't send data, something other than a bus error might wrong");
+      break;
+    default:
+      Serial.println("Unknown error occurred!!!");
+      break;
+    }
+  }
+}
+```
+
 ## TODO リスト
 - common settingを作れるようにする
 - idの0と1を予約済みにして、それぞれ自分のデータの送信やcommon settingの受け渡しに使えるようにしたい
-- alertを使ってないから使う(エラー検出) status関数とかで実装する
 - test関数の実装
