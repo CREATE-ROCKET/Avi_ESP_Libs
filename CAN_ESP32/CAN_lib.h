@@ -16,6 +16,9 @@
 #define ACK_ERROR 1
 #define CAN_OK 2
 
+// 送信成功、バスのエラー、前回の送信失敗の3つを設定する
+#define TWAI_ALERTS_CONFIG TWAI_ALERT_TX_SUCCESS | TWAI_ALERT_BUS_ERROR | TWAI_ALERT_TX_FAILED
+
 #define old_mode_block                                           \
     do                                                           \
     {                                                            \
@@ -63,5 +66,14 @@ typedef struct
 {
 
 } can_setting_t;
+
+enum can_err
+{
+    CAN_SUCCESS,
+    CAN_NO_ALERTS,
+    CAN_BUS_ERROR,
+    CAN_TX_FAILED,
+    CAN_UNKNOWN_ERROR,
+}
 
 #endif

@@ -23,7 +23,7 @@
 TaskHandle_t CanWatchDogTaskHandle;
 
 /**
- * ESP32 twai_driverは
+ * ESP32 twai_driverは //TODO
  */
 void CanWatchDog(void *pvParameter)
 {
@@ -182,6 +182,9 @@ int CAN_CREATE::_begin(long baudRate)
     {
         vTaskResume(&CanWatchDogTaskHandle);
     }
+
+    // エラーとしてtwai_driver_not_installしかないから無視する
+    twai_reconfigure_alerts(TWAI_ALERT_TX_SUCCESS, NULL);
     return 0;
 }
 
@@ -348,7 +351,40 @@ void CAN_CREATE::end()
     vTaskDelete(CanWatchDogTaskHandle);
 }
 
-int test()
+/**
+ *  CANの送信ステータスを確認できる関数
+ *
+ *  返り値: can_errで定義されている
+ *      can_err::CAN_SUCCESS: 前回の送信が正常に成功した
+ *      can_err::CAN_NO_ALERTS: まだstatusが届いていない
+ *              (send関数のすぐ後の配置などが要因でまだ送信中)
+ *      can_err::CAN_BUS_ERROR: ACK ErrorやBit Errorなどのバスのエラー
+ *      can_err::CAN_TX_FAILED: CAN_BUS_ERROR以外の理由でデータが送信できなかった
+ *      can_err::CAN_UNKNOWN_ERROR: begin関数を実行していないまたは不明なエラー
+ */
+int CAN_CREATE::getStatus()
+{
+    uint32_t status;
+    esp_err_t result = twai_read_alerts(&status, 0);
+    if (result == ESP_ERR_TIMEOUT){
+        return CAN_NO_ALERTS; // 1: twai driver didn't receive any alerts
+    }
+    if (result == ESP_OK) {
+        if (status & TWAI_ALERT_TX_SUCCESS) {
+            return CAN_SUCCESS; // 0: data was successfully sent
+        }
+        if (status & TWAI_ALERT_TX_FAILED) {
+            if (status & TWAI_ALERT_BUS_ERROR){
+                return CAN_BUS_ERROR; // 2: failed to send data due to A (Bit, Stuff, CRC, Form, ACK) error has occurred on the bus
+            }
+            return CAN_TX_FAILED; // 3: failed to send data due to other types of error
+        }
+    }
+    pr_debug("[ERROR] failed to get status info");
+    return CAN_UNKNOWN_ERROR;
+}
+
+int CAN_CREATE::test()
 {
     // TODO WIP
     return 1;

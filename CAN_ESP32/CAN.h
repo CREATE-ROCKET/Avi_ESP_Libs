@@ -39,7 +39,7 @@ private:
 
 public:
     // CAN_CREATE(can_setting_t settings);
-    CAN_CREATE(bool return_new = false, bool enableCanWatchDog = true);
+    CAN_CREATE(bool return_new = true, bool enableCanWatchDog = true);
     ~CAN_CREATE();
 
     void setPins(int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
@@ -47,6 +47,7 @@ public:
     int begin(long baudRate, int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
     int begin();
     void end();
+    int getStatus();
     int test();
     void flush();
     int available();
