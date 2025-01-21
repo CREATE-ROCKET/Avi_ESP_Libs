@@ -1,4 +1,4 @@
-// Copyright (c) CREATE All rights reserved.
+// Copyright (c) CREATE-ROCKET All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 #pragma once
@@ -74,6 +74,6 @@ enum can_err
     CAN_BUS_ERROR,
     CAN_TX_FAILED,
     CAN_UNKNOWN_ERROR,
-}
+};
 
 #endif

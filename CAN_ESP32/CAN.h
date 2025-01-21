@@ -6,7 +6,7 @@
 //
 // ver 0.2.0
 //
-// Copyright (c) CREATE All rights reserved.
+// Copyright (c) CREATE-ROCKET All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 //
 // This library uses Nomal mode in Operating Mode
