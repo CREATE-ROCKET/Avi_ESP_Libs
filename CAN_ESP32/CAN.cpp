@@ -1,6 +1,12 @@
 // Copyright (c) CREATE-ROCKET All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+/**
+ * @file CAN.cpp
+ * @brief twai driver wrapper
+ * @copyright CREATE-ROCKET
+ */
+
 #include "CAN.h"
 
 // #include "CAN_lib.h"
@@ -75,7 +81,7 @@ void CAN_CREATE::bus_off()
  */
 int CAN_CREATE::return_with_compatiblity(int return_int)
 {
-    if (return_new)
+    if (_return_new)
     {
         return return_int;
     }
@@ -90,9 +96,9 @@ int CAN_CREATE::return_with_compatiblity(int return_int)
 }
 
 // private関数
-int CAN_CREATE::_begin(long baudRate)
+int CAN_CREATE::_begin(can_setting_t settings)
 {
-    if (already_begin)
+    if (_already_begin)
     {
         pr_debug("[ERROR] Begin function can be called once only.");
         return 5;
@@ -126,8 +132,10 @@ int CAN_CREATE::_begin(long baudRate)
     gpio_num_t ref_rx = _rx; // privateのままdefineを使いたい
     gpio_num_t ref_tx = _tx;
     _general_config = TWAI_GENERAL_CONFIG_DEFAULT(ref_tx, ref_rx, TWAI_MODE_NORMAL);
-    _filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-    switch (baudRate)
+    _filter_config = settings.filter_config;
+    _settings = settings;
+    _multi_send = true;
+    switch (settings.baudRate)
     {
     case (long)1000E3:
         _timing_config = TWAI_TIMING_CONFIG_1MBITS();
@@ -176,7 +184,7 @@ int CAN_CREATE::_begin(long baudRate)
         pr_debug("[ERROR] failed to start twai");
         return 4;
     }
-    already_begin = true;
+    _already_begin = true;
 
     if (CanWatchDogTaskHandle)
     {
@@ -186,6 +194,23 @@ int CAN_CREATE::_begin(long baudRate)
     // エラーとしてtwai_driver_not_installしかないから無視する
     twai_reconfigure_alerts(TWAI_ALERT_TX_SUCCESS, NULL);
     return 0;
+}
+
+void CAN_CREATE::_end()
+{
+    twai_status_info_t status;
+    if (twai_get_status_info(&status) != ESP_OK)
+        return;
+    if (status.state == TWAI_STATE_RUNNING || status.state == TWAI_STATE_RECOVERING)
+    {
+        twai_stop(); // TWAI_STATE_RECOVERINGの場合はだめかもしれない
+    }
+    // uninstallの前にtwai自体を止める必要がある
+    esp_err_t result = twai_driver_uninstall();
+    if (result != ESP_OK)
+    {
+        pr_debug("[ERROR] failed to uninstall twai driver %d", result);
+    }
 }
 
 twai_message_t getDataMessage(int id, char *data, int num)
@@ -203,28 +228,8 @@ twai_message_t getDataMessage(int id, char *data, int num)
     return message;
 }
 
-/**
- * データをCANに実際に送信する関数
- * 最大 waitTimeだけ時間がかかる
- * numにはdataの個数が正しく入っており、num <= 8を期待して検証は行わない
- * また、char *dataは文字列だが最後にnull characterはないものとする
- *
- * 返り値:
- *  0 success
- *  2 不正なid idは11bitまで
- *  3 データに誤りがある
- *  4 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
- *  5 twaiドライバが動作していない
- *  6 unknown error 出たら教えて
- */
-int CAN_CREATE::_sendLine(int id, char *data, int num, uint32_t waitTime)
+int CAN_CREATE::_send(twai_message_t message, uint32_t waitTime)
 {
-    if (id >= 1 << 11)
-    {
-        pr_debug("[ERROR] id must not exceed (1 << 11 - 1)");
-        return 1;
-    }
-    twai_message_t message = getDataMessage(id, data, num);
     esp_err_t result = twai_transmit(&message, waitTime);
     if (result != ESP_OK)
     {
@@ -250,6 +255,31 @@ int CAN_CREATE::_sendLine(int id, char *data, int num, uint32_t waitTime)
     return 0;
 }
 
+/**
+ * データをCANに実際に送信する関数
+ * 最大 waitTimeだけ時間がかかる
+ * numにはdataの個数が正しく入っており、num <= 8を期待して検証は行わない
+ * また、char *dataは文字列だが最後にnull characterはないものとする
+ *
+ * 返り値:
+ *  0 success
+ *  2 不正なid idは11bitまで
+ *  3 データに誤りがある
+ *  4 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
+ *  5 twaiドライバが動作していない
+ *  6 unknown error 出たら教えて
+ */
+int CAN_CREATE::_sendLine(int id, char *data, int num, uint32_t waitTime)
+{
+    if (id >= 1 << 11)
+    {
+        pr_debug("[ERROR] id must not exceed (1 << 11 - 1)");
+        return 1;
+    }
+    twai_message_t message = getDataMessage(id, data, num);
+    return _send(message, waitTime);
+}
+
 /*
  * CAN_CREATEのコンストラクタ
  *
@@ -263,9 +293,9 @@ CAN_CREATE::CAN_CREATE(bool is_new, bool enableCanWatchDog)
     _tx = GPIO_NUM_MAX;
     _bus_off = GPIO_NUM_MAX;
     _id = -1;
-    already_begin = false;
-    return_new = is_new;
-    if (!return_new)
+    _already_begin = false;
+    _return_new = is_new;
+    if (!_return_new)
     {
         pr_debug("Warning: This library runs in legacy compatible mode.\r\n"
                  "In this mode, only setPin, begin, read, and sendPacket functions can be used.\r\n"
@@ -284,6 +314,7 @@ CAN_CREATE::~CAN_CREATE() noexcept
 }
 
 /*
+ * @deprecated
  * 互換性のために残してある
  * 利用は非推奨
  */
@@ -296,12 +327,43 @@ void CAN_CREATE::setPins(int rx, int tx, int id, int bus_off)
 }
 
 /*
+ * @deprecated
  * 互換性のために残してある
  * 利用は非推奨
  */
 int CAN_CREATE::begin(long baudRate)
 {
-    return return_with_compatiblity(_begin(baudRate));
+    can_setting_t settings;
+    settings.baudRate = baudRate;
+    settings.multiData_send = true;
+    settings.filter_config.acceptance_code = 0;
+    settings.filter_config.acceptance_mask = (1 << 11) - 2;
+    settings.filter_config.single_filter = true;
+    return return_with_compatiblity(_begin(settings));
+}
+
+/**
+ * @brief setup内で最初に実行するべき関数 一度だけ実行できる
+ * @param[in] settings can_setting_t 型の引数 通信周波数等を設定可能 通信相手と共通化しておくこと
+ * @param[in] rx rxピンを指定する。CANトランシーバーのrxピンに接続されているピンを指定すること
+ * @param[in] tx txピンを指定する。CANトランシーバーのtxピンに接続されているピンを指定すること
+ * @param[in] id 送信するときにデフォルトで利用するidを選択する 省略できるが、その場合送るときに逐一idを指定する必要がある
+ * @param[in] bus_off CANトランシーバーのSTBYピンに接続されているピンを指定する なければ省略可
+ *
+ * @retval 0: success
+ * @retval 2: 対応していない通信周波数を指定した
+ * @retval 3: twai driverがインストールできなかった (txピン、rxピンに使用できないピンが指定されてる)
+ * @retval 4: twai driverがstartできなかった (基本ないはず)
+ * @retval 5: begin関数が再度呼び出された
+ * @retval 6: bus_offピンにOUTPUTに指定できないピンが指定された
+ * @retval 7: rxピンにOUTPUTに指定できないピンが指定された
+ * @retval 8: txピンにOUTPUTに指定できないピンが指定された
+ */
+int CAN_CREATE::begin(can_setting_t settings, int rx, int tx, int id, int bus_off)
+{
+    old_mode_block;
+    setPins(rx, tx, id, bus_off);
+    return _begin(settings);
 }
 
 /*
@@ -326,7 +388,19 @@ int CAN_CREATE::begin(long baudRate, int rx, int tx, int id, int bus_off)
 {
     old_mode_block;
     setPins(rx, tx, id, bus_off);
-    return _begin(baudRate);
+    can_setting_t settings;
+    settings.baudRate = baudRate;
+    settings.multiData_send = true;
+    settings.filter_config.acceptance_code = 0;
+    settings.filter_config.acceptance_mask = (1 << 11) - 2;
+    settings.filter_config.single_filter = true;
+    return _begin(settings);
+}
+
+int CAN_CREATE::re_configure(can_setting_t settings)
+{
+    _end();
+    return _begin(settings);
 }
 
 /*
@@ -335,19 +409,7 @@ int CAN_CREATE::begin(long baudRate, int rx, int tx, int id, int bus_off)
  */
 void CAN_CREATE::end()
 {
-    twai_status_info_t status;
-    if (twai_get_status_info(&status) != ESP_OK)
-        return;
-    if (status.state == TWAI_STATE_RUNNING || status.state == TWAI_STATE_RECOVERING)
-    {
-        twai_stop(); // TWAI_STATE_RECOVERINGの場合はだめかもしれない
-    }
-    // uninstallの前にtwai自体を止める必要がある
-    esp_err_t result = twai_driver_uninstall();
-    if (result != ESP_OK)
-    {
-        pr_debug("[ERROR] failed to uninstall twai driver %d", result);
-    }
+    _end();
     vTaskDelete(CanWatchDogTaskHandle);
 }
 
@@ -366,15 +428,20 @@ int CAN_CREATE::getStatus()
 {
     uint32_t status;
     esp_err_t result = twai_read_alerts(&status, 0);
-    if (result == ESP_ERR_TIMEOUT){
+    if (result == ESP_ERR_TIMEOUT)
+    {
         return CAN_NO_ALERTS; // 1: twai driver didn't receive any alerts
     }
-    if (result == ESP_OK) {
-        if (status & TWAI_ALERT_TX_SUCCESS) {
+    if (result == ESP_OK)
+    {
+        if (status & TWAI_ALERT_TX_SUCCESS)
+        {
             return CAN_SUCCESS; // 0: data was successfully sent
         }
-        if (status & TWAI_ALERT_TX_FAILED) {
-            if (status & TWAI_ALERT_BUS_ERROR){
+        if (status & TWAI_ALERT_TX_FAILED)
+        {
+            if (status & TWAI_ALERT_BUS_ERROR)
+            {
                 return CAN_BUS_ERROR; // 2: failed to send data due to A (Bit, Stuff, CRC, Form, ACK) error has occurred on the bus
             }
             return CAN_TX_FAILED; // 3: failed to send data due to other types of error
@@ -384,10 +451,113 @@ int CAN_CREATE::getStatus()
     return CAN_UNKNOWN_ERROR;
 }
 
-int CAN_CREATE::test()
+/**
+ * @brief CANが動作するかを確かめる関数
+ *
+ * テストデータを送信して、Bus Errorとなった場合に自分が送ったデータを自分で読み取れるかを確認する
+ *
+ * @attention この関数は実行に0.1秒以上かかるため、setup関数でのみ利用可能
+ * @attention 実行中に送信されてきたメッセージは受け取れない可能性がある。
+ * @note デフォルトでは通信id (1 << 11 - 1)で送信するため、このidはフィルタリングされる必要がある
+ *          can_setting_tのfilter_configがデフォルト設定なら自動的に設定される
+ *
+ * @param[in] int id テストで送信するidを指定する。空欄ならid 1 << 11 - 1 で送信される
+ *            CANのフィルタリング方法を知らないなら空欄のままが無難
+ * @return
+ *      CANの動作が正常に終了したかを確かめる
+ *      - can_err::CAN_SUCCESS: 正常終了
+ *      - can_err::CAN_UNKNOWN_ERROR: 失敗
+ *      - can_err::CAN_
+ *
+ * @warning もしかしたらidを除外しているときはACK出さないかも
+ */
+int CAN_CREATE::test(int id)
 {
-    // TODO WIP
-    return 1;
+    old_mode_block;
+    twai_message_t message{
+        0,  // standard format message
+        0,  // remote transmission request disabled
+        0,  // single shot transmission disabled
+        0,  // self reception disabled
+        id, // id
+        0,  // data num
+    };
+    int result = _send(message, 0);
+    if (result)
+    {
+        return CAN_UNKNOWN_ERROR;
+    }
+    int i = 0;
+    do
+    {
+        if (++i > 10)
+            break; // 1秒以上経っても送信中ならやめる
+        delay(100);
+        result = getStatus();
+    } while (result == can_err::CAN_NO_ALERTS);
+
+    if (result == can_err::CAN_SUCCESS)
+    {
+        return CAN_SUCCESS;
+    }
+    if (result == can_err::CAN_UNKNOWN_ERROR)
+    {
+        return CAN_UNKNOWN_ERROR;
+    }
+    // 通常の送信に失敗したので、自分で送ったデータを自分で受け取れるかを確かめる
+    can_setting_t backup_can_setting = _settings; // 今の状態を保存する
+    try
+    {
+        can_setting_t settings;
+        settings.baudRate = 25E3;
+        settings.multiData_send = true;
+        settings.filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+        vTaskSuspend(CanWatchDogTaskHandle);
+        re_configure(settings);
+        vTaskResume(CanWatchDogTaskHandle);
+        // 送信したデータが自分で受け取れるかを確かめる
+        twai_message_t message_self_reception = {
+            0,  // standard format message
+            0,  // remote transmission request disabled
+            1,  // single shot transmission enabled
+            1,  // self reception enabled
+            id, // id
+            0,  // data num
+        };
+        int result = _send(message_self_reception, 0);
+        if (result)
+        {
+            throw CAN_UNKNOWN_ERROR;
+        }
+
+        do
+        {
+            if (++i > 10)
+                break; // 1秒以上経っても送信中ならやめる
+            delay(100);
+            result = getStatus();
+        } while (result == can_err::CAN_NO_ALERTS);
+
+        if (available())
+        {
+            can_return_t data;
+            readWithDetail(&data);
+            if (data.id == (1 << 11) - 1)
+            {
+                throw CAN_NO_RESPONSE_ERROR; // 自身のCANコントローラーは生きていてBUSか相手のCANコントローラーが死んでる
+            }
+        }
+        throw CAN_CONTROLLER_ERROR;
+    }
+    catch (int err_type)
+    {
+        if (re_configure(backup_can_setting))
+        {
+            pr_debug("[FATAL ERROR] can't set setting property in test function\ncan turned off...");
+            _already_begin = false;
+        }
+        return err_type;
+    }
 }
 
 /*
@@ -413,6 +583,8 @@ void CAN_CREATE::flush()
  * 戻り値:
  *   0    データが受信されていない or 受信エラー
  *   1以上 データが受信キューにある
+ *
+ * @warning この関数は性質上エラーも0で返してしまうため注意
  */
 int CAN_CREATE::available()
 {
@@ -426,21 +598,7 @@ int CAN_CREATE::available()
     return twai_status.msgs_to_rx;
 }
 
-/*
- * CANに送られてきたデータを読む関数
- * available関数で1以上が帰ってきたときのみ利用可能
- * 8文字までのデータを受信できるが引数のcharのポインタを作る必要あり
- *
- *
- * 引数:
- *  charの配列のポインタ 9文字は入れられるサイズが必要 これにデータが入る
- * 戻り値:
- *  0 success
- *  1~4 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
- *  5 得られたデータがISO 11898-1互換ではなかった
- *  6 何も入っていないデータが得られた
- */
-int CAN_CREATE::readLine(char *readData)
+int CAN_CREATE::readWithDetail(can_return_t *readData)
 {
     old_mode_block;
     twai_message_t twai_message;
@@ -471,13 +629,41 @@ int CAN_CREATE::readLine(char *readData)
         pr_debug("[ERROR] This library needs to follow ISO 11898-1");
         return 6;
     }
-    if (!twai_message.data_length_code)
+    readData->size = twai_message.data_length_code;
+    readData->id = twai_message.identifier;
+    memcpy(readData->data, twai_message.data, twai_message.data_length_code * sizeof(char));
+    return 0;
+}
+
+/*
+ * CANに送られてきたデータを読む関数
+ * available関数で1以上が帰ってきたときのみ利用可能
+ * 8文字までのデータを受信できるが引数のcharのポインタを作る必要あり
+ *
+ *
+ * 引数:
+ *  charの配列のポインタ 9文字は入れられるサイズが必要 これにデータが入る
+ * 戻り値:
+ *  0 success
+ *  1~4 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
+ *  5 得られたデータがISO 11898-1互換ではなかった
+ *  6 何も入っていないデータが得られた
+ */
+int CAN_CREATE::readLine(char *readData)
+{
+    can_return_t readDataInternal;
+    int result = readWithDetail(&readDataInternal);
+    if (result)
+    {
+        return result;
+    }
+    if (!readDataInternal.size)
     {
         pr_debug("[ERROR] No data");
         return 7;
     }
-    memcpy(readData, twai_message.data, twai_message.data_length_code * sizeof(char));
-    readData[twai_message.data_length_code] = 0;
+    memcpy(readData, readDataInternal.data, readDataInternal.size * sizeof(char));
+    readData[readDataInternal.size] = 0;
     return 0;
 }
 
@@ -495,8 +681,7 @@ int CAN_CREATE::readLine(char *readData)
  *  6 何も入っていないデータが得られた
  */
 int CAN_CREATE::read(char *readData)
-{
-    old_mode_block;
+{                      // old_mode_blockはreadLineで実行される
     char Data[9] = {}; // すべてnull characterで初期化
     int result = readLine(Data);
     if (result)
@@ -519,7 +704,7 @@ int CAN_CREATE::read(char *readData)
  * 読むのに失敗したときの挙動が安全でないため利用は非推奨
  */
 char CAN_CREATE::read()
-{
+{ // TODO old_mode_blockが実行されちゃう
     char readData;
     if (read(&readData))
     {
@@ -588,6 +773,7 @@ uint8_t CAN_CREATE::sendPacket(int id, char data)
 int CAN_CREATE::sendLine(int id, const char *data)
 {
     old_mode_block;
+    multi_send_block;
     char sendData[8];
     int i = 0;
     while (data[i] != 0)
@@ -607,6 +793,7 @@ int CAN_CREATE::sendLine(int id, const char *data)
 int CAN_CREATE::sendLine(const char *data)
 {
     old_mode_block;
+    multi_send_block;
     if (_id == -1)
     {
         pr_debug("[ERROR] you have to set id in begin or use sendChar(id, data)");
@@ -618,6 +805,7 @@ int CAN_CREATE::sendLine(const char *data)
 int CAN_CREATE::sendData(int id, uint8_t *data, int num)
 {
     old_mode_block;
+    multi_send_block;
     if (num > 8)
     {
         pr_debug("[ERROR] CAN support to transfer maximum 8 character");
@@ -631,6 +819,7 @@ int CAN_CREATE::sendData(int id, uint8_t *data, int num)
 int CAN_CREATE::sendData(uint8_t *data, int num)
 {
     old_mode_block;
+    multi_send_block;
     if (_id == -1)
     {
         pr_debug("[ERROR] you have to set id in begin or use sendData(id, data)");

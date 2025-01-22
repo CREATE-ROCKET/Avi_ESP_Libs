@@ -29,31 +29,39 @@ private:
     gpio_num_t _tx;
     gpio_num_t _bus_off;
     int _id;
-    int _begin(long baudRate);
+    bool _return_new;
+    bool _already_begin;
+    bool _multi_send;
+    can_setting_t _settings;
+
+    int _begin(can_setting_t settings);
+    void _end();
     int _sendLine(int id, char *data, int num, uint32_t waitTime);
+    int _send(twai_message_t message, uint32_t waitTime);
     void bus_on();
     void bus_off();
     int return_with_compatiblity(int return_int);
-    bool return_new;
-    bool already_begin;
 
 public:
-    // CAN_CREATE(can_setting_t settings);
+    CAN_CREATE(can_setting_t settings);
     CAN_CREATE(bool return_new = true, bool enableCanWatchDog = true);
     ~CAN_CREATE();
 
     void setPins(int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
     int begin(long baudRate);
+    int begin(can_setting_t settings, int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
     int begin(long baudRate, int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
     int begin();
+    int re_configure(can_setting_t settings);
     void end();
     int getStatus();
-    int test();
+    int test(int id = (1 << 11) - 1);
     void flush();
     int available();
     char read();
     int read(char *readData);
     int readLine(char *readData);
+    int readWithDetail(can_return_t *data);
     uint8_t sendPacket(int id, char data);
     int sendChar(int id, char data);
     int sendChar(char data);

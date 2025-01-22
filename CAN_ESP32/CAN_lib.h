@@ -1,6 +1,12 @@
 // Copyright (c) CREATE-ROCKET All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+/**
+ * @file CAN_lib.h
+ * @brief CAN config file
+ * @copyright CREATE-ROCKET
+ */
+
 #pragma once
 
 #ifndef CAN_LIB
@@ -8,30 +14,68 @@
 
 #include "driver/twai.h"
 
-#define MAX_TRANSMIT 0 // twai_transmitを直接呼び出したときのタイムアウト時間
-#define MAX_READ 0     // twai_receiveを直接呼び出したときのタイムアウト時間
+#define MAX_TRANSMIT 0 /**< @def twai_transmitを直接呼び出したときのタイムアウト時間*/
+#define MAX_READ 0     /**< @def twai_receiveを直接呼び出したときのタイムアウト時間*/
 
 // old config
 #define PAR_ERROR 0
 #define ACK_ERROR 1
 #define CAN_OK 2
 
-// 送信成功、バスのエラー、前回の送信失敗の3つを設定する
+/** @def TWAI_ALERTS_CONFIG 送信成功、バスのエラー、前回の送信失敗の3つを設定する */
 #define TWAI_ALERTS_CONFIG TWAI_ALERT_TX_SUCCESS | TWAI_ALERT_BUS_ERROR | TWAI_ALERT_TX_FAILED
 
 #define old_mode_block                                           \
     do                                                           \
     {                                                            \
-        if (!return_new)                                         \
+        if (!_return_new)                                        \
         {                                                        \
             pr_debug("old mode does not support this function"); \
             return INT_MAX;                                      \
         }                                                        \
     } while (0)
 
-#define DEBUG
+#define multi_send_block                                   \
+    do                                                     \
+    {                                                      \
+        if (!_multi_send)                                  \
+        {                                                  \
+            pr_debug("multi send function is restricted"); \
+            return -1;                                     \
+        }                                                  \
+    } while (0)
 
-#ifdef DEBUG
+#define not_start_block_void                                       \
+    do                                                             \
+    {                                                              \
+        if (!_already_begin)                                       \
+        {                                                          \
+            pr_debug("can driver was stopped state please begin"); \
+            return;                                                \
+        }                                                          \
+    }
+
+#define not_start_block_int                                        \
+    do                                                             \
+    {                                                              \
+        if (!_already_begin)                                       \
+        {                                                          \
+            pr_debug("can driver was stopped state please begin"); \
+            return -2                                              \
+        }                                                          \
+    } while (0)
+
+#ifndef DEBUG
+/**
+ * @def DEBUG
+ * DEBUG printを利用するかを決める
+ * もし、printにかかる時間が問題になる等で利用したくなければCAN.hをインクルードする前に
+ * #define DEBUG 0 とするとよい
+ */
+#define DEBUG 1
+#endif
+
+#if DEBUG
 #ifndef pr_debug
 #ifdef ARDUINO
 
@@ -39,6 +83,12 @@ inline void pr_debug_checker(const char *fmt, ...) __attribute__((format(printf,
 inline void pr_debug_checker(const char *fmt, ...) {}
 
 // Arduino対応
+/**
+ * @def pr_debug
+ * @param #define DEBUG 1 とされているときに、実行されるDEBUG出力
+ *         Serial.beginされていたら自動的に出力される
+ * @note ESP IDF対応はこれでいいのかわからない
+ */
 #define pr_debug(fmt, ...)                              \
     do                                                  \
     {                                                   \
@@ -62,18 +112,71 @@ inline void pr_debug_checker(const char *fmt, ...) {}
 #endif
 #endif
 
+/**
+ * @brief CAN.begin の引数に入れてCANの動作を指定する
+ * @attention この設定は通信相手と共有することが必要 共有していないと意図しないエラーが発生する恐れあり
+ *
+ * baudRateとmultiData_sendだけ扱い、filter_configは触らないほうがよい
+ *
+ * @details
+ * twai_filter_config_tがどうなっているかわからない人向け @n
+ * あるidを受け取るかどうかは、message bit と acceptance code bit をxorして
+ * それに更にacceptance mask bit and したものがすべて1となるかで決まる
+ * よってtest関数でデフォルトで利用されるidの 1 << 11 - 1 を受け取らないようにするには、
+ * acceptance code bitに 0
+ * acceptance mask bitに 1 << 11 - 2 (最後1桁以外は1)
+ * を入れれば良い
+ *
+ * | message bit | code bit | mask bit | result |
+ * | ----------- | -------- | -------- | ------ |
+ * | 0           | 0        | 0        | 1      |
+ * | 0           | 0        | 1        | 1      |
+ * | 0           | 1        | 0        | 0      |
+ * | 0           | 1        | 1        | 1      |
+ * | 1           | 0        | 0        | 0      |
+ * | 1           | 0        | 1        | 1      |
+ * | 1           | 1        | 0        | 1      |
+ * | 1           | 1        | 1        | 1      |
+ */
 typedef struct
 {
-
+    long baudRate;               /**< 通信周波数 25kbits 50kbits 100kbits 125kbits 250kbits 500kbits 1Mbits を選択できる */
+    bool multiData_send = false; /**< 複数文字のデータを送信できるかどうか falseならsendLine sendData系の関数は使えなくなる */
+    twai_filter_config_t filter_config = {
+        .acceptance_code = 0,
+        .acceptance_mask = (1 << 11) - 2,
+        .single_filter = true,
+    }; /**< 受け取るidの制限 id 1 << 11 - 1 だけ制限する CANのidを知らないなら空欄のままが無難 */
 } can_setting_t;
 
+typedef struct
+{
+    int size;
+    char data[8];
+    int id;
+} can_return_t;
+
+/**
+ * @enum can_err
+ * @brief @sa CAN_CREATE::getStatus 関数の戻り値として渡される値
+ */
 enum can_err
 {
-    CAN_SUCCESS,
-    CAN_NO_ALERTS,
-    CAN_BUS_ERROR,
-    CAN_TX_FAILED,
-    CAN_UNKNOWN_ERROR,
+    CAN_SUCCESS,       /**< 正常終了 */
+    CAN_UNKNOWN_ERROR, /**< sendCharで送った引数がおかしい等のソフトウェア側のエラー */
+    CAN_NO_ALERTS,     /**< 送信中 */
+    CAN_BUS_ERROR,     /**< ACK Error等のBus Errorが発生した */
+    CAN_TX_FAILED,     /**< Bus Error以外の送信エラー */
+};
+
+/**
+ * @enum can_test
+ * @brief @sa CAN_CREATE::test 関数の戻り値として渡される値
+ */
+enum can_test
+{
+    CAN_NO_RESPONSE_ERROR, /**< 相手側のコントローラーかBUSが動いていないときのエラー */
+    CAN_CONTROLLER_ERROR,  /**< 自身のコントローラーが動いていないときのエラー */
 };
 
 #endif
