@@ -584,7 +584,7 @@ int CAN_CREATE::test(uint32_t id)
         {
             can_return_t data;
             readWithDetail(&data);
-            if (data.id == (1 << 11) - �1)
+            if (data.id == (1 << 11) - 1)
             {
                 throw CAN_NO_RESPONSE_ERROR; // 自身のCANコントローラーは生きていてBUSか相手のCANコントローラーが死んでる
             }
