@@ -571,7 +571,7 @@ int CAN_CREATE::test(uint32_t id)
         {
             throw CAN_UNKNOWN_ERROR;
         }
-
+        i = 0;
         do
         {
             if (++i > 10)
