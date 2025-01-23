@@ -144,7 +144,7 @@ typedef struct
     bool multiData_send = false; /**< 複数文字のデータを送信できるかどうか falseならsendLine sendData系の関数は使えなくなる */
     twai_filter_config_t filter_config = {
         .acceptance_code = 0,
-        .acceptance_mask = (1 << 11) - 2,
+        .acceptance_mask = (1 << 32) - 2,
         .single_filter = true,
     }; /**< 受け取るidの制限 id 1 << 11 - 1 だけ制限する CANのidを知らないなら空欄のままが無難 */
 } can_setting_t;

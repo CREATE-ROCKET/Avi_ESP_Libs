@@ -337,7 +337,7 @@ int CAN_CREATE::begin(long baudRate)
     settings.baudRate = baudRate;
     settings.multiData_send = true;
     settings.filter_config.acceptance_code = 0;
-    settings.filter_config.acceptance_mask = (1 << 11) - 2;
+    settings.filter_config.acceptance_mask = (1 << 32) - 2;
     settings.filter_config.single_filter = true;
     return return_with_compatiblity(_begin(settings));
 }
@@ -392,7 +392,7 @@ int CAN_CREATE::begin(long baudRate, int rx, int tx, int id, int bus_off)
     settings.baudRate = baudRate;
     settings.multiData_send = true;
     settings.filter_config.acceptance_code = 0;
-    settings.filter_config.acceptance_mask = (1 << 11) - 2;
+    settings.filter_config.acceptance_mask = (1 << 32) - 2;
     settings.filter_config.single_filter = true;
     return _begin(settings);
 }
