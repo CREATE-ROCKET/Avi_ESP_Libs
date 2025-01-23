@@ -61,7 +61,7 @@
         if (!_already_begin)                                       \
         {                                                          \
             pr_debug("can driver was stopped state please begin"); \
-            return -2                                              \
+            return -2;                                             \
         }                                                          \
     } while (0)
 
@@ -120,7 +120,7 @@ inline void pr_debug_checker(const char *fmt, ...) {}
  *
  * @details
  * twai_filter_config_tがどうなっているかわからない人向け @n
- * あるidを受け取るかどうかは、message bit と acceptance code bit をxorして
+ * あるidを受け取るかどうかは、受け取ったmessage bit と acceptance code bit をxorして
  * それに更にacceptance mask bit and したものがすべて1となるかで決まる
  * よってtest関数でデフォルトで利用されるidの 1 << 11 - 1 を受け取らないようにするには、
  * acceptance code bitに 0
@@ -146,7 +146,7 @@ typedef struct
         .acceptance_code = 0,
         .acceptance_mask = (1 << 32) - 2,
         .single_filter = true,
-    }; /**< 受け取るidの制限 id 1 << 11 - 1 だけ制限する CANのidを知らないなら空欄のままが無難 */
+    }; /**< 受け取るidの制限 id 1 << 11 - 1 だけ制限する CANのidの制限の仕組みを知らないなら空欄のままが無難 */
 } can_setting_t;
 
 typedef struct
@@ -175,7 +175,7 @@ enum can_err
  */
 enum can_test
 {
-    CAN_NO_RESPONSE_ERROR, /**< 相手側のコントローラーかBUSが動いていないときのエラー */
+    CAN_NO_RESPONSE_ERROR = 2, /**< 相手側のコントローラーかBUSが動いていないときのエラー */
     CAN_CONTROLLER_ERROR,  /**< 自身のコントローラーが動いていないときのエラー */
 };
 

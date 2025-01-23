@@ -11,6 +11,12 @@
 //
 // This library uses Nomal mode in Operating Mode
 
+/**
+ * @file CAN.h
+ * @brief CAN.cpp header
+ * @copyright CREATE-ROCKET
+ */
+
 #pragma once
 
 #ifndef CAN_H
@@ -19,6 +25,9 @@
 #include "CAN_lib.h"
 #include "stdint.h"
 
+/**
+ *  @class CAN_CREATE
+ */
 class CAN_CREATE
 {
 private:
@@ -28,7 +37,7 @@ private:
     gpio_num_t _rx;
     gpio_num_t _tx;
     gpio_num_t _bus_off;
-    int _id;
+    uint32_t _id;
     bool _return_new;
     bool _already_begin;
     bool _multi_send;
@@ -36,8 +45,9 @@ private:
 
     int _begin(can_setting_t settings);
     void _end();
-    int _sendLine(int id, char *data, int num, uint32_t waitTime);
+    int _sendLine(uint32_t id, char *data, int num, uint32_t waitTime);
     int _send(twai_message_t message, uint32_t waitTime);
+    int _read(twai_message_t *message, uint32_t waitTime);
     void bus_on();
     void bus_off();
     int return_with_compatiblity(int return_int);
@@ -47,15 +57,15 @@ public:
     CAN_CREATE(bool return_new = true, bool enableCanWatchDog = true);
     ~CAN_CREATE();
 
-    void setPins(int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
+    void setPins(int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
     int begin(long baudRate);
-    int begin(can_setting_t settings, int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
-    int begin(long baudRate, int rx, int tx, int id = -1, int bus_off = GPIO_NUM_MAX);
+    int begin(can_setting_t settings, int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
+    int begin(long baudRate, int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
     int begin();
     int re_configure(can_setting_t settings);
     void end();
     int getStatus();
-    int test(int id = (1 << 11) - 1);
+    int test(uint32_t id = (1 << 11) - 1);
     void flush();
     int available();
     char read();
@@ -63,11 +73,11 @@ public:
     int readLine(char *readData);
     int readWithDetail(can_return_t *data);
     uint8_t sendPacket(int id, char data);
-    int sendChar(int id, char data);
+    int sendChar(uint32_t id, char data);
     int sendChar(char data);
-    int sendLine(int id, const char *data);
+    int sendLine(uint32_t id, const char *data);
     int sendLine(const char *data);
-    int sendData(int id, uint8_t *data, int num);
+    int sendData(uint32_t id, uint8_t *data, int num);
     int sendData(uint8_t *data, int num);
 };
 

@@ -221,6 +221,7 @@ void loop()
   if (CAN.available()) // CAN受信用
   {
     // CANを受信していたら実行される
+    Serial.println("receiving data...");
     char Data;
     if (CAN.read(&Data))
     { // エラーの場合の処理
@@ -229,6 +230,7 @@ void loop()
     else
       Serial.printf("Can received!!!: %c\n", Data);
   }
+
   if (Serial.available())
   {
     char cmd = Serial.read();
@@ -242,16 +244,16 @@ void loop()
     delay(100);
     switch (CAN.getStatus())
     {
-    case can_err::CAN_SUCCESS:
+    case CAN_SUCCESS:
       Serial.println("Success to Send!!!");
       break;
-    case can_err::CAN_NO_ALERTS:
+    case CAN_NO_ALERTS:
       Serial.println("CREATE_CAN driver isn't done yet");
       break;
-    case can_err::CAN_BUS_ERROR:
+    case CAN_BUS_ERROR:
       Serial.println("Got a bus error on the CAN such as ACK Error");
       break;
-    case can_err::CAN_TX_FAILED:
+    case CAN_TX_FAILED:
       Serial.println("Can't send data, something other than a bus error might wrong");
       break;
     default:
@@ -261,8 +263,3 @@ void loop()
   }
 }
 ```
-
-## TODO リスト
-- common settingを作れるようにする
-- idの0と1を予約済みにして、それぞれ自分のデータの送信やcommon settingの受け渡しに使えるようにしたい
-- test関数の実装
