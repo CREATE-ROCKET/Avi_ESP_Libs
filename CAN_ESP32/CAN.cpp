@@ -561,10 +561,11 @@ int CAN_CREATE::test(uint32_t id)
         twai_message_t message_self_reception = {
             0,  // standard format message
             0,  // remote transmission request disabled
-            1,  // single shot transmission enabled
+            0,  // single shot transmission enabled
             1,  // self reception enabled
             id, // id
-            0,  // data num
+            1,  // data num
+            {0},
         };
         int result = _send(message_self_reception, 0);
         if (result)
@@ -584,7 +585,7 @@ int CAN_CREATE::test(uint32_t id)
         {
             can_return_t data;
             readWithDetail(&data);
-            if (data.id == (1 << 11) - 1)
+            if (data.id == id)
             {
                 throw CAN_NO_RESPONSE_ERROR; // 自身のCANコントローラーは生きていてBUSか相手のCANコントローラーが死んでる
             }

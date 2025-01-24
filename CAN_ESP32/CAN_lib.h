@@ -14,8 +14,8 @@
 
 #include "driver/twai.h"
 
-#define MAX_TRANSMIT 0 /**< @def twai_transmitを直接呼び出したときのタイムアウト時間*/
-#define MAX_READ 0     /**< @def twai_receiveを直接呼び出したときのタイムアウト時間*/
+extern const uint32_t __attribute__((weak)) MAX_TRANSMIT; /**< @def twai_transmitを直接呼び出したときのタイムアウト時間*/
+const uint32_t MAX_READ = 0;                           /**< @def twai_receiveを直接呼び出したときのタイムアウト時間*/
 
 // old config
 #define PAR_ERROR 0
@@ -176,7 +176,7 @@ enum can_err
 enum can_test
 {
     CAN_NO_RESPONSE_ERROR = 2, /**< 相手側のコントローラーかBUSが動いていないときのエラー */
-    CAN_CONTROLLER_ERROR,  /**< 自身のコントローラーが動いていないときのエラー */
+    CAN_CONTROLLER_ERROR,      /**< 自身のコントローラーが動いていないときのエラー */
 };
 
 #endif
