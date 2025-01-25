@@ -295,7 +295,7 @@ int CAN_CREATE::_read(twai_message_t *message, uint32_t waitTime)
  */
 int CAN_CREATE::_sendLine(uint32_t id, char *data, int num, uint32_t waitTime)
 {
-    if (id >= 1 << 11)
+    if (id >= (1 << 11))
     {
         pr_debug("[ERROR] ID must not exceed (1 << 11 - 1)");
         return 1;
@@ -368,7 +368,7 @@ int CAN_CREATE::begin(long baudRate)
     settings.baudRate = baudRate;
     settings.multiData_send = true;
     settings.filter_config.acceptance_code = 0;
-    settings.filter_config.acceptance_mask = (1 << 32) - 2;
+    settings.filter_config.acceptance_mask = (1 << 29) - 2;
     settings.filter_config.single_filter = true;
     return return_with_compatiblity(_begin(settings));
 }
@@ -428,7 +428,7 @@ int CAN_CREATE::begin(long baudRate, int rx, int tx, uint32_t id, int bus_off)
     settings.baudRate = baudRate;
     settings.multiData_send = true;
     settings.filter_config.acceptance_code = 0;
-    settings.filter_config.acceptance_mask = (1 << 32) - 2;
+    settings.filter_config.acceptance_mask = (1 << 29) - 2;
     settings.filter_config.single_filter = true;
     return _begin(settings);
 }
@@ -564,8 +564,8 @@ int CAN_CREATE::test(uint32_t id)
             0,  // single shot transmission enabled
             1,  // self reception enabled
             id, // id
-            1,  // data num
-            {0},
+            0,  // data num
+            {},
         };
         int result = _send(message_self_reception, 0);
         if (result)
@@ -823,7 +823,7 @@ uint8_t CAN_CREATE::sendPacket(int id, char data)
  *
  * @retval //TODO
  */
-int CAN_CREATE::sendLine(uint32_t id, const char *data)
+int CAN_CREATE::sendLine(uint32_t id, char *data)
 {
     old_mode_block;
     multi_send_block;
@@ -843,7 +843,7 @@ int CAN_CREATE::sendLine(uint32_t id, const char *data)
     return _sendLine(id, sendData, i, MAX_TRANSMIT);
 }
 
-int CAN_CREATE::sendLine(const char *data)
+int CAN_CREATE::sendLine(char *data)
 {
     old_mode_block;
     multi_send_block;

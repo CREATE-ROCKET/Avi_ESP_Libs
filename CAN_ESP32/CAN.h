@@ -75,8 +75,8 @@ public:
     uint8_t sendPacket(int id, char data);
     int sendChar(uint32_t id, char data);
     int sendChar(char data);
-    int sendLine(uint32_t id, const char *data);
-    int sendLine(const char *data);
+    int sendLine(uint32_t id, char *data);
+    int sendLine(char *data);
     int sendData(uint32_t id, uint8_t *data, int num);
     int sendData(uint8_t *data, int num);
 };
