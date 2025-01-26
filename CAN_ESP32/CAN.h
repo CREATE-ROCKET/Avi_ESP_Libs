@@ -69,16 +69,16 @@ public:
     void flush();
     int available();
     char read();
-    int read(char *readData);
-    int readLine(char *readData);
-    int readWithDetail(can_return_t *data);
+    int read(char *readData, uint32_t waitTime = MAX_READ);
+    int readLine(char *readData, uint32_t waitTime = MAX_READ);
+    int readWithDetail(can_return_t *data, uint32_t waitTime = MAX_READ);
     uint8_t sendPacket(int id, char data);
-    int sendChar(uint32_t id, char data);
-    int sendChar(char data);
-    int sendLine(uint32_t id, char *data);
-    int sendLine(char *data);
-    int sendData(uint32_t id, uint8_t *data, int num);
-    int sendData(uint8_t *data, int num);
+    int sendChar(uint32_t id, char data, uint32_t waitTime = MAX_TRANSMIT);
+    int sendChar(char data, uint32_t waitTime = MAX_TRANSMIT);
+    int sendLine(uint32_t id, char *data, uint32_t waitTime = MAX_TRANSMIT);
+    int sendLine(char *data, uint32_t waitTime = MAX_TRANSMIT);
+    int sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime = MAX_TRANSMIT);
+    int sendData(uint8_t *data, int num, uint32_t waitTime = MAX_TRANSMIT);
 };
 
 #endif

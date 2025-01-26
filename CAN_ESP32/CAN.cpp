@@ -256,7 +256,7 @@ int CAN_CREATE::_send(twai_message_t message, uint32_t waitTime)
 
 int CAN_CREATE::_read(twai_message_t *message, uint32_t waitTime)
 {
-    esp_err_t result = twai_receive(message, MAX_READ);
+    esp_err_t result = twai_receive(message, waitTime);
     if (result != ESP_OK)
     {
         switch (result)
@@ -655,12 +655,12 @@ int CAN_CREATE::available()
  *  @retval 0 success
  *  //TODO
  */
-int CAN_CREATE::readWithDetail(can_return_t *readData)
+int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
 {
     not_start_block_int;
     old_mode_block;
     twai_message_t message;
-    CAN_CREATE::_read(&message, MAX_READ);
+    CAN_CREATE::_read(&message, waitTime);
     if (message.dlc_non_comp)
     {
         pr_debug("[ERROR] This library needs to follow ISO 11898-1");
@@ -686,12 +686,12 @@ int CAN_CREATE::readWithDetail(can_return_t *readData)
  * @retval 5 得られたデータがISO 11898-1互換ではなかった
  * @retval 6 何も入っていないデータが得られた
  */
-int CAN_CREATE::readLine(char *readData)
+int CAN_CREATE::readLine(char *readData, uint32_t waitTime)
 {
     not_start_block_int;
     old_mode_block;
     twai_message_t twai_message;
-    int result = _read(&twai_message, MAX_READ);
+    int result = _read(&twai_message, waitTime);
     if (result)
     {
         return result;
@@ -724,10 +724,10 @@ int CAN_CREATE::readLine(char *readData)
  * @retval 5 得られたデータがISO 11898-1互換ではなかった
  * @retval 6 何も入っていないデータが得られた
  */
-int CAN_CREATE::read(char *readData)
+int CAN_CREATE::read(char *readData, uint32_t waitTime)
 {                      // old_mode_blockはreadLineで実行される
     char Data[9] = {}; // すべてnull characterで初期化
-    int result = readLine(Data);
+    int result = readLine(Data, waitTime);
     if (result)
     {
         return result;
@@ -737,6 +737,7 @@ int CAN_CREATE::read(char *readData)
         if (Data[i] != 0)
         {
             pr_debug("[INFO] read function does not support 2 or more character\r\nreturn only first character");
+            break;
         }
     }
     *readData = Data[0];
@@ -770,11 +771,11 @@ char CAN_CREATE::read()
  * @retval 5 twaiドライバが動作していない
  * @retval 6 unknown error
  */
-int CAN_CREATE::sendChar(uint32_t id, char data)
+int CAN_CREATE::sendChar(uint32_t id, char data, uint32_t waitTime)
 {
     old_mode_block;
     // charをそのまま送ってるため、_sendLineでchar[0]以上にアクセスしたら違反
-    return _sendLine(id, &data, 1, MAX_TRANSMIT);
+    return _sendLine(id, &data, 1, waitTime);
 }
 
 /*
@@ -789,7 +790,7 @@ int CAN_CREATE::sendChar(uint32_t id, char data)
  * @retval 5 twaiドライバが動作してold_mode_block;いない
  * @retval 6 unknown error
  */
-int CAN_CREATE::sendChar(char data)
+int CAN_CREATE::sendChar(char data, uint32_t waitTime)
 {
     old_mode_block;
     if (_id == -1)
@@ -797,7 +798,7 @@ int CAN_CREATE::sendChar(char data)
         pr_debug("[ERROR] you have to set id in begin or use sendChar(id, data)");
         return 1;
     }
-    return sendChar(_id, data);
+    return sendChar(_id, data, waitTime);
 }
 
 /*
@@ -823,7 +824,7 @@ uint8_t CAN_CREATE::sendPacket(int id, char data)
  *
  * @retval //TODO
  */
-int CAN_CREATE::sendLine(uint32_t id, char *data)
+int CAN_CREATE::sendLine(uint32_t id, char *data, uint32_t waitTime)
 {
     old_mode_block;
     multi_send_block;
@@ -840,10 +841,10 @@ int CAN_CREATE::sendLine(uint32_t id, char *data)
         i++;
     }
 
-    return _sendLine(id, sendData, i, MAX_TRANSMIT);
+    return _sendLine(id, sendData, i, waitTime);
 }
 
-int CAN_CREATE::sendLine(char *data)
+int CAN_CREATE::sendLine(char *data, uint32_t waitTime)
 {
     old_mode_block;
     multi_send_block;
@@ -852,10 +853,10 @@ int CAN_CREATE::sendLine(char *data)
         pr_debug("[ERROR] you have to set id in begin or use sendChar(id, data)");
         return 1;
     }
-    return sendLine(_id, data);
+    return sendLine(_id, data, waitTime);
 }
 
-int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num)
+int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime)
 {
     old_mode_block;
     multi_send_block;
@@ -866,10 +867,10 @@ int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num)
     }
     char sendData[8];
     memcpy(sendData, data, num * sizeof(int8_t));
-    return _sendLine(id, sendData, num, MAX_TRANSMIT);
+    return _sendLine(id, sendData, num, waitTime);
 }
 
-int CAN_CREATE::sendData(uint8_t *data, int num)
+int CAN_CREATE::sendData(uint8_t *data, int num, uint32_t waitTime)
 {
     old_mode_block;
     multi_send_block;
@@ -878,5 +879,5 @@ int CAN_CREATE::sendData(uint8_t *data, int num)
         pr_debug("[ERROR] you have to set id in begin or use sendData(id, data)");
         return 1;
     }
-    return sendData(_id, data, num);
+    return sendData(_id, data, num, waitTime);
 }
