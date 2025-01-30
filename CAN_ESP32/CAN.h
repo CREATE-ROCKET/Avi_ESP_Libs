@@ -43,7 +43,7 @@ private:
     bool _multi_send;
     can_setting_t _settings;
 
-    int _begin(can_setting_t settings);
+    int _begin(can_setting_t settings, twai_mode_t mode = TWAI_MODE_NORMAL);
     void _end();
     int _sendLine(uint32_t id, char *data, int num, uint32_t waitTime);
     int _send(twai_message_t message, uint32_t waitTime);
@@ -62,7 +62,7 @@ public:
     int begin(can_setting_t settings, int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
     int begin(long baudRate, int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
     int begin();
-    int re_configure(can_setting_t settings);
+    int re_configure(can_setting_t settings, twai_mode_t mode = TWAI_MODE_NORMAL);
     void end();
     int getStatus();
     int test(uint32_t id = (1 << 11) - 1);

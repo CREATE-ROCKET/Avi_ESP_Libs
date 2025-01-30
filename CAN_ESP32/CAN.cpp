@@ -100,7 +100,7 @@ int CAN_CREATE::return_with_compatiblity(int return_int)
 }
 
 // private関数
-int CAN_CREATE::_begin(can_setting_t settings)
+int CAN_CREATE::_begin(can_setting_t settings, twai_mode_t mode)
 {
     if (_bus_off != GPIO_NUM_MAX)
     {
@@ -130,7 +130,7 @@ int CAN_CREATE::_begin(can_setting_t settings)
     }
     gpio_num_t ref_rx = _rx; // privateのままdefineを使いたい
     gpio_num_t ref_tx = _tx;
-    _general_config = TWAI_GENERAL_CONFIG_DEFAULT(ref_tx, ref_rx, TWAI_MODE_NORMAL);
+    _general_config = TWAI_GENERAL_CONFIG_DEFAULT(ref_tx, ref_rx, mode);
     _filter_config = settings.filter_config;
     _settings = settings;
     _multi_send = true;
@@ -438,10 +438,10 @@ int CAN_CREATE::begin(long baudRate, int rx, int tx, uint32_t id, int bus_off)
  *
  *  @param[in] can_setting_t 変更する設定 変更しない設定も入れ直す必要がある
  */
-int CAN_CREATE::re_configure(can_setting_t settings)
+int CAN_CREATE::re_configure(can_setting_t settings, twai_mode_t mode)
 {
     _end();
-    return _begin(settings);
+    return _begin(settings, mode);
 }
 
 /*
@@ -555,7 +555,7 @@ int CAN_CREATE::test(uint32_t id)
         settings.multiData_send = true;
         settings.filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
         vTaskSuspend(CanWatchDogTaskHandle);
-        re_configure(settings);
+        re_configure(settings, TWAI_MODE_NO_ACK);
         vTaskResume(CanWatchDogTaskHandle);
         // 送信したデータが自分で受け取れるかを確かめる
         twai_message_t message_self_reception = {
@@ -677,8 +677,6 @@ int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
  * @warning available関数で1以上が帰ってきたときのみ利用可能
  * @warning 8文字までのデータを受信できるが引数のcharのポインタを作る必要あり
  *
- *
- *
  * @param[out]  charの配列のポインタ 9文字は入れられるサイズが必要 これにデータが入る
  *
  * @retval 0 success
@@ -715,7 +713,6 @@ int CAN_CREATE::readLine(char *readData, uint32_t waitTime)
  * @brief CANに送られてきているデータを読む関数
  * @warning available関数で1以上が帰ってきたときのみ利用可能
  * @warning また、1文字までしか対応しないため相手がsendPacket以外を利用した場合には最初の文字だけを返す
- *
  *
  * @param[out] charのポインタ 成功時これにデータが入る
  *
@@ -761,8 +758,8 @@ char CAN_CREATE::read()
 /*
  * @brief charをCANで送る関数 idを逐一指定する
  *
- * @param[in] int型の送信するid
- * @param[in] char型の送信するデータ
+ * @param[in] id int型の送信するid
+ * @param[in] data char型の送信するデータ
  *
  * @retval 0 success
  * @retval 2 不正なid idは11bitまで
