@@ -210,6 +210,7 @@ void CAN_CREATE::_end()
     {
         pr_debug("[ERROR] failed to uninstall twai driver %d", result);
     }
+    _already_begin = false;
 }
 
 inline twai_message_t getDataMessage(uint32_t id, char *data, int num)
@@ -555,7 +556,12 @@ int CAN_CREATE::test(uint32_t id)
         settings.multiData_send = true;
         settings.filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
         vTaskSuspend(CanWatchDogTaskHandle);
-        re_configure(settings, TWAI_MODE_NO_ACK);
+        int result = re_configure(settings, TWAI_MODE_NO_ACK);
+        if (result)
+        {
+            pr_debug("[ERROR] failed to re_configure");
+            return CAN_UNKNOWN_ERROR;
+        }
         vTaskResume(CanWatchDogTaskHandle);
         // 送信したデータが自分で受け取れるかを確かめる
         twai_message_t message_self_reception = {
