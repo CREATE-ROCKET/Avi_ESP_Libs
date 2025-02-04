@@ -263,18 +263,18 @@ int CAN_CREATE::_read(twai_message_t *message, uint32_t waitTime)
         {
         case ESP_ERR_TIMEOUT:
             pr_debug("[ERROR] failed to read from twai due to rx queue has no data\r\nyou must call available function before it");
-            return 2;
+            return 1;
             break;
         case ESP_ERR_INVALID_ARG:
             pr_debug("[ERROR] failed to read from twai due to the data is invalid");
-            return 3;
+            return 2;
             break;
         case ESP_ERR_INVALID_STATE:
             pr_debug("[ERROR] failed to read from twai due to the twai driver is not running");
-            return 4;
+            return 3;
         default:
             pr_debug("[FATAL ERROR] failed to read from twai due to unkown error");
-            return 5;
+            return 4;
             break;
         }
     }
@@ -283,15 +283,17 @@ int CAN_CREATE::_read(twai_message_t *message, uint32_t waitTime)
 
 /**
  * @brief データをCANに実際に送信する関数 最大 waitTimeだけ時間がかかる
+ * data[num]までのアクセスしかしないことを保証する
+ *
  * @note numにはdataの個数が正しく入っており、num <= 8を期待して検証は行わない
  * @note また、char *dataは文字列だが最後にnull characterはないものとする
  *
  * @retval 0 success
- * @retval 2 不正なid idは11bitまで
- * @retval 3 データに誤りがある
- * @retval 4 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
- * @retval 5 twaiドライバが動作していない
- * @retval 6 unknown error
+ * @retval 3 不正なid idは11bitまで
+ * @retval 4 データに誤りがある
+ * @retval 5 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
+ * @retval 6 twaiドライバが動作していない
+ * @retval 7 unknown error
  */
 int CAN_CREATE::_sendLine(uint32_t id, char *data, int num, uint32_t waitTime)
 {
@@ -457,7 +459,7 @@ void CAN_CREATE::end()
 /**
  * @brief CANの送信ステータスを確認できる関数
  *
- * @return can_errで定義されている
+ * @return enumの can_errで定義されている
  * @retval can_err::CAN_SUCCESS: 前回の送信が正常に成功した
  * @retval can_err::CAN_NO_ALERTS: まだstatusが届いていない
  *              (send関数のすぐ後の配置などが要因でまだ送信中)
@@ -508,8 +510,6 @@ int CAN_CREATE::getStatus()
  * @retval CAN_SUCCESS: 正常終了
  * @retval CAN_UNKNOWN_ERROR: 失敗
  * @retval CAN_
- *
- * @bug 多分enum型の戻り値が動かない
  *
  * @warning もしかしたらidを除外しているときはACK出さないかも
  */
@@ -583,6 +583,7 @@ int CAN_CREATE::test(uint32_t id)
 
         if (available())
         {
+            pr_debug("available found");
             can_return_t data;
             readWithDetail(&data);
             if (data.id == id)
@@ -650,17 +651,18 @@ int CAN_CREATE::available()
 /**
  *  @brief CANのデータを読んで idや大きさも含まれる詳細なデータを返す関数
  *
- *  @param[out] can_return_t 詳細なデータも含まれているデータ型
+ *  @param[out] readData 得られたデータを返す変数 詳細なデータも含まれているデータ型 can_return_t
  *
  *  @retval 0 success
- *  //TODO
+ *  @retval 1 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
+ *  @retval 2~4 CANを読むときにエラーが発生した
  */
 int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
 {
     not_start_block_int;
     old_mode_block;
     twai_message_t message;
-    CAN_CREATE::_read(&message, waitTime);
+    _read(&message, waitTime);
     if (message.dlc_non_comp)
     {
         pr_debug("[ERROR] This library needs to follow ISO 11898-1");
@@ -674,13 +676,16 @@ int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
 
 /*
  * @brief CANに送られてきたデータを読む関数
- * @warning available関数で1以上が帰ってきたときのみ利用可能
- * @warning 8文字までのデータを受信できるが引数のcharのポインタを作る必要あり
+ * CANでは8文字まで同時に送受信が可能 引数readDataに得られたデータが入り終端は0が入る
  *
- * @param[out]  charの配列のポインタ 9文字は入れられるサイズが必要 これにデータが入る
+ * @warning available 関数で1以上が帰ってきたときのみ利用可能
+ *
+ * @param[out] readData charの配列のポインタ 9文字は入れられるサイズが必要 これにデータが入る
+ * @param[in] waitTime CANにデータが入っていなかったときにどのぐらい待つか デフォルトは空欄とすれば0msとなる
  *
  * @retval 0 success
- * @retval 1~4 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
+ * @retval 1 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
+ * @retval 2~4 CANを読むときにエラーが発生した
  * @retval 5 得られたデータがISO 11898-1互換ではなかった
  * @retval 6 何も入っていないデータが得られた
  */
@@ -697,12 +702,12 @@ int CAN_CREATE::readLine(char *readData, uint32_t waitTime)
     if (twai_message.dlc_non_comp)
     {
         pr_debug("[ERROR] This library needs to follow ISO 11898-1");
-        return 6;
+        return 5;
     }
     if (!twai_message.data_length_code)
     {
         pr_debug("[ERROR] No data");
-        return 7;
+        return 6;
     }
     memcpy(readData, twai_message.data, twai_message.data_length_code * sizeof(char));
     readData[twai_message.data_length_code] = 0;
@@ -711,13 +716,16 @@ int CAN_CREATE::readLine(char *readData, uint32_t waitTime)
 
 /*
  * @brief CANに送られてきているデータを読む関数
+ * 引数readDataに得られたデータが入る 複数文字が送られてきた場合は1文字のみを返す
+ *
  * @warning available関数で1以上が帰ってきたときのみ利用可能
  * @warning また、1文字までしか対応しないため相手がsendPacket以外を利用した場合には最初の文字だけを返す
  *
- * @param[out] charのポインタ 成功時これにデータが入る
+ * @param[out] readData charのポインタ 成功時これにデータが入る
  *
  * @retval 0 success
- * @retval 1~4 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
+ * @retval 1 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
+ * @retval 2~4 CANを読むときにエラーが発生した
  * @retval 5 得られたデータがISO 11898-1互換ではなかった
  * @retval 6 何も入っていないデータが得られた
  */
@@ -746,12 +754,13 @@ int CAN_CREATE::read(char *readData, uint32_t waitTime)
  * @warning 読むのに失敗したときの挙動が安全でないため利用は非推奨
  */
 char CAN_CREATE::read()
-{ // TODO old_mode_blockが実行されちゃう
-    char readData;
-    if (read(&readData))
+{
+    twai_message_t message;
+    if (_read(&message, 0))
     {
-        return 0; // null character
+        return 0;
     }
+    char readData = message.data[0];
     return readData;
 }
 
@@ -805,21 +814,31 @@ int CAN_CREATE::sendChar(char data, uint32_t waitTime)
  */
 uint8_t CAN_CREATE::sendPacket(int id, char data)
 {
-    int result = sendChar(static_cast<uint32_t>(id), data);
+    int result = _sendLine(static_cast<uint32_t>(id), &data, 1, 0);
     if (!result)
-        return 2;
-    return 0; // PAR ERROR
+        return 2; // success
+    return 0;     // PAR ERROR
 }
 
 /**
  * @brief 8文字までの文字を送信できる関数
- * @warning 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある
+ * charの終端にnull文字がある文字列を送信することができる関数
+ * 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある
+ * このため、begin関数内で渡される can_setting_t の multiData_send がfalseである場合は送信されない
+ *
  * @warning 最後にnull文字がないとespがパニックするため注意!!!
  *
  * @param[in] id CANの送信するid
  * @param[in] data 送信したいdata
  *
- * @retval //TODO
+ * @retval 0 success
+ * @retval 2 charの配列が8文字以上あった CANは8文字以下しか送信できない
+ * @retval 3 不正なid idは11bitまで
+ * @retval 4 データに誤りがある
+ * @retval 5 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
+ * @retval 6 twaiドライバが動作していない
+ * @retval 7 unknown error
+ * @retval -1 multiData_send がfalseなため、複数データを送信できない
  */
 int CAN_CREATE::sendLine(uint32_t id, char *data, uint32_t waitTime)
 {
@@ -841,10 +860,27 @@ int CAN_CREATE::sendLine(uint32_t id, char *data, uint32_t waitTime)
     return _sendLine(id, sendData, i, waitTime);
 }
 
+/**
+ * @brief 8文字までの文字を送信できる関数
+ * charの終端にnull文字がある文字列を送信することができる関数
+ * 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある
+ * charの文字列を送信する以外の用途であれば sendData 関数のほうが良い
+ *
+ * @warning 最後にnull文字がないとespがパニックするため注意!!!
+ *
+ * @param[in] data 送信したいdata
+ *
+ * @retval 0 success
+ * @retval 2 charの配列が8文字以上あった CANは8文字以下しか送信できない
+ * @retval 3 不正なid idは11bitまで
+ * @retval 4 データに誤りがある
+ * @retval 5 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
+ * @retval 6 twaiドライバが動作していない
+ * @retval 7 unknown error
+ * @retval -1 multiData_send がfalseなため、複数データを送信できない
+ */
 int CAN_CREATE::sendLine(char *data, uint32_t waitTime)
 {
-    old_mode_block;
-    multi_send_block;
     if (_id == -1)
     {
         pr_debug("[ERROR] you have to set id in begin or use sendChar(id, data)");
@@ -853,6 +889,25 @@ int CAN_CREATE::sendLine(char *data, uint32_t waitTime)
     return sendLine(_id, data, waitTime);
 }
 
+/**
+ * @brief 8文字までの文字を送信できる関数
+ * uint8_t型の8個までの配列を送信できる
+ * 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある
+ * charの文字列を送信する以外の用途であれば sendData 関数のほうが良い
+ * @warning numに配列の正確な個数を入れないと正常に送信されなかったりESPがパニックしたりするため注意
+ *
+ * @param[in] id CANの送信するid
+ * @param[in] data 送信したいdata
+ *
+ * @retval 0 success
+ * @retval 2 charの配列が8文字以上あった CANは8文字以下しか送信できない
+ * @retval 3 不正なid idは11bitまで
+ * @retval 4 データに誤りがある
+ * @retval 5 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
+ * @retval 6 twaiドライバが動作していない
+ * @retval 7 unknown error
+ * @retval -1 multiData_send がfalseなため、複数データを送信できない
+ */
 int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime)
 {
     old_mode_block;
@@ -862,15 +917,31 @@ int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime)
         pr_debug("[ERROR] CAN support to transfer maximum 8 character");
         return 1;
     }
-    char sendData[8];
-    memcpy(sendData, data, num * sizeof(int8_t));
-    return _sendLine(id, sendData, num, waitTime);
+    return _sendLine(id, reinterpret_cast<char *>(data), num, waitTime);
 }
 
+/**
+ * @brief 8文字までの文字を送信できる関数
+ * uint8_t型の8個までの配列を送信できる
+ * 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある
+ * charの文字列を送信する以外の用途であれば sendData 関数のほうが良い
+ * @warning numに配列の正確な個数を入れないと正常に送信されなかったりESPがパニックしたりするため注意
+ *
+ * @param[in] id CANの送信するid
+ * @param[in] data 送信したいdata
+ *
+ * @retval 0 success
+ * @retval 1 idが指定されていない begin内でidを指定することが必要
+ * @retval 2 charの配列が8文字以上あった CANは8文字以下しか送信できない
+ * @retval 3 不正なid idは11bitまで
+ * @retval 4 データに誤りがある
+ * @retval 5 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
+ * @retval 6 twaiドライバが動作していない
+ * @retval 7 unknown error
+ * @retval -1 multiData_send がfalseなため、複数データを送信できない
+ */
 int CAN_CREATE::sendData(uint8_t *data, int num, uint32_t waitTime)
 {
-    old_mode_block;
-    multi_send_block;
     if (_id == -1)
     {
         pr_debug("[ERROR] you have to set id in begin or use sendData(id, data)");
