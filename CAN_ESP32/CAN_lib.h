@@ -104,7 +104,7 @@ inline void pr_debug_checker(const char *fmt, ...) {}
 #define pr_debug(fmt, ...)            \
     do                                \
     {                                 \
-        ESP_LOGI(fmt, ##__VA_ARGS__); \
+        ESP_LOGI("CAN lib", fmt, ##__VA_ARGS__); \
     } while (0)
 #endif
 #else
