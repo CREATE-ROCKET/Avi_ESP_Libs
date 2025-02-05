@@ -9,7 +9,7 @@
 
 #include "CAN.h"
 
-// #include "CAN_lib.h"
+#include "CAN_lib.h"
 #include <stdint.h>
 #include <driver/twai.h>
 #include <driver/gpio.h>
@@ -18,7 +18,7 @@
 #include <freertos/semphr.h>
 #include <string.h>
 
-#ifdef DEBUG
+#if DEBUG_CAN
 #ifdef ARDUINO
 #include <Arduino.h>
 #else
@@ -65,7 +65,7 @@ void CAN_CREATE::bus_on()
 {
     if (_bus_off != GPIO_NUM_MAX)
     {
-        gpio_set_level(_bus_off, LOW);
+        gpio_set_level(_bus_off, 0/*LOW*/);
     }
 }
 
@@ -74,7 +74,7 @@ void CAN_CREATE::bus_off()
 {
     if (_bus_off != GPIO_NUM_MAX)
     {
-        gpio_set_level(_bus_off, HIGH);
+        gpio_set_level(_bus_off, 1/*HIGH*/);
     }
 }
 
@@ -642,7 +642,7 @@ int CAN_CREATE::test(uint32_t id)
     {
         if (++i > 10)
             break; // 1秒以上経っても送信中ならやめる
-        delay(100);
+        vTaskDelay(100 / portTICK_PERIOD_MS);
         result = getStatus();
     } while (result == can_err::CAN_NO_ALERTS);
 
@@ -690,7 +690,7 @@ int CAN_CREATE::test(uint32_t id)
         {
             if (++i > 10)
                 break; // 1秒以上経っても送信中ならやめる
-            delay(100);
+            vTaskDelay(100 / portTICK_PERIOD_MS);
             result = getStatus();
         } while (result == can_err::CAN_NO_ALERTS);
 

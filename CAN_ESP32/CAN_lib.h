@@ -45,18 +45,19 @@
         }                                                  \
     } while (0)
 
-#ifndef DEBUG
+#ifndef DEBUG_CAN
 /**
- * @def DEBUG
- * DEBUG printを利用するかを決める
- * もし、printにかかる時間が問題になる等で利用したくなければCAN.hをインクルードする前に
- * #define DEBUG 0 とするとよい
+ * @def DEBUG_CAN
+ * pr_debugを利用するかを決める もしoffにしたい場合は、platformio.iniにおいて
+ * ```ini
+ * build_flags = -DDEBUG_CAN=0
+ * ```
  */
-#define DEBUG 1
+#define DEBUG_CAN 1
 #endif
 
-#if DEBUG
 #ifndef pr_debug
+#if DEBUG_CAN
 #ifdef ARDUINO
 
 inline void pr_debug_checker(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
@@ -67,7 +68,6 @@ inline void pr_debug_checker(const char *fmt, ...) {}
  * @def pr_debug
  * @param #define DEBUG 1 とされているときに、実行されるDEBUG出力
  *         Serial.beginされていたら自動的に出力される
- * @note ESP IDF対応はこれでいいのかわからない
  */
 #define pr_debug(fmt, ...)                         \
     do                                             \
