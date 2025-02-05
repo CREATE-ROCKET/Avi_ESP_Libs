@@ -102,6 +102,12 @@ int CAN_CREATE::return_with_compatiblity(int return_int)
 // private関数
 int CAN_CREATE::_begin(can_setting_t settings, twai_mode_t mode)
 {
+    if (!_return_new)
+    {
+        pr_debug("Warning: This library runs in legacy compatible mode.\r\n"
+                 "In this mode, only setPin, begin, read, and sendPacket functions can be used.\r\n"
+                 "If you want to use the newer mode, please use CAN_CREATE(true);");
+    }
     if (_bus_off != GPIO_NUM_MAX)
     {
         if (!GPIO_IS_VALID_OUTPUT_GPIO(_bus_off))
@@ -321,12 +327,7 @@ CAN_CREATE::CAN_CREATE(bool is_new, bool enableCanWatchDog)
     _id = UINT32_MAX;
     _already_begin = false;
     _return_new = is_new;
-    if (!_return_new)
-    {
-        pr_debug("Warning: This library runs in legacy compatible mode.\r\n"
-                 "In this mode, only setPin, begin, read, and sendPacket functions can be used.\r\n"
-                 "If you want to use the newer mode, please use CAN_CREATE(true);");
-    }
+
     if (enableCanWatchDog)
     {
         xTaskCreatePinnedToCore(CanWatchDog, "CanWatchDog", 1024, &_already_begin, tskIDLE_PRIORITY, &CanWatchDogTaskHandle, tskNO_AFFINITY);
@@ -487,6 +488,26 @@ void CAN_CREATE::end()
 {
     _end();
     vTaskDelete(CanWatchDogTaskHandle);
+}
+
+/**
+ * @brief CANを一時停止させるときに利用できる関数
+ * 送信も受信も行わなくていいときに利用できる
+ */
+void CAN_CREATE::suspend() {
+    vTaskSuspend(CanWatchDogTaskHandle);
+    twai_stop();
+    bus_off();
+}
+
+/**
+ * @brief CANの動作を再開させるときに利用する関数
+ * suspend() でCANを停止させたあと再開させることができる
+ */
+void CAN_CREATE::resume() {
+    bus_on();
+    twai_start();
+    vTaskResume(CanWatchDogTaskHandle);
 }
 
 /**
