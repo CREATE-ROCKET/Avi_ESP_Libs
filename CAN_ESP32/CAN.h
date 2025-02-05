@@ -57,13 +57,15 @@ public:
     CAN_CREATE(bool return_new = true, bool enableCanWatchDog = true);
     ~CAN_CREATE();
 
-    void setPins(int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
+    void setPins(int rx, int tx, uint32_t id = UINT32_MAX, int bus_off = GPIO_NUM_MAX);
     int begin(long baudRate);
-    int begin(can_setting_t settings, int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
-    int begin(long baudRate, int rx, int tx, uint32_t id = -1, int bus_off = GPIO_NUM_MAX);
+    int begin(can_setting_t settings, int rx, int tx, uint32_t id = UINT32_MAX, int bus_off = GPIO_NUM_MAX);
+    int begin(long baudRate, int rx, int tx, uint32_t id = UINT32_MAX, int bus_off = GPIO_NUM_MAX);
     int begin();
     int re_configure(can_setting_t settings, twai_mode_t mode = TWAI_MODE_NORMAL);
     void end();
+    void suspend();
+    void resume();
     int getStatus();
     int test(uint32_t id = (1 << 11) - 1);
     void flush();

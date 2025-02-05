@@ -318,7 +318,7 @@ CAN_CREATE::CAN_CREATE(bool is_new, bool enableCanWatchDog)
     _rx = GPIO_NUM_MAX;
     _tx = GPIO_NUM_MAX;
     _bus_off = GPIO_NUM_MAX;
-    _id = -1;
+    _id = UINT32_MAX;
     _already_begin = false;
     _return_new = is_new;
     if (!_return_new)
@@ -392,6 +392,19 @@ int CAN_CREATE::begin(long baudRate)
  * @retval 6: bus_offピンにOUTPUTに指定できないピンが指定された
  * @retval 7: rxピンにOUTPUTに指定できないピンが指定された
  * @retval 8: txピンにOUTPUTに指定できないピンが指定された
+ *
+ * ```
+ * // example
+ * CAN_CREATE CAN;
+ *
+ * void setup() {
+ *     if(CAN.begin(100E3, 18, 19, 10, 20))
+ *     {
+ *         Serial.println("Starting CAN failed!!!");
+ *         ESP.restart();
+ *     }
+ * }
+ * ```
  */
 int CAN_CREATE::begin(can_setting_t settings, int rx, int tx, uint32_t id, int bus_off)
 {
@@ -422,6 +435,19 @@ int CAN_CREATE::begin(can_setting_t settings, int rx, int tx, uint32_t id, int b
  * @retval 6 bus_offピンにOUTPUTに指定できないピンが指定された
  * @retval 7 rxピンにOUTPUTに指定できないピンが指定された
  * @retval 8 txピンにOUTPUTに指定できないピンが指定された
+ *
+ * ```
+ * // example
+ * CAN_CREATE CAN;
+ *
+ * void setup() {
+ *     if(CAN.begin(100E3, 18, 19, 10, 20))
+ *     {
+ *         Serial.println("Starting CAN failed!!!");
+ *         ESP.restart();
+ *     }
+ * }
+ * ```
  */
 int CAN_CREATE::begin(long baudRate, int rx, int tx, uint32_t id, int bus_off)
 {
@@ -573,7 +599,7 @@ int CAN_CREATE::test(uint32_t id)
             0,  // data num
             {},
         };
-        int result = _send(message_self_reception, 0);
+        result = _send(message_self_reception, 0);
         if (result)
         {
             throw CAN_UNKNOWN_ERROR;
@@ -805,7 +831,7 @@ int CAN_CREATE::sendChar(uint32_t id, char data, uint32_t waitTime)
 int CAN_CREATE::sendChar(char data, uint32_t waitTime)
 {
     old_mode_block;
-    if (_id == -1)
+    if (_id == UINT32_MAX)
     {
         pr_debug("[ERROR] you have to set id in begin or use sendChar(id, data)");
         return 1;
@@ -887,7 +913,7 @@ int CAN_CREATE::sendLine(uint32_t id, char *data, uint32_t waitTime)
  */
 int CAN_CREATE::sendLine(char *data, uint32_t waitTime)
 {
-    if (_id == -1)
+    if (_id == UINT32_MAX)
     {
         pr_debug("[ERROR] you have to set id in begin or use sendChar(id, data)");
         return 1;
@@ -948,7 +974,7 @@ int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime)
  */
 int CAN_CREATE::sendData(uint8_t *data, int num, uint32_t waitTime)
 {
-    if (_id == -1)
+    if (_id == UINT32_MAX)
     {
         pr_debug("[ERROR] you have to set id in begin or use sendData(id, data)");
         return 1;

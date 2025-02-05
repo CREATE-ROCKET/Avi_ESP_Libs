@@ -89,21 +89,21 @@ inline void pr_debug_checker(const char *fmt, ...) {}
  *         Serial.beginされていたら自動的に出力される
  * @note ESP IDF対応はこれでいいのかわからない
  */
-#define pr_debug(fmt, ...)                              \
-    do                                                  \
-    {                                                   \
-        pr_debug_checker(fmt, ##__VA_ARGS__);           \
+#define pr_debug(fmt, ...)                         \
+    do                                             \
+    {                                              \
+        pr_debug_checker(fmt, ##__VA_ARGS__);      \
         if (Serial) /*Serial.beginされてたらtrue*/ \
-        {                                               \
-            Serial.printf(fmt, ##__VA_ARGS__);          \
-            Serial.println();                           \
-        }                                               \
+        {                                          \
+            Serial.printf(fmt, ##__VA_ARGS__);     \
+            Serial.println();                      \
+        }                                          \
     } while (0)
 #else
 // ESP IDF対応
-#define pr_debug(fmt, ...)            \
-    do                                \
-    {                                 \
+#define pr_debug(fmt, ...)                       \
+    do                                           \
+    {                                            \
         ESP_LOGI("CAN lib", fmt, ##__VA_ARGS__); \
     } while (0)
 #endif
@@ -140,14 +140,13 @@ inline void pr_debug_checker(const char *fmt, ...) {}
  */
 typedef struct
 {
-    long baudRate;               /**< 通信周波数 25kbits 50kbits 100kbits 125kbits 250kbits 500kbits 1Mbits を選択できる */
-    bool multiData_send = false; /**< 複数文字のデータを送信できるかどうか falseならsendLine sendData系の関数は使えなくなる */
-    twai_filter_config_t filter_config = {
-        .acceptance_code = 0,
-        .acceptance_mask = (1 << 29) - 2,
-        .single_filter = true,
-    }; /**< 受け取るidの制限 id 1 << 11 - 1 だけ制限する CANのidの制限の仕組みを知らないなら空欄のままが無難 */
+    long baudRate;                      /**< 通信周波数 25kbits 50kbits 100kbits 125kbits 250kbits 500kbits 1Mbits を選択できる */
+    bool multiData_send;                /**< 複数文字のデータを送信できるかどうか falseならsendLine sendData系の関数は使えなくなる */
+    twai_filter_config_t filter_config; /**< 受け取るidの制限 id 1 << 11 - 1 だけ制限する CAN_FILTER_DEFAULT マクロのままが無難 */
 } can_setting_t;
+
+#define CAN_FILTER_DEFAULT \
+    ((twai_filter_config_t){.acceptance_code = 0, .acceptance_mask = (1 << 29) - 2, .single_filter = true})
 
 typedef struct
 {
