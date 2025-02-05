@@ -45,26 +45,6 @@
         }                                                  \
     } while (0)
 
-#define not_start_block_void                                       \
-    do                                                             \
-    {                                                              \
-        if (!_already_begin)                                       \
-        {                                                          \
-            pr_debug("can driver was stopped state please begin"); \
-            return;                                                \
-        }                                                          \
-    }
-
-#define not_start_block_int                                        \
-    do                                                             \
-    {                                                              \
-        if (!_already_begin)                                       \
-        {                                                          \
-            pr_debug("can driver was stopped state please begin"); \
-            return -2;                                             \
-        }                                                          \
-    } while (0)
-
 #ifndef DEBUG
 /**
  * @def DEBUG

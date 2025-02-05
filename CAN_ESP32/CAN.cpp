@@ -243,18 +243,18 @@ int CAN_CREATE::_send(twai_message_t message, uint32_t waitTime)
         {
         case ESP_ERR_INVALID_ARG:
             pr_debug("[ERROR] Failed to transmit data due to invalid arguments");
-            return 2;
+            return 4;
             break;
         case ESP_ERR_TIMEOUT:
             pr_debug("[ERROR] Failed to transmit data due to timeout\r\n You should increase the TX queue size");
-            return 3;
+            return 5;
             break;
         case ESP_ERR_INVALID_STATE:
             pr_debug("[ERROR] failed to transmit data due to twai driver not running");
-            return 4;
+            return 6;
         default:
             pr_debug("[FATAL ERROR] failed to transmit data with unknown error");
-            return 5;
+            return 7;
             break;
         }
     }
@@ -307,7 +307,7 @@ int CAN_CREATE::_sendLine(uint32_t id, char *data, int num, uint32_t waitTime)
     if (id >= (1 << 11))
     {
         pr_debug("[ERROR] ID must not exceed (1 << 11 - 1)");
-        return 1;
+        return 3;
     }
     twai_message_t message = getDataMessage(id, data, num);
     return _send(message, waitTime);
@@ -494,7 +494,8 @@ void CAN_CREATE::end()
  * @brief CANを一時停止させるときに利用できる関数
  * 送信も受信も行わなくていいときに利用できる
  */
-void CAN_CREATE::suspend() {
+void CAN_CREATE::suspend()
+{
     vTaskSuspend(CanWatchDogTaskHandle);
     twai_stop();
     bus_off();
@@ -504,7 +505,8 @@ void CAN_CREATE::suspend() {
  * @brief CANの動作を再開させるときに利用する関数
  * suspend() でCANを停止させたあと再開させることができる
  */
-void CAN_CREATE::resume() {
+void CAN_CREATE::resume()
+{
     bus_on();
     twai_start();
     vTaskResume(CanWatchDogTaskHandle);
@@ -806,7 +808,6 @@ int CAN_CREATE::available()
  */
 int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
 {
-    not_start_block_int;
     old_mode_block;
     twai_message_t message;
     _read(&message, waitTime);
@@ -851,7 +852,6 @@ int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
  */
 int CAN_CREATE::readLine(char *readData, uint32_t waitTime)
 {
-    not_start_block_int;
     old_mode_block;
     twai_message_t twai_message;
     int result = _read(&twai_message, waitTime);
@@ -974,6 +974,7 @@ int CAN_CREATE::sendChar(uint32_t id, char data, uint32_t waitTime)
  * @param[in] data char型の送信するデータold_mode_block;
  *
  * @retval 0 success
+ * @retval 1 idが指定されていない begin内でidを指定することが必要
  * @retval 2 不正なid idは11bitまでold_mode_block;
  * @retval 3 データに誤りがある
  * @retval 4 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
@@ -1095,6 +1096,7 @@ int CAN_CREATE::sendLine(uint32_t id, char *data, uint32_t waitTime)
  * @param[in] data 送信したいdata
  *
  * @retval 0 success
+ * @retval 1 idが指定されていない begin内でidを指定することが必要
  * @retval 2 charの配列が8文字以上あった CANは8文字以下しか送信できない
  * @retval 3 不正なid idは11bitまで
  * @retval 4 データに誤りがある
@@ -1175,7 +1177,7 @@ int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime)
     if (num > 8)
     {
         pr_debug("[ERROR] CAN support to transfer maximum 8 character");
-        return 1;
+        return 2;
     }
     return _sendLine(id, reinterpret_cast<char *>(data), num, waitTime);
 }
