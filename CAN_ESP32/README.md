@@ -113,7 +113,9 @@ void loop()
       Serial.printf("Can received!!!: %s\r\n", Data);
   }
   uint8_t Data[6] = {'c', 'r', 'e', 'a', 't', 'e'};
-  CAN.sendData(Data, 6);
+  if (CAN.sendData(Data, 6)){
+    Serial.println("failed to send CAN data");
+  }
 
   delay(10);
 }

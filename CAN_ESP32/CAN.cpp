@@ -393,15 +393,21 @@ int CAN_CREATE::begin(long baudRate)
  * @retval 7: rxピンにOUTPUTに指定できないピンが指定された
  * @retval 8: txピンにOUTPUTに指定できないピンが指定された
  *
- * ```
+ * ```cpp
  * // example
+ * can_setting_t can_setting = {
+ *   ((long)100E3),
+ *   false,
+ *   CAN_FILTER_DEFAULT,
+ * };
+ *
  * CAN_CREATE CAN;
  *
  * void setup() {
  *     if(CAN.begin(100E3, 18, 19, 10, 20))
  *     {
  *         Serial.println("Starting CAN failed!!!");
- *         ESP.restart();
+ *         ESP.restart(); // CANが初期化できなかったときにESPを再起動する
  *     }
  * }
  * ```
@@ -436,16 +442,16 @@ int CAN_CREATE::begin(can_setting_t settings, int rx, int tx, uint32_t id, int b
  * @retval 7 rxピンにOUTPUTに指定できないピンが指定された
  * @retval 8 txピンにOUTPUTに指定できないピンが指定された
  *
- * ```
+ * ```cpp
  * // example
  * CAN_CREATE CAN;
  *
  * void setup() {
- *     if(CAN.begin(100E3, 18, 19, 10, 20))
- *     {
- *         Serial.println("Starting CAN failed!!!");
- *         ESP.restart();
- *     }
+ *   if(CAN.begin(100E3, 18, 19, 10, 20))
+ *   {
+ *     Serial.println("Starting CAN failed!!!");
+ *     ESP.restart(); // CANが初期化できなかったときにESPを再起動する
+ *   }
  * }
  * ```
  */
@@ -493,6 +499,33 @@ void CAN_CREATE::end()
  * @retval can_err::CAN_BUS_ERROR: ACK ErrorやBit Errorなどのバスのエラー
  * @retval can_err::CAN_TX_FAILED: CAN_BUS_ERROR以外の理由でデータが送信できなかった
  * @retval can_err::CAN_UNKNOWN_ERROR: begin関数を実行していないまたは不明なエラー
+ *
+ * ```cpp
+ * //example
+ * if (CAN.sendChar('a')) {
+ *   Serial.println("failed to send CAN data");
+ * }
+ *
+ * delay(100); // CANライブラリが裏で処理を終わらせるのに必要な待ち時間 ステータスを見るためにある
+ * switch (CAN.getStatus())
+ *   {
+ *   case CAN_SUCCESS:
+ *     Serial.println("Success to Send!!!");
+ *     break;
+ *   case CAN_NO_ALERTS:
+ *     Serial.println("CREATE_CAN driver isn't done yet");
+ *     break;
+ *   case CAN_BUS_ERROR:
+ *     Serial.println("Got a bus error on the CAN such as ACK Error");
+ *     break;
+ *   case CAN_TX_FAILED:
+ *     Serial.println("Can't send data, something other than a bus error might wrong");
+ *     break;
+ *   default:
+ *     Serial.println("Unknown error occurred!!!");
+ *     break;
+ *   }
+ * ```
  */
 int CAN_CREATE::getStatus()
 {
@@ -539,6 +572,31 @@ int CAN_CREATE::getStatus()
  * @retval CAN_
  *
  * @warning もしかしたらidを除外しているときはACK出さないかも
+ *
+ * ```cpp
+ * //example
+ * void setup() {
+ *   ...
+ *   // beginした後
+ *   switch (CAN.test())
+ *   {
+ *   case CAN_SUCCESS:
+ *     Serial.println("Success!!!");
+ *     break;
+ *   case CAN_UNKNOWN_ERROR:
+ *     Serial.println("Unknown error occurred");
+ *     break;
+ *   case CAN_NO_RESPONSE_ERROR:
+ *     Serial.println("No response error");
+ *     break;
+ *   case CAN_CONTROLLER_ERROR:
+ *     Serial.println("CAN CONTROLLER ERROR");
+ *     break;
+ *   default:
+ *     break;
+ *   }
+ * }
+ * ```
  */
 int CAN_CREATE::test(uint32_t id)
 {
@@ -667,6 +725,19 @@ void CAN_CREATE::flush()
  * @retval 1以上 データが受信キューにある
  *
  * @warning この関数は性質上エラーも0で返してしまうため注意
+ *
+ * ```cpp
+ * // example
+ * if (CAN.available()) {
+ *   Serial.println("receiving data...");
+ *   char Data;
+ *   if (CAN.read(&Data)) {
+ *     Serial.println("failed to get CAN data");
+ *   }
+ *   else
+ *     Serial.printf("Can received!!!: %c\r\n", Data);
+ * }
+ * ```
  */
 int CAN_CREATE::available()
 {
@@ -688,6 +759,29 @@ int CAN_CREATE::available()
  *  @retval 0 success
  *  @retval 1 CANに送られてきたデータを読むのに失敗した available関数を実行していない等
  *  @retval 2~4 CANを読むときにエラーが発生した
+ *
+ *  @warning 返り値のdataフィールドはnull文字が最後に入っていないことに注意すること
+ *
+ * ```cpp
+ * //example
+ * if (CAN.available()) {
+ *   Serial.println("receiving data...");
+ *   can_return_t Data;
+ *   if (CAN.readWithDetail(&Data)) {
+ *     Serial.println("failed to get CAN data");
+ *   }
+ *   else
+ *   {
+ *      // 得られたデータを出力する %.*s フォーマット指定子は直前の引数を参照してその文字数だけ出力する
+ *      Serial.printf("CAN received!!!\r\n id:\t %u \r\n size: \t %d \r\n data: \t %.*s",
+ *                      Data.id,
+ *                      Data.size,
+ *                      Data.size,
+ *                      Data.data
+ *                   );
+ *   }
+ * }
+ * ```
  */
 int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
 {
@@ -720,6 +814,19 @@ int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
  * @retval 2~4 CANを読むときにエラーが発生した
  * @retval 5 得られたデータがISO 11898-1互換ではなかった
  * @retval 6 何も入っていないデータが得られた
+ *
+ * ```cpp
+ * // example
+ * if (CAN.available()) {
+ *   Serial.println("receiving data...");
+ *   char[9] Data; // 配列は9文字以上必要!!!
+ *   if (CAN.readLine(Data)) {
+ *     Serial.println("failed to get CAN data");
+ *   }
+ *   else
+ *     Serial.printf("Can received!!!: %s\r\n", Data);
+ * }
+ * ```
  */
 int CAN_CREATE::readLine(char *readData, uint32_t waitTime)
 {
@@ -760,6 +867,19 @@ int CAN_CREATE::readLine(char *readData, uint32_t waitTime)
  * @retval 2~4 CANを読むときにエラーが発生した
  * @retval 5 得られたデータがISO 11898-1互換ではなかった
  * @retval 6 何も入っていないデータが得られた
+ *
+ * ```cpp
+ * // example
+ * if (CAN.available()) {
+ *   Serial.println("receiving data...");
+ *   char Data;
+ *   if (CAN.read(&Data)) {
+ *     Serial.println("failed to get CAN data");
+ *   }
+ *   else
+ *     Serial.printf("Can received!!!: %c\n", Data);
+ * }
+ * ```
  */
 int CAN_CREATE::read(char *readData, uint32_t waitTime)
 {                      // old_mode_blockはreadLineで実行される
@@ -808,6 +928,17 @@ char CAN_CREATE::read()
  * @retval 4 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
  * @retval 5 twaiドライバが動作していない
  * @retval 6 unknown error
+ *
+ * ```cpp
+ * // example
+ * if (Serial.available()) {
+ *   char cmd = Serial.read()
+ *   Serial.println(cmd);
+ *   if (CAN.sendChar(10, cmd)) {
+ *     Serial.println("failed to send CAN data");
+ *   }
+ * }
+ * ```
  */
 int CAN_CREATE::sendChar(uint32_t id, char data, uint32_t waitTime)
 {
@@ -827,6 +958,17 @@ int CAN_CREATE::sendChar(uint32_t id, char data, uint32_t waitTime)
  * @retval 4 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
  * @retval 5 twaiドライバが動作してold_mode_block;いない
  * @retval 6 unknown error
+ *
+ * ```cpp
+ * // example
+ * if (Serial.available()) {
+ *   char cmd = Serial.read()
+ *   Serial.println(cmd);
+ *   if (CAN.sendChar(cmd)) {
+ *     Serial.println("failed to send CAN data");
+ *   }
+ * }
+ * ```
  */
 int CAN_CREATE::sendChar(char data, uint32_t waitTime)
 {
@@ -871,6 +1013,35 @@ uint8_t CAN_CREATE::sendPacket(int id, char data)
  * @retval 6 twaiドライバが動作していない
  * @retval 7 unknown error
  * @retval -1 multiData_send がfalseなため、複数データを送信できない
+ *
+ * ```cpp
+ * // example
+ *   if (Serial.available())
+ * {
+ *   char data = Serial.peek(); // どの文字が入力されたかを確認(取り出さない)
+ *   if (data == '\n' || data == '\r')
+ *   {
+ *     Serial.read(); // 改行文字だったら取り出して捨てる
+ *     return;
+ *   }
+ *   char cmd[9] = {}; // 0の配列で初期化 null終端のために必要
+ *   for (int i = 0; i < 8; i++)
+ *   {
+ *     while (!Serial.available())
+ *       ;
+ *     char read = Serial.read();
+ *     if (read == '\n' || read == '\r')
+ *       break; // 改行文字だったら終了
+ *     cmd[i] = read;
+ *     Serial.print(read);
+ *   }
+ *   Serial.println();
+ *   if (CAN.sendLine(10, cmd)) // id 10で送信
+ *   {
+ *     Serial.println("failed to send CAN data");
+ *   }
+ * }
+ * ```
  */
 int CAN_CREATE::sendLine(uint32_t id, char *data, uint32_t waitTime)
 {
@@ -910,6 +1081,35 @@ int CAN_CREATE::sendLine(uint32_t id, char *data, uint32_t waitTime)
  * @retval 6 twaiドライバが動作していない
  * @retval 7 unknown error
  * @retval -1 multiData_send がfalseなため、複数データを送信できない
+ *
+ * ```cpp
+ * // example
+ *   if (Serial.available())
+ * {
+ *   char data = Serial.peek(); // どの文字が入力されたかを確認(取り出さない)
+ *   if (data == '\n' || data == '\r')
+ *   {
+ *     Serial.read(); // 改行文字だったら取り出して捨てる
+ *     return;
+ *   }
+ *   char cmd[9] = {}; // 0の配列で初期化 null終端のために必要
+ *   for (int i = 0; i < 8; i++)
+ *   {
+ *     while (!Serial.available())
+ *       ;
+ *     char read = Serial.read();
+ *     if (read == '\n' || read == '\r')
+ *       break; // 改行文字だったら終了
+ *     cmd[i] = read;
+ *     Serial.print(read);
+ *   }
+ *   Serial.println();
+ *   if (CAN.sendLine(cmd))
+ *   {
+ *     Serial.println("failed to send CAN data");
+ *   }
+ * }
+ * ```
  */
 int CAN_CREATE::sendLine(char *data, uint32_t waitTime)
 {
@@ -939,6 +1139,13 @@ int CAN_CREATE::sendLine(char *data, uint32_t waitTime)
  * @retval 6 twaiドライバが動作していない
  * @retval 7 unknown error
  * @retval -1 multiData_send がfalseなため、複数データを送信できない
+ *
+ * ```cpp
+ * uint8_t Data[6] = {'c', 'r', 'e', 'a', 't', 'e'};
+ * if (CAN.sendData(10, Data, 6)){ // 正しい文字数を入力!!!(ここでは6)
+ *   Serial.println("failed to send CAN data");
+ * }
+ * ```
  */
 int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime)
 {
@@ -971,6 +1178,13 @@ int CAN_CREATE::sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime)
  * @retval 6 twaiドライバが動作していない
  * @retval 7 unknown error
  * @retval -1 multiData_send がfalseなため、複数データを送信できない
+ *
+ * ```cpp
+ * uint8_t Data[6] = {'c', 'r', 'e', 'a', 't', 'e'};
+ * if (CAN.sendData(10, Data, 6)){ // 正しい文字数を入力!!!(ここでは6)
+ *   Serial.println("failed to send CAN data");
+ * }
+ * ```
  */
 int CAN_CREATE::sendData(uint8_t *data, int num, uint32_t waitTime)
 {

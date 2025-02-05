@@ -152,7 +152,7 @@ typedef struct
 {
     int size;
     char data[8];
-    int id;
+    uint32_t id;
 } can_return_t;
 
 /**
