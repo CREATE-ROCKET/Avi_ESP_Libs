@@ -281,3 +281,91 @@ void loop()
   }
 }
 ```
+
+## test関数を利用する例
+test関数を利用することで通信ができない場合に自分のコントローラーが動いているかを確かめることができ、原因の絞り込みが可能となります。  
+ただし、この関数で得られた結果は必ずしも正しいとは限らないことに注意してください。
+```cpp
+#include <CAN.h>
+#include <CAN_lib.h>
+
+#include <Arduino.h>
+
+#define CAN_RX 17 // CAN ICのTXに接続しているピン
+#define CAN_TX 18 // CAN ICのRXに接続しているピン
+
+CAN_CREATE CAN(true); // 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる
+
+can_setting_t can_setting = {
+    ((long)100E3),
+    false,
+    CAN_FILTER_DEFAULT,
+};
+
+void setup()
+{
+  Serial.begin(115200);
+
+  delay(1000);
+
+  Serial.println("CAN Sender");
+  // 100 kbpsでCANを動作させる
+  if (CAN.begin(can_setting, CAN_RX, CAN_TX, 10))
+  {
+    Serial.println("Starting CAN failed!");
+    while (1)
+      ;
+  }
+  delay(100);
+  switch (CAN.test())
+  {
+  case CAN_SUCCESS:
+    Serial.println("Success!!!"); // 通信成功
+    break;
+  case CAN_UNKNOWN_ERROR:
+    Serial.println("Unknown error occurred"); // 不可逆なエラーが発生した可能性がある 再起動推奨
+    break;
+  case CAN_NO_RESPONSE_ERROR:
+    Serial.println("No response error"); // 自分のコントローラーは動作している
+    break;
+  case CAN_CONTROLLER_ERROR:
+    Serial.println("CAN CONTROLLER ERROR"); // 自分のコントローラーが動作していない
+    break;
+  default:
+    break;
+  }
+}
+
+void loop()
+{
+
+  if (CAN.available())
+  {
+    Serial.println("receiving data...");
+    can_return_t Data;
+    if (CAN.readWithDetail(&Data))
+    {
+      Serial.println("failed to get CAN data");
+    }
+    else
+    {
+      Serial.printf("CAN received!!!\n id:\t %u \n size: \t %d \n data: \t %.*s",
+                    Data.id,
+                    Data.size,
+                    Data.size,
+                    Data.data
+                    );
+    }
+  }
+
+  if (Serial.available())
+  {
+    char cmd = Serial.read();
+    Serial.println(cmd);
+    if (CAN.sendChar(10, cmd))
+    {
+      Serial.println("failed to send CAN data");
+    }
+  }
+}
+```
