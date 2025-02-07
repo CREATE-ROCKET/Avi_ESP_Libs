@@ -65,7 +65,7 @@ void CAN_CREATE::bus_on()
 {
     if (_bus_off != GPIO_NUM_MAX)
     {
-        gpio_set_level(_bus_off, 0/*LOW*/);
+        gpio_set_level(_bus_off, 0 /*LOW*/);
     }
 }
 
@@ -74,7 +74,7 @@ void CAN_CREATE::bus_off()
 {
     if (_bus_off != GPIO_NUM_MAX)
     {
-        gpio_set_level(_bus_off, 1/*HIGH*/);
+        gpio_set_level(_bus_off, 1 /*HIGH*/);
     }
 }
 
@@ -102,6 +102,11 @@ int CAN_CREATE::return_with_compatiblity(int return_int)
 // private関数
 int CAN_CREATE::_begin(can_setting_t settings, twai_mode_t mode)
 {
+    if (_already_begin)
+    {
+        pr_debug("[ERROR] Begin function can be called once only.");
+        return 5;
+    }
     if (!_return_new)
     {
         pr_debug("Warning: This library runs in legacy compatible mode.\r\n"
@@ -193,7 +198,7 @@ int CAN_CREATE::_begin(can_setting_t settings, twai_mode_t mode)
 
     if (CanWatchDogTaskHandle)
     {
-        vTaskResume(&CanWatchDogTaskHandle);
+        vTaskResume(CanWatchDogTaskHandle);
     }
 
     // エラーとしてtwai_driver_not_installしかないから無視する
@@ -203,6 +208,7 @@ int CAN_CREATE::_begin(can_setting_t settings, twai_mode_t mode)
 
 void CAN_CREATE::_end()
 {
+    vTaskSuspend(CanWatchDogTaskHandle);
     twai_status_info_t status;
     if (twai_get_status_info(&status) != ESP_OK)
         return;
@@ -363,11 +369,6 @@ void CAN_CREATE::setPins(int rx, int tx, uint32_t id, int bus_off)
  */
 int CAN_CREATE::begin(long baudRate)
 {
-    if (_already_begin)
-    {
-        pr_debug("[ERROR] Begin function can be called once only.");
-        return 5;
-    }
     can_setting_t settings;
     settings.baudRate = baudRate;
     settings.multiData_send = true;
@@ -416,11 +417,6 @@ int CAN_CREATE::begin(long baudRate)
 int CAN_CREATE::begin(can_setting_t settings, int rx, int tx, uint32_t id, int bus_off)
 {
     old_mode_block;
-    if (_already_begin)
-    {
-        pr_debug("[ERROR] Begin function can be called once only.");
-        return 5;
-    }
     setPins(rx, tx, id, bus_off);
     return _begin(settings);
 }
@@ -577,24 +573,81 @@ int CAN_CREATE::getStatus()
     return CAN_UNKNOWN_ERROR;
 }
 
+inline int CAN_CREATE::_test(uint32_t id)
+{
+    can_setting_t settings;
+    settings.baudRate = 25E3;
+    settings.multiData_send = true;
+    settings.filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    int result = re_configure(settings, TWAI_MODE_NO_ACK);
+    if (result)
+    {
+        pr_debug("[ERROR] failed to re_configure");
+        return CAN_UNKNOWN_ERROR;
+    }
+    // 送信したデータが自分で受け取れるかを確かめる
+    twai_message_t message_self_reception;
+    message_self_reception.extd = 0;
+    message_self_reception.rtr = 0;
+    message_self_reception.ss = 0;
+    message_self_reception.self = 1;
+    message_self_reception.dlc_non_comp = 0;
+    message_self_reception.identifier = id;
+    message_self_reception.data_length_code = 0;
+
+    result = _send(message_self_reception, 0);
+    if (result)
+    {
+        return CAN_UNKNOWN_ERROR;
+    }
+    int i = 0;
+    do
+    {
+        if (++i > 10)
+            break; // 1秒以上経っても送信中ならやめる
+        vTaskDelay(100 / portTICK_PERIOD_MS);
+        result = getStatus();
+    } while (result == can_err::CAN_NO_ALERTS);
+
+    if (available())
+    {
+        can_return_t data;
+        int result = readWithDetail(&data);
+        if (result)
+        {
+            return CAN_UNKNOWN_ERROR;
+        }
+        if (data.id == id)
+        {
+            return CAN_NO_RESPONSE_ERROR; // 自身のCANコントローラーは生きていてBUSか相手のCANコントローラーが死んでる
+        }
+        else
+        {
+            pr_debug("[ERROR] expected id: %u, but found: %u", id, data.id);
+        }
+    }
+    return CAN_CONTROLLER_ERROR;
+}
+
 /**
  * @brief CANが動作するかを確かめる関数
  *
+ * あくまで参考として利用してください
  * テストデータを送信して、Bus Errorとなった場合に自分が送ったデータを自分で読み取れるかを確認する
  *
- * @attention この関数は実行に0.1秒以上かかるため、setup関数でのみ利用可能
+ * @attention この関数は実行に0.2~3s程度かかるため、setup関数でのみ利用可能
  * @attention 実行中に送信されてきたメッセージは受け取れない可能性がある。
+ * @attention お互いにtest関数を実行する場合、正しい結果が得られないことがある。
  * @note デフォルトでは通信id (1 << 11 - 1)で送信するため、このidはフィルタリングされる必要がある
  *          can_setting_tのfilter_configがデフォルト設定なら自動的に設定される
  *
  * @param[in] id テストで送信するidを指定する。空欄ならid 1 << 11 - 1 で送信される
- *            CANのフィルタリング方法を知らないなら空欄のままが無難
+ *            デフォルトの設定では1 << 11 - 1は事前に除外されているため CANのフィルタリング方法を知らないなら空欄のままが無難
  * @return CANの動作が正常に終了したかを確かめる
  * @retval CAN_SUCCESS: 正常終了
  * @retval CAN_UNKNOWN_ERROR: 失敗
- * @retval CAN_
- *
- * @warning もしかしたらidを除外しているときはACK出さないかも
+ * @retval CAN_NO_RESPONSE_ERROR: 相手側のコントローラーかBUSが動いていないときのエラー
+ * @retval CAN_CONTROLLER_ERROR: 自分のコントローラーが動いていないときのエラー
  *
  * ```cpp
  * //example
@@ -624,14 +677,14 @@ int CAN_CREATE::getStatus()
 int CAN_CREATE::test(uint32_t id)
 {
     old_mode_block;
-    twai_message_t message{
-        0,  // standard format message
-        0,  // remote transmission request disabled
-        0,  // single shot transmission disabled
-        0,  // self reception disabled
-        id, // id
-        0,  // data num
-    };
+    twai_message_t message;
+    message.extd = 0;             // standard format message
+    message.rtr = 0;              // remote transmission request disabled
+    message.ss = 0;               // single shot transmission disabled
+    message.self = 0;             // self reception request disabled
+    message.dlc_non_comp = 0;     // compatible with ISO 11898-1
+    message.identifier = id;      // id
+    message.data_length_code = 0; // data length
     int result = _send(message, 0);
     if (result)
     {
@@ -656,71 +709,16 @@ int CAN_CREATE::test(uint32_t id)
     }
     // 通常の送信に失敗したので、自分で送ったデータを自分で受け取れるかを確かめる
     can_setting_t backup_can_setting = _settings; // 今の状態を保存する
-    try
-    {
-        can_setting_t settings;
-        settings.baudRate = 25E3;
-        settings.multiData_send = true;
-        settings.filter_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
-        vTaskSuspend(CanWatchDogTaskHandle);
-        int result = re_configure(settings, TWAI_MODE_NO_ACK);
-        if (result)
-        {
-            pr_debug("[ERROR] failed to re_configure");
-            return CAN_UNKNOWN_ERROR;
-        }
-        vTaskResume(CanWatchDogTaskHandle);
-        // 送信したデータが自分で受け取れるかを確かめる
-        twai_message_t message_self_reception = {
-            0,  // standard format message
-            0,  // remote transmission request disabled
-            0,  // single shot transmission enabled
-            1,  // self reception enabled
-            id, // id
-            0,  // data num
-            {},
-        };
-        result = _send(message_self_reception, 0);
-        if (result)
-        {
-            throw CAN_UNKNOWN_ERROR;
-        }
-        i = 0;
-        do
-        {
-            if (++i > 10)
-                break; // 1秒以上経っても送信中ならやめる
-            vTaskDelay(100 / portTICK_PERIOD_MS);
-            result = getStatus();
-        } while (result == can_err::CAN_NO_ALERTS);
-
-        if (available())
-        {
-            pr_debug("available found");
-            can_return_t data;
-            readWithDetail(&data);
-            if (data.id == id)
-            {
-                throw CAN_NO_RESPONSE_ERROR; // 自身のCANコントローラーは生きていてBUSか相手のCANコントローラーが死んでる
-            }
-        }
-    }
-    catch (int err_type)
-    {
-        if (re_configure(backup_can_setting))
-        {
-            pr_debug("[FATAL ERROR] can't set setting property in test function\r\ncan turned off...");
-            _already_begin = false;
-        }
-        return err_type;
-    }
-
+    pr_debug("[INFO] CAN test failed, trying self-reception...");
+    // throw catch文を使っていたが、abortする等不安定だったので別関数にする。
+    result = _test(id);
     if (re_configure(backup_can_setting))
     {
         pr_debug("[FATAL ERROR] can't set setting property in test function\r\ncan turned off...");
         _already_begin = false;
+        return CAN_UNKNOWN_ERROR;
     }
-    return CAN_CONTROLLER_ERROR;
+    return result;
 }
 
 /*
@@ -810,7 +808,11 @@ int CAN_CREATE::readWithDetail(can_return_t *readData, uint32_t waitTime)
 {
     old_mode_block;
     twai_message_t message;
-    _read(&message, waitTime);
+    int result = _read(&message, waitTime);
+    if (result)
+    {
+        return result;
+    }
     if (message.dlc_non_comp)
     {
         pr_debug("[ERROR] This library needs to follow ISO 11898-1");

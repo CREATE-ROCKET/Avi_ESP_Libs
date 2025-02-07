@@ -45,6 +45,7 @@ private:
 
     int _begin(can_setting_t settings, twai_mode_t mode = TWAI_MODE_NORMAL);
     void _end();
+    int _test(uint32_t id);
     int _sendLine(uint32_t id, char *data, int num, uint32_t waitTime);
     int _send(twai_message_t message, uint32_t waitTime);
     int _read(twai_message_t *message, uint32_t waitTime);

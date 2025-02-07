@@ -75,6 +75,7 @@ inline void pr_debug_checker(const char *fmt, ...) {}
         pr_debug_checker(fmt, ##__VA_ARGS__);      \
         if (Serial) /*Serial.beginされてたらtrue*/ \
         {                                          \
+            Serial.printf("CAN_CREATE: ");         \
             Serial.printf(fmt, ##__VA_ARGS__);     \
             Serial.println();                      \
         }                                          \
