@@ -2,7 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 /**
- * @file CAN_lib.h
+ * @file CANCREATE_lib.h
  * @brief CAN config file
  * @copyright CREATE-ROCKET
  */

@@ -12,8 +12,8 @@
 // This library uses Nomal mode in Operating Mode
 
 /**
- * @file CAN.h
- * @brief CAN.cpp header
+ * @file CANCREATE.h
+ * @brief CANCREATE.cpp header
  * @copyright CREATE-ROCKET
  */
 
@@ -22,7 +22,7 @@
 #ifndef CAN_H
 #define CAN_H
 
-#include "CAN_lib.h"
+#include "CANCREATE_lib.h"
 #include "stdint.h"
 
 /**

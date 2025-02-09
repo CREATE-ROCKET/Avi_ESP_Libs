@@ -2,14 +2,14 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 /**
- * @file CAN.cpp
+ * @file CANCREATE.cpp
  * @brief TWAI driver wrapper
  * @copyright CREATE-ROCKET
  */
 
-#include "CAN.h"
+#include "CANCREATE.h"
 
-#include "CAN_lib.h"
+#include "CANCREATE_lib.h"
 #include <stdint.h>
 #include <driver/twai.h>
 #include <driver/gpio.h>
