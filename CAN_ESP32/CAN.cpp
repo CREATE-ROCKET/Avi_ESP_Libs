@@ -403,7 +403,7 @@ int CAN_CREATE::begin(long baudRate)
  *   CAN_FILTER_DEFAULT,
  * };
  *
- * CAN_CREATE CAN;
+ * CAN_CREATE CAN(true);
  *
  * void setup() {
  *     if(CAN.begin(100E3, 18, 19, 10, 20))
@@ -441,7 +441,7 @@ int CAN_CREATE::begin(can_setting_t settings, int rx, int tx, uint32_t id, int b
  *
  * ```cpp
  * // example
- * CAN_CREATE CAN;
+ * CAN_CREATE CAN(true);
  *
  * void setup() {
  *   if(CAN.begin(100E3, 18, 19, 10, 20))
@@ -794,7 +794,7 @@ int CAN_CREATE::available()
  *   else
  *   {
  *      // 得られたデータを出力する %.*s フォーマット指定子は直前の引数を参照してその文字数だけ出力する
- *      Serial.printf("CAN received!!!\r\n id:\t %u \r\n size: \t %d \r\n data: \t %.*s",
+ *      Serial.printf("CAN received!!!\r\n id:\t %u \r\n size: \t %d \r\n data: \t %.*s\r\n",
  *                      Data.id,
  *                      Data.size,
  *                      Data.size,
@@ -973,14 +973,14 @@ int CAN_CREATE::sendChar(uint32_t id, char data, uint32_t waitTime)
 /*
  * @brief charをCANで送る関数 beginでidを指定していなければfailする
  *
- * @param[in] data char型の送信するデータold_mode_block;
+ * @param[in] data char型の送信するデータ
  *
  * @retval 0 success
  * @retval 1 idが指定されていない begin内でidを指定することが必要
- * @retval 2 不正なid idは11bitまでold_mode_block;
+ * @retval 2 不正なid idは11bitまで
  * @retval 3 データに誤りがある
  * @retval 4 txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか
- * @retval 5 twaiドライバが動作してold_mode_block;いない
+ * @retval 5 twaiドライバが動作していない
  * @retval 6 unknown error
  *
  * ```cpp

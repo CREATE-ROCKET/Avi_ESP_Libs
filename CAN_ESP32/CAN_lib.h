@@ -123,11 +123,12 @@ typedef struct
 {
     long baudRate;                      /**< 通信周波数 25kbits 50kbits 100kbits 125kbits 250kbits 500kbits 1Mbits を選択できる */
     bool multiData_send;                /**< 複数文字のデータを送信できるかどうか falseならsendLine sendData系の関数は使えなくなる */
-    twai_filter_config_t filter_config; /**< 受け取るidの制限 id 1 << 11 - 1 だけ制限する CAN_FILTER_DEFAULT マクロのままが無難 */
+    twai_filter_config_t filter_config; /**< 受け取るidの制限 id 1 << 10 ~ ((1 << 11) - 1) だけ制限する CAN_FILTER_DEFAULT マクロのままが無難 */
 } can_setting_t;
 
+// 最上位bitが1のidを制限するfiltering設定
 #define CAN_FILTER_DEFAULT \
-    ((twai_filter_config_t){.acceptance_code = 0, .acceptance_mask = (1 << 29) - 2, .single_filter = true})
+    ((twai_filter_config_t){.acceptance_code = 0, .acceptance_mask = 0xFFFF_FFFF - (1 << 31), .single_filter = true})
 
 typedef struct
 {

@@ -35,6 +35,10 @@ build_flags = -DDEBUG_CAN=0
 CAN_CREATE CAN(false);
 ```
 
+### IDの制限
+
+CANは11bitのIDが利用できるが、最上位bitが1のときにはブロックされる設定となっている。
+
 ## example
 ### 1文字しか送受信しない例
 ```cpp
@@ -365,6 +369,62 @@ void loop()
     if (CAN.sendChar(10, cmd))
     {
       Serial.println("failed to send CAN data");
+    }
+  }
+}
+```
+
+---
+## 昔のモードを利用する例
+#### 非推奨
+注意点
+- CANのコンストラクタでfalse値を渡す必要がある
+- Arduino.hはライブラリ内でincludeしないため、インクルードが必要
+```cpp
+// Copyright (c) Sandeep Mistry. All rights reserved.
+// Licensed under the MIT license. See LICENSE file in the project root for full license information.
+
+#include <CAN.h>
+#include <Arduino.h>
+
+CAN_CREATE CAN(false);
+
+void setup()
+{
+  Serial.begin(115200);
+  while (!Serial)
+    ;
+
+  Serial.println("CAN Receiver");
+  CAN.setPins(17, 18);
+
+  // start the CAN bus at 100 kbps
+  if (!CAN.begin(100E3))
+  {
+    Serial.println("Starting CAN failed!");
+    while (1)
+      ;
+  }
+}
+
+void loop()
+{
+  // try to parse packet
+
+  if (CAN.available())
+  {
+    char cmd = (char)CAN.read();
+    Serial.print(cmd);
+  }
+  if (Serial.available())
+  {
+    char data = Serial.read();
+    Serial.println(data);
+    CAN.sendPacket(0x13, data);
+    int result = CAN.sendChar(data); // no supported
+    if (result)
+    {
+      Serial.print(result);
     }
   }
 }
