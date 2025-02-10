@@ -39,7 +39,7 @@ private:
     gpio_num_t _bus_off;
     uint32_t _id;
     bool _return_new;
-    bool _already_begin;
+    static bool _already_begin;
     bool _multi_send;
     can_setting_t _settings;
 
@@ -52,6 +52,8 @@ private:
     void bus_on();
     void bus_off();
     int return_with_compatiblity(int return_int);
+
+    friend void CanWatchDog(void *pvParameter);
 
 public:
     CAN_CREATE(can_setting_t settings);

@@ -26,6 +26,8 @@
 #endif
 #endif
 
+bool CAN_CREATE::_already_begin = false;
+
 TaskHandle_t CanWatchDogTaskHandle;
 
 /**
@@ -36,7 +38,6 @@ TaskHandle_t CanWatchDogTaskHandle;
  */
 void CanWatchDog(void *pvParameter)
 {
-    bool *_already_begin = (bool *)pvParameter;
     twai_status_info_t twai_status;
     for (;;)
     {
@@ -47,7 +48,7 @@ void CanWatchDog(void *pvParameter)
                 if (twai_initiate_recovery() == ESP_ERR_INVALID_STATE)
                 {
                     pr_debug("[FATAL ERROR] twai driver is bus_off state and cannot recovery");
-                    *_already_begin = false; // re_configureが必要
+                    CAN_CREATE::_already_begin = false; // re_configureが必要
                 }
             }
         }
@@ -336,7 +337,7 @@ CAN_CREATE::CAN_CREATE(bool is_new, bool enableCanWatchDog)
 
     if (enableCanWatchDog)
     {
-        xTaskCreatePinnedToCore(CanWatchDog, "CanWatchDog", 1024, &_already_begin, tskIDLE_PRIORITY, &CanWatchDogTaskHandle, tskNO_AFFINITY);
+        xTaskCreatePinnedToCore(CanWatchDog, "CanWatchDog", 1024, NULL, tskIDLE_PRIORITY, &CanWatchDogTaskHandle, tskNO_AFFINITY);
         vTaskSuspend(CanWatchDogTaskHandle);
     }
 }
