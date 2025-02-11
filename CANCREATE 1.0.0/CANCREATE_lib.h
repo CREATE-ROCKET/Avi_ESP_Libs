@@ -128,7 +128,7 @@ typedef struct
 
 // 最上位bitが1のidを制限するfiltering設定
 #define CAN_FILTER_DEFAULT \
-    ((twai_filter_config_t){.acceptance_code = 0, .acceptance_mask = 0xFFFF_FFFF - (1 << 31), .single_filter = true})
+    ((twai_filter_config_t){.acceptance_code = 0, .acceptance_mask = 0xFFFFFFFF - (1 << 31), .single_filter = true})
 
 typedef struct
 {

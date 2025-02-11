@@ -374,9 +374,84 @@ void loop()
 }
 ```
 
+## can_setting_tを利用し、id等の正確なデータを得る例
+
+```cpp
+#include <CANCREATE.h>
+#include <Arduino.h>
+
+#define CAN_RX 17 // CAN ICのTXに接続しているピン
+#define CAN_TX 18 // CAN ICのRXに接続しているピン
+
+CAN_CREATE CAN(true); // 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる
+
+can_setting_t Settings = {
+    .baudRate = (long)100E3,
+    .multiData_send = true,
+    .filter_config = CAN_FILTER_DEFAULT,
+};
+
+int i;
+
+void setup()
+{
+  Serial.begin(115200);
+  while (!Serial)
+    ;
+  delay(1000);
+
+  Serial.println("CAN Sender");
+  // start the CAN bus at 100 kbps
+  if (CAN.begin(Settings, CAN_RX, CAN_TX, 10))
+  {
+    Serial.println("Starting CAN failed!");
+    while (true)
+      ;
+  }
+  i = 0;
+}
+
+void loop()
+{
+  if (CAN.available())
+  {
+    can_return_t Data;
+    if (CAN.readWithDetail(&Data))
+    {
+      Serial.println("failed to get CAN data");
+    }
+    else
+    {
+      // 得られたデータを出力する %.*s フォーマット指定子は直前の引数を参照してその文字数だけ出力する
+      Serial.printf("CAN received!!!\r\n id:\t %u \r\n size: \t %d \r\n data: \t %.*s\r\n",
+                    Data.id,
+                    Data.size,
+                    Data.size,
+                    Data.data);
+    }
+    if (i != Data.id)
+    {
+      Serial.printf("failed at %d, found %d", i, Data.id);
+    }
+    Serial.println(i);
+    i++;
+  }
+  if (Serial.available())
+  {
+    for (int i = 0; i < (1 << 29); i++)
+    {
+      CAN.sendChar(i, 'a');
+      delay(100);
+    }
+  }
+}
+```
+
 ---
 ## 昔のモードを利用する例
-#### 非推奨
+>![warning]
+>旧ライブラリ用として書かれたプログラムをそのまま利用できるようにしたものです。 新規に作る場合に採用は非推奨です。
+
 注意点
 - CANのコンストラクタでfalse値を渡す必要がある
 - Arduino.hはライブラリ内でincludeしないため、インクルードが必要
