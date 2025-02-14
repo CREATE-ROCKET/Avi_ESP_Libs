@@ -1,10 +1,11 @@
 // version: 2.0.0
 #include "SPICREATE.h" // 2.0.0
+/** @deprecated csセット用だったが、spi_device_interface_config_tのspics_numで代用することにした */
 void csSet(spi_transaction_t *t)
 {
-    digitalWrite((int)t->user, HIGH);
     return;
 }
+/** @deprecated csセット用だったが、spi_device_interface_config_tのspics_numで代用することにした */
 void csReset(spi_transaction_t *t)
 {
     digitalWrite((int)t->user, LOW);
@@ -12,41 +13,32 @@ void csReset(spi_transaction_t *t)
 }
 SPICREATE_BEGIN
 
+#if !(IS_S3)
 bool SPICreate::begin(uint8_t spi_bus, int8_t sck, int8_t miso, int8_t mosi, uint32_t f)
 {
+    if ((sck == -1) && (miso == -1) && (mosi == -1) && spi_bus == VSPI)
+    {
+        sck = SCK;
+        miso = MISO;
+        mosi = MOSI;
+    }
+    spi_host_device_t host_in;
+    host_in = (spi_bus == HSPI) ? HSPI_HOST : VSPI_HOST;
+    return begin(host_in, sck, miso, mosi, f);
+}
+#endif
 
+bool SPICreate::begin(spi_host_device_t host_in, int8_t sck, int8_t miso, int8_t mosi, uint32_t f)
+{
     frequency = f;
-    if ((sck == -1) && (miso == -1) && (mosi == -1))
-    {
-        bus_cfg.sclk_io_num = (spi_bus == VSPI) ? SCK : 14;
-        bus_cfg.miso_io_num = (spi_bus == VSPI) ? MISO : 12;
-        bus_cfg.mosi_io_num = (spi_bus == VSPI) ? MOSI : 13;
-    }
-    else
-    {
-        bus_cfg.sclk_io_num = sck;
-        bus_cfg.miso_io_num = miso;
-        bus_cfg.mosi_io_num = mosi;
-    }
+
+    bus_cfg.sclk_io_num = sck;
+    bus_cfg.miso_io_num = miso;
+    bus_cfg.mosi_io_num = mosi;
 
     bus_cfg.max_transfer_sz = max_size;
 
-    if ((mode != SPI_MODE1) && (mode != SPI_MODE3))
-    {
-        mode = SPI_MODE3;
-    }
-
-    host = (spi_bus == HSPI) ? HSPI_HOST : VSPI_HOST;
-    dma_chan = 1;
-    if (spi_bus == VSPI)
-    {
-        dma_chan = 1;
-    }
-    if (spi_bus == HSPI)
-    {
-        dma_chan = 2;
-    }
-    esp_err_t e = spi_bus_initialize(host, &bus_cfg, dma_chan);
+    esp_err_t e = spi_bus_initialize(host, &bus_cfg, SPI_DMA_CH_AUTO);
     if (e != ESP_OK)
     {
         // printf("[ERROR] SPI bus initialize failed : %d\n", e);
@@ -69,13 +61,13 @@ bool SPICreate::end()
 int SPICreate::addDevice(spi_device_interface_config_t *if_cfg, int cs)
 {
     deviceNum++;
-    CSs[deviceNum] = cs;
     pinMode(cs, OUTPUT);
     digitalWrite(cs, HIGH);
-    if (deviceNum > 9)
+    if (deviceNum > 3)
     {
         return 0;
     }
+    if_cfg->spics_io_num = cs;
     esp_err_t e = spi_bus_add_device(host, if_cfg, &handle[deviceNum]);
     if (e != ESP_OK)
     {
@@ -100,7 +92,6 @@ void SPICreate::sendCmd(uint8_t cmd, int deviceHandle)
     comm.flags = SPI_TRANS_USE_TXDATA;
     comm.length = 8;
     comm.tx_data[0] = cmd;
-    comm.user = (void *)CSs[deviceHandle];
     pollTransmit(&comm, deviceHandle);
 }
 uint8_t SPICreate::readByte(uint8_t addr, int deviceHandle)
@@ -109,7 +100,6 @@ uint8_t SPICreate::readByte(uint8_t addr, int deviceHandle)
     comm.flags = SPI_TRANS_USE_RXDATA | SPI_TRANS_USE_TXDATA;
     comm.tx_data[0] = addr;
     comm.length = 16;
-    comm.user = (void *)CSs[deviceHandle];
     pollTransmit(&comm, deviceHandle);
     return comm.rx_data[1];
 }
@@ -138,9 +128,7 @@ void SPICreate::transmit(uint8_t *tx, uint8_t *rx, int size, int deviceHandle)
 
 void SPICreate::transmit(spi_transaction_t *transaction, int deviceHandle)
 {
-    digitalWrite(CSs[deviceHandle], LOW);
     esp_err_t e = spi_device_transmit(handle[deviceHandle], transaction);
-    digitalWrite(CSs[deviceHandle], HIGH);
     return;
 }
 void SPICreate::pollTransmit(spi_transaction_t *transaction, int deviceHandle)
