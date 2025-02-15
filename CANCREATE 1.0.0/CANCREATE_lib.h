@@ -156,6 +156,8 @@ enum can_err
  */
 enum can_test
 {
+    // CAN_SUCCESS = 0,
+    // CAN_UNKNOWN_ERROR = 1, これらはcan_errで定義されている
     CAN_NO_RESPONSE_ERROR = 2, /**< 相手側のコントローラーかBUSが動いていないときのエラー */
     CAN_CONTROLLER_ERROR,      /**< 自身のコントローラーが動いていないときのエラー */
 };

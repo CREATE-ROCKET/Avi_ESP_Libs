@@ -460,9 +460,7 @@ int CAN_CREATE::begin(long baudRate, int rx, int tx, uint32_t id, int bus_off)
     can_setting_t settings;
     settings.baudRate = baudRate;
     settings.multiData_send = true;
-    settings.filter_config.acceptance_code = 0;
-    settings.filter_config.acceptance_mask = (1 << 29) - 2;
-    settings.filter_config.single_filter = true;
+    settings.filter_config = CAN_FILTER_DEFAULT;
     return _begin(settings);
 }
 
