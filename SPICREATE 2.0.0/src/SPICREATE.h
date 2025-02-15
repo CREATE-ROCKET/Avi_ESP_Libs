@@ -38,8 +38,8 @@ namespace arduino
 #else
                     spi_host_device_t host{HSPI_HOST};
 #endif
-                    uint8_t mode{SPI_MODE3}; // must be 1 or 3
-                    int max_size{4092};      // default size
+                    uint8_t mode{SPI_MODE3};       // must be 1 or 3
+                    int max_size{SPI_MAX_DMA_LEN}; // default size
                     uint32_t frequency{SPI_MASTER_FREQ_8M};
 
                     std::deque<spi_transaction_t> transactions;
