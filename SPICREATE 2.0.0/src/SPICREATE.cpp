@@ -41,7 +41,7 @@ bool SPICreate::begin(spi_host_device_t host_in, int8_t sck, int8_t miso, int8_t
     bus_cfg.mosi_io_num = mosi;
     bus_cfg.quadwp_io_num = -1; // unused
     bus_cfg.quadhd_io_num = -1; // unused
-    bus_cfg.max_tramosi_io_numnsfer_sz = max_size;
+    bus_cfg.max_transfer_sz = max_size;
 
     esp_err_t e = spi_bus_initialize(host, &bus_cfg, SPI_DMA_CH_AUTO);
     if (e != ESP_OK)
