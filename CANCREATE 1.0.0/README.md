@@ -42,7 +42,7 @@ CANは11bitのIDが利用できますが、最上位bitが1のときにはブロ
 ## example
 ### 1文字しか送受信しない例
 ```cpp
-#include <CAN.h>
+#include <CANCREATE.h>
 #include <Arduino.h>
 
 #define CAN_RX 17 // CAN ICのTXに接続しているピン
@@ -95,7 +95,7 @@ void loop()
 
 ### 2文字以上送信する例(uint8_t 配列を利用する場合)
 ```cpp
-#include <CAN.h>
+#include <CANCREATE.h>
 #include <Arduino.h>
 
 #define CAN_RX 17 // CAN ICのTXに接続しているピン
@@ -145,7 +145,7 @@ void loop()
 char文字列は、最後にnull文字(int型で0)が来ている必要があります。
 
 ```cpp
-#include <CAN.h>
+#include <CANCREATE.h>
 #include <Arduino.h>
 
 #define CAN_RX 17 // CAN ICのTXに接続しているピン
@@ -213,7 +213,7 @@ void loop()
 ### 送信ステータスを得られるようにした例
 
 ```cpp
-#include <CAN.h>
+#include <CANCREATE.h>
 #include <Arduino.h>
 
 #define CAN_RX 17 // CAN ICのTXに接続しているピン
@@ -290,9 +290,7 @@ void loop()
 test関数を利用することで通信ができない場合に自分のコントローラーが動いているかを確かめることができ、原因の絞り込みが可能となります。  
 ただし、この関数で得られた結果は必ずしも正しいとは限らないことに注意してください。
 ```cpp
-#include <CAN.h>
-#include <CAN_lib.h>
-
+#include <CANCREATE.h>
 #include <Arduino.h>
 
 #define CAN_RX 17 // CAN ICのTXに接続しているピン
@@ -456,13 +454,10 @@ void loop()
 - CANのコンストラクタでfalse値を渡す必要がある
 - Arduino.hはライブラリ内でincludeしないため、インクルードが必要
 ```cpp
-// Copyright (c) Sandeep Mistry. All rights reserved.
-// Licensed under the MIT license. See LICENSE file in the project root for full license information.
-
-#include <CAN.h>
+#include <CANCREATE.h> // 変更必要
 #include <Arduino.h>
 
-CAN_CREATE CAN(false);
+CAN_CREATE CAN(false); // 変更必要
 
 void setup()
 {
@@ -495,8 +490,7 @@ void loop()
   {
     char data = Serial.read();
     Serial.println(data);
-    CAN.sendPacket(0x13, data);
-    int result = CAN.sendChar(data); // no supported
+    int result = CAN.sendPacket(0x13, data);
     if (result)
     {
       Serial.print(result);
