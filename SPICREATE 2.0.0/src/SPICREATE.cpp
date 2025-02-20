@@ -13,17 +13,20 @@ void csReset(spi_transaction_t *t)
 SPICREATE_BEGIN
 
 #if !(IS_S3)
-bool SPICreate::begin(uint8_t spi_bus, int8_t sck, int8_t miso, int8_t mosi, uint32_t f)
+/**
+ *  @brief SPICreateを利用するときに最初に実行する関数
+ *  ESP32 無印のみ対応の関数としている
+ */
+bool SPICreate::begin(uint8_t spi_bus, int8_t sck, int8_t miso, int8_t mosi, uint32_t unused)
 {
     spi_host_device_t host_in;
     host_in = (spi_bus == HSPI) ? HSPI_HOST : VSPI_HOST;
-    return begin(host_in, sck, miso, mosi, f);
+    return begin(host_in, sck, miso, mosi);
 }
 #endif
 
-bool SPICreate::begin(spi_host_device_t host_in, int8_t sck, int8_t miso, int8_t mosi, uint32_t f)
+bool SPICreate::begin(spi_host_device_t host_in, int8_t sck, int8_t miso, int8_t mosi)
 {
-    frequency = f;
     if ((sck == -1) && (miso == -1) && (mosi == -1))
     {
 #if (IS_S3)
@@ -131,7 +134,7 @@ void SPICreate::transmit(uint8_t *tx, uint8_t *rx, int size, int deviceHandle)
 
 void SPICreate::transmit(spi_transaction_t *transaction, int deviceHandle)
 {
-    esp_err_t e = spi_device_transmit(handle[deviceHandle], transaction);
+    spi_device_transmit(handle[deviceHandle], transaction);
     return;
 }
 void SPICreate::pollTransmit(spi_transaction_t *transaction, int deviceHandle)

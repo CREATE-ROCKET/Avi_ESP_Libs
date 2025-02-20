@@ -4,10 +4,8 @@
 #ifndef SPICREATE_Master
 #define SPICREATE_Master
 
-#include <Arduino.h>
-#include <SPI.h>
 #include <driver/spi_master.h>
-#include <deque>
+#include <esp32-hal-spi.h>
 
 #ifdef CONFIG_IDF_TARGET_ESP32S3
 #define IS_S3 1
@@ -40,10 +38,6 @@ namespace arduino
 #endif
                     uint8_t mode{SPI_MODE3};       // must be 1 or 3
                     int max_size{SPI_MAX_DMA_LEN}; // default size
-                    uint32_t frequency{SPI_MASTER_FREQ_8M};
-
-                    std::deque<spi_transaction_t> transactions;
-                    int queue_size{1};
 
                 public:
 #if !(IS_S3)
@@ -52,14 +46,13 @@ namespace arduino
                         int8_t sck = -1,
                         int8_t miso = -1,
                         int8_t mosi = -1,
-                        uint32_t f = SPI_MASTER_FREQ_8M);
+                        uint32_t unused = SPI_MASTER_FREQ_8M);
 #endif
                     bool begin(
                         spi_host_device_t host_in = SPI2_HOST,
                         int8_t sck = -1,
                         int8_t miso = -1,
-                        int8_t mosi = -1,
-                        uint32_t f = SPI_MASTER_FREQ_8M);
+                        int8_t mosi = -1);
 
                     bool end();
 
