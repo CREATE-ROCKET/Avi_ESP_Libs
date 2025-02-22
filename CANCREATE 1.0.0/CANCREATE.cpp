@@ -425,11 +425,11 @@ int CAN_CREATE::begin(can_setting_t settings, int rx, int tx, uint32_t id, int b
 /*
  * @brief setup内等で最初に実行するべき関数 一度だけのみ実行できる
  *
- * @param[in] 通信周波数 通信する相手と揃える必要がある
- * @param[in] rxピン
- * @param[in] txピン
- * @param[in] CANの通信id (send時に逐一切り替えるなら空欄で良い)
- * @param[in] canの有効化と無効化を切り替えるピン(利用しなければ空欄で良い)
+ * @param[in] baudRate 通信周波数 通信する相手と揃える必要がある
+ * @param[in] rx rxピン
+ * @param[in] tx txピン
+ * @param[in] id CANの通信id (send時に逐一切り替えるなら空欄で良い)
+ * @param[in] bus_off canの有効化と無効化を切り替えるピン(利用しなければ空欄で良い)
  *
  * @retval 0 success
  * @retval 2 対応していない通信周波数を指定した
@@ -460,9 +460,7 @@ int CAN_CREATE::begin(long baudRate, int rx, int tx, uint32_t id, int bus_off)
     can_setting_t settings;
     settings.baudRate = baudRate;
     settings.multiData_send = true;
-    settings.filter_config.acceptance_code = 0;
-    settings.filter_config.acceptance_mask = (1 << 29) - 2;
-    settings.filter_config.single_filter = true;
+    settings.filter_config = CAN_FILTER_DEFAULT;
     return _begin(settings);
 }
 
@@ -723,7 +721,7 @@ int CAN_CREATE::test(uint32_t id)
 }
 
 /*
- * @param CANトランシーバーのキューを消去する
+ * @brief CANトランシーバーのキューを消去する
  * @warning 受信待ち、送信待ちのデータが消去されるため注意!!!
  */
 void CAN_CREATE::flush()
