@@ -10,6 +10,9 @@
 #pragma once
 
 #ifndef CAN_LIB
+/** @def CAN_LIB
+ * @brief CANCREATE_lib.hのヘッダーガード
+ */
 #define CAN_LIB
 
 #include "driver/twai.h"
@@ -18,13 +21,25 @@
 #define MAX_READ 0     /**< @def twai_receiveを直接呼び出したときのタイムアウト時間*/
 
 // old config
+/** @def PAR_ERROR
+ * @brief 古いライブラリとの互換性のための定義
+ */
 #define PAR_ERROR 0
+/** @def ACK_ERROR
+ * @brief 古いライブラリとの互換性のための定義
+ */
 #define ACK_ERROR 1
+/** @def CAN_OK
+ * @brief 古いライブラリとの互換性のための定義
+ */
 #define CAN_OK 2
 
 /** @def TWAI_ALERTS_CONFIG 送信成功、バスのエラー、前回の送信失敗の3つを設定する */
 #define TWAI_ALERTS_CONFIG TWAI_ALERT_TX_SUCCESS | TWAI_ALERT_BUS_ERROR | TWAI_ALERT_TX_FAILED
 
+/** @def old_mode_block
+ * @brief 古いモードのときに関数をブロックするためのマクロ
+ */
 #define old_mode_block                                           \
     do                                                           \
     {                                                            \
@@ -35,6 +50,9 @@
         }                                                        \
     } while (0)
 
+/** @def multi_send_block
+ * @brief 複数送信が無効になっているときに関数をブロックするためのマクロ
+ */
 #define multi_send_block                                   \
     do                                                     \
     {                                                      \
@@ -82,6 +100,12 @@ inline void pr_debug_checker(const char *fmt, ...) {}
     } while (0)
 #else
 // ESP IDF対応
+/**
+ * @def pr_debug
+ * @brief デバッグ印刷用のマクロ
+ * @param fmt フォーマット文字列
+ * @param ... フォーマット引数
+ */
 #define pr_debug(fmt, ...)                       \
     do                                           \
     {                                            \
@@ -89,6 +113,10 @@ inline void pr_debug_checker(const char *fmt, ...) {}
     } while (0)
 #endif
 #else
+/**
+ * @def pr_debug
+ * @brief デバッグ印刷用のマクロ(無効)
+ */
 #define pr_debug(fmt, ...)
 #endif
 #endif
@@ -126,15 +154,22 @@ typedef struct
     twai_filter_config_t filter_config; /**< 受け取るidの制限 id 1 << 10 ~ ((1 << 11) - 1) だけ制限する CAN_FILTER_DEFAULT マクロのままが無難 */
 } can_setting_t;
 
+/** @def CAN_FILTER_DEFAULT
+ * @brief デフォルトのCANフィルター設定
+ */
 // 最上位bitが1のidを制限するfiltering設定
 #define CAN_FILTER_DEFAULT \
     ((twai_filter_config_t){.acceptance_code = 0, .acceptance_mask = 0xFFFFFFFF - (1 << 31), .single_filter = true})
 
+/**
+ * @struct can_return_t
+ * @brief CANバスから返されたデータを保持するための構造体
+ */
 typedef struct
 {
-    int size;
-    char data[8];
-    uint32_t id;
+    int size;     /**< char data[8]が実際に使っているサイズ */
+    char data[8]; /**< CANで送られてきたデータ */
+    uint32_t id;  /**< パケットのID */
 } can_return_t;
 
 /**

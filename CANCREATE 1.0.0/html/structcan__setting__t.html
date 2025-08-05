@@ -1,0 +1,199 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja">
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=11"/>
+<meta name="generator" content="Doxygen 1.14.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CAN_CREATE: can_setting_t 構造体</title>
+<link href="tabs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="jquery.js"></script>
+<script type="text/javascript" src="dynsections.js"></script>
+<script type="text/javascript" src="clipboard.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript" src="cookie.js"></script>
+<link href="search/search.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="search/searchdata.js"></script>
+<script type="text/javascript" src="search/search.js"></script>
+<link href="doxygen.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div id="top"><!-- do not remove this div, it is closed by doxygen! -->
+<div id="titlearea">
+<table cellspacing="0" cellpadding="0">
+ <tbody>
+ <tr id="projectrow">
+  <td id="projectalign">
+   <div id="projectname">CAN_CREATE
+   </div>
+  </td>
+ </tr>
+ </tbody>
+</table>
+</div>
+<!-- end header part -->
+<!-- 構築: Doxygen 1.14.0 -->
+<script type="text/javascript">
+var searchBox = new SearchBox("searchBox", "search/",'.html');
+</script>
+<script type="text/javascript">
+$(function() { codefold.init(); });
+</script>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,false,'search.php','検索',true);
+  $(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(function(){initNavTree('structcan__setting__t.html','','structcan__setting__t-members'); });
+</script>
+<div id="container">
+<div id="doc-content">
+<!-- window showing the filter options -->
+<div id="MSearchSelectWindow"
+     onmouseover="return searchBox.OnSearchSelectShow()"
+     onmouseout="return searchBox.OnSearchSelectHide()"
+     onkeydown="return searchBox.OnSearchSelectKey(event)">
+</div>
+
+<!-- iframe showing the search results (closed by default) -->
+<div id="MSearchResultsWindow">
+<div id="MSearchResults">
+<div class="SRPage">
+<div id="SRIndex">
+<div id="SRResults"></div>
+<div class="SRStatus" id="Loading">読み取り中…</div>
+<div class="SRStatus" id="Searching">検索中…</div>
+<div class="SRStatus" id="NoMatches">一致する文字列を見つけられません</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="header">
+  <div class="headertitle"><div class="title">can_setting_t 構造体</div></div>
+</div><!--header-->
+<div class="contents">
+
+<p>CAN.begin の引数に入れてCANの動作を指定する  
+ <a href="#details">[詳解]</a></p>
+
+<p><code>#include &lt;<a class="el" href="CANCREATE__lib_8h_source.html">CANCREATE_lib.h</a>&gt;</code></p>
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 id="header-pub-attribs" class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
+公開変数類</h2></td></tr>
+<tr class="memitem:ad50d3f1320632995a30777ef79bf925b" id="r_ad50d3f1320632995a30777ef79bf925b"><td class="memItemLeft" align="right" valign="top">long&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ad50d3f1320632995a30777ef79bf925b">baudRate</a></td></tr>
+<tr class="memitem:a6218fcf0bc833465c94f979ee6ba22c0" id="r_a6218fcf0bc833465c94f979ee6ba22c0"><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a6218fcf0bc833465c94f979ee6ba22c0">multiData_send</a></td></tr>
+<tr class="memitem:a623f4413b5b00ba047049cf233862d84" id="r_a623f4413b5b00ba047049cf233862d84"><td class="memItemLeft" align="right" valign="top">twai_filter_config_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a623f4413b5b00ba047049cf233862d84">filter_config</a></td></tr>
+</table>
+<a name="details" id="details"></a><h2 id="header-details" class="groupheader">詳解</h2>
+<div class="textblock"><p>CAN.begin の引数に入れてCANの動作を指定する </p>
+<dl class="section attention"><dt>注意</dt><dd>この設定は通信相手と共有することが必要 共有していないと意図しないエラーが発生する恐れあり</dd></dl>
+<p>baudRateとmultiData_sendだけ扱い、filter_configは触らないほうがよい</p>
+<p>twai_filter_config_tがどうなっているかわからない人向け <br  />
+あるidを受け取るかどうかは、受け取ったmessage bit と acceptance code bit をxorして それに更にacceptance mask bit and したものがすべて1となるかで決まる よってtest関数でデフォルトで利用されるidの 1 &lt;&lt; 11 - 1 を受け取らないようにするには、 acceptance code bitに 0 acceptance mask bitに 1 &lt;&lt; 11 - 2 (最後1桁以外は1) を入れれば良い</p>
+<table class="markdownTable">
+<tr class="markdownTableHead">
+<th class="markdownTableHeadNone">message bit  </th><th class="markdownTableHeadNone">code bit  </th><th class="markdownTableHeadNone">mask bit  </th><th class="markdownTableHeadNone">result  </th></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">1  </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">0  </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">0  </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td></tr>
+<tr class="markdownTableRowOdd">
+<td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">0  </td><td class="markdownTableBodyNone">1  </td></tr>
+<tr class="markdownTableRowEven">
+<td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td><td class="markdownTableBodyNone">1  </td></tr>
+</table>
+</div><a name="doc-variable-members" id="doc-variable-members"></a><h2 id="header-doc-variable-members" class="groupheader">メンバ詳解</h2>
+<a id="ad50d3f1320632995a30777ef79bf925b" name="ad50d3f1320632995a30777ef79bf925b"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad50d3f1320632995a30777ef79bf925b">&#9670;&#160;</a></span>baudRate</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">long can_setting_t::baudRate</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>通信周波数 25kbits 50kbits 100kbits 125kbits 250kbits 500kbits 1Mbits を選択できる </p>
+
+</div>
+</div>
+<a id="a623f4413b5b00ba047049cf233862d84" name="a623f4413b5b00ba047049cf233862d84"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a623f4413b5b00ba047049cf233862d84">&#9670;&#160;</a></span>filter_config</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">twai_filter_config_t can_setting_t::filter_config</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>受け取るidの制限 id 1 &lt;&lt; 10 ~ ((1 &lt;&lt; 11) - 1) だけ制限する CAN_FILTER_DEFAULT マクロのままが無難 </p>
+
+</div>
+</div>
+<a id="a6218fcf0bc833465c94f979ee6ba22c0" name="a6218fcf0bc833465c94f979ee6ba22c0"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a6218fcf0bc833465c94f979ee6ba22c0">&#9670;&#160;</a></span>multiData_send</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool can_setting_t::multiData_send</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>複数文字のデータを送信できるかどうか falseならsendLine sendData系の関数は使えなくなる </p>
+
+</div>
+</div>
+<hr/>この構造体詳解は次のファイルから抽出されました:<ul>
+<li><a class="el" href="CANCREATE__lib_8h_source.html">CANCREATE_lib.h</a></li>
+</ul>
+</div><!-- contents -->
+</div><!-- doc-content -->
+<div id="page-nav" class="page-nav-panel">
+<div id="page-nav-resize-handle"></div>
+<div id="page-nav-tree">
+<div id="page-nav-contents">
+</div><!-- page-nav-contents -->
+</div><!-- page-nav-tree -->
+</div><!-- page-nav -->
+</div><!-- container -->
+<!-- start footer part -->
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="navelem"><a href="structcan__setting__t.html">can_setting_t</a></li>
+    <li class="footer">構築: <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.14.0 </li>
+  </ul>
+</div>
+</body>
+</html>
