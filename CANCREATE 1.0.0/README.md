@@ -2,7 +2,7 @@
 
 ESP32のtwaiライブラリを簡単につかえるようにしました。  
 
-関数の詳細は[以下](https://create-rocket.github.io/Avi_ESP_Libs/CANCREATE%201.0.0/html/classCAN__CREATE.html)を見てください。
+関数の詳細は[以下](https://create-rocket.github.io/Avi_ESP_Libs/classCAN__CREATE.html)を見てください。
 
 ## 特徴
 ### arduino likeで簡単に使える
