@@ -1,0 +1,230 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja">
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=11"/>
+<meta name="generator" content="Doxygen 1.14.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CAN_CREATE: CANCREATE.h ソースファイル</title>
+<link href="tabs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="jquery.js"></script>
+<script type="text/javascript" src="dynsections.js"></script>
+<script type="text/javascript" src="clipboard.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript" src="cookie.js"></script>
+<link href="search/search.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="search/searchdata.js"></script>
+<script type="text/javascript" src="search/search.js"></script>
+<link href="doxygen.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div id="top"><!-- do not remove this div, it is closed by doxygen! -->
+<div id="titlearea">
+<table cellspacing="0" cellpadding="0">
+ <tbody>
+ <tr id="projectrow">
+  <td id="projectalign">
+   <div id="projectname">CAN_CREATE
+   </div>
+  </td>
+ </tr>
+ </tbody>
+</table>
+</div>
+<!-- end header part -->
+<!-- 構築: Doxygen 1.14.0 -->
+<script type="text/javascript">
+var searchBox = new SearchBox("searchBox", "search/",'.html');
+</script>
+<script type="text/javascript">
+$(function() { codefold.init(); });
+</script>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,false,'search.php','検索',true);
+  $(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(function(){initNavTree('CANCREATE_8h_source.html','',''); });
+</script>
+<div id="container">
+<div id="doc-content">
+<!-- window showing the filter options -->
+<div id="MSearchSelectWindow"
+     onmouseover="return searchBox.OnSearchSelectShow()"
+     onmouseout="return searchBox.OnSearchSelectHide()"
+     onkeydown="return searchBox.OnSearchSelectKey(event)">
+</div>
+
+<!-- iframe showing the search results (closed by default) -->
+<div id="MSearchResultsWindow">
+<div id="MSearchResults">
+<div class="SRPage">
+<div id="SRIndex">
+<div id="SRResults"></div>
+<div class="SRStatus" id="Loading">読み取り中…</div>
+<div class="SRStatus" id="Searching">検索中…</div>
+<div class="SRStatus" id="NoMatches">一致する文字列を見つけられません</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="header">
+  <div class="headertitle"><div class="title">CANCREATE.h</div></div>
+</div><!--header-->
+<div class="contents">
+<a href="CANCREATE_8h.html">[詳解]</a><div class="fragment"><div class="line"><a id="l00001" name="l00001"></a><span class="lineno">    1</span><span class="comment">//   ____    _    _   _    ____ ____  _____    _  _____ _____</span></div>
+<div class="line"><a id="l00002" name="l00002"></a><span class="lineno">    2</span><span class="comment">//  / ___|  / \  | \ | |  / ___|  _ \| ____|  / \|_   _| ____|</span></div>
+<div class="line"><a id="l00003" name="l00003"></a><span class="lineno">    3</span><span class="comment">// | |     / _ \ |  \| | | |   | |_) |  _|   / _ \ | | |  _|</span></div>
+<div class="line"><a id="l00004" name="l00004"></a><span class="lineno">    4</span><span class="comment">// | |___ / ___ \| |\  | | |___|  _ &lt;| |___ / ___ \| | | |___</span></div>
+<div class="line"><a id="l00005" name="l00005"></a><span class="lineno">    5</span><span class="comment">//  \____/_/   \_\_| \_|  \____|_| \_\_____/_/   \_\_| |_____|</span></div>
+<div class="line"><a id="l00006" name="l00006"></a><span class="lineno">    6</span><span class="comment">//</span></div>
+<div class="line"><a id="l00007" name="l00007"></a><span class="lineno">    7</span><span class="comment">// ver 1.0.0</span></div>
+<div class="line"><a id="l00008" name="l00008"></a><span class="lineno">    8</span><span class="comment">//</span></div>
+<div class="line"><a id="l00009" name="l00009"></a><span class="lineno">    9</span><span class="comment">// Copyright (c) CREATE-ROCKET All rights reserved.</span></div>
+<div class="line"><a id="l00010" name="l00010"></a><span class="lineno">   10</span><span class="comment">// Licensed under the MIT license. See LICENSE file in the project root for full license information.</span></div>
+<div class="line"><a id="l00011" name="l00011"></a><span class="lineno">   11</span></div>
+<div class="line"><a id="l00017" name="l00017"></a><span class="lineno">   17</span> </div>
+<div class="line"><a id="l00018" name="l00018"></a><span class="lineno">   18</span><span class="preprocessor">#pragma once</span></div>
+<div class="line"><a id="l00019" name="l00019"></a><span class="lineno">   19</span> </div>
+<div class="line"><a id="l00020" name="l00020"></a><span class="lineno">   20</span><span class="preprocessor">#ifndef CAN_H</span></div>
+<div class="line"><a id="l00021" name="l00021"></a><span class="lineno">   21</span><span class="preprocessor">#define CAN_H</span></div>
+<div class="line"><a id="l00022" name="l00022"></a><span class="lineno">   22</span> </div>
+<div class="line"><a id="l00023" name="l00023"></a><span class="lineno">   23</span><span class="preprocessor">#include &quot;<a class="code" href="CANCREATE__lib_8h.html">CANCREATE_lib.h</a>&quot;</span></div>
+<div class="line"><a id="l00024" name="l00024"></a><span class="lineno">   24</span><span class="preprocessor">#include &quot;stdint.h&quot;</span></div>
+<div class="line"><a id="l00025" name="l00025"></a><span class="lineno">   25</span></div>
+<div class="foldopen" id="foldopen00030" data-start="{" data-end="};">
+<div class="line"><a id="l00030" name="l00030"></a><span class="lineno"><a class="line" href="classCAN__CREATE.html">   30</a></span><span class="keyword">class </span><a class="code hl_function" href="classCAN__CREATE.html#a4a2b96990f10e9124a0cdf83b2632bdd">CAN_CREATE</a></div>
+<div class="line"><a id="l00031" name="l00031"></a><span class="lineno">   31</span>{</div>
+<div class="line"><a id="l00032" name="l00032"></a><span class="lineno">   32</span><span class="keyword">private</span>:</div>
+<div class="line"><a id="l00033" name="l00033"></a><span class="lineno">   33</span>    twai_general_config_t _general_config;</div>
+<div class="line"><a id="l00034" name="l00034"></a><span class="lineno">   34</span>    twai_filter_config_t _filter_config;</div>
+<div class="line"><a id="l00035" name="l00035"></a><span class="lineno">   35</span>    twai_timing_config_t _timing_config;</div>
+<div class="line"><a id="l00036" name="l00036"></a><span class="lineno">   36</span>    gpio_num_t _rx;</div>
+<div class="line"><a id="l00037" name="l00037"></a><span class="lineno">   37</span>    gpio_num_t _tx;</div>
+<div class="line"><a id="l00038" name="l00038"></a><span class="lineno">   38</span>    gpio_num_t _bus_off;</div>
+<div class="line"><a id="l00039" name="l00039"></a><span class="lineno">   39</span>    uint32_t _id;</div>
+<div class="line"><a id="l00040" name="l00040"></a><span class="lineno">   40</span>    <span class="keywordtype">bool</span> _return_new;</div>
+<div class="line"><a id="l00041" name="l00041"></a><span class="lineno">   41</span>    <span class="keyword">static</span> <span class="keywordtype">bool</span> _already_begin;</div>
+<div class="line"><a id="l00042" name="l00042"></a><span class="lineno">   42</span>    <span class="keywordtype">bool</span> _multi_send;</div>
+<div class="line"><a id="l00043" name="l00043"></a><span class="lineno">   43</span>    <a class="code hl_struct" href="structcan__setting__t.html">can_setting_t</a> _settings;</div>
+<div class="line"><a id="l00044" name="l00044"></a><span class="lineno">   44</span> </div>
+<div class="line"><a id="l00045" name="l00045"></a><span class="lineno">   45</span>    <span class="keywordtype">int</span> _begin(<a class="code hl_struct" href="structcan__setting__t.html">can_setting_t</a> settings, twai_mode_t mode = TWAI_MODE_NORMAL);</div>
+<div class="line"><a id="l00046" name="l00046"></a><span class="lineno">   46</span>    <span class="keywordtype">void</span> _end();</div>
+<div class="line"><a id="l00047" name="l00047"></a><span class="lineno">   47</span>    <span class="keywordtype">int</span> _test(uint32_t <span class="keywordtype">id</span>);</div>
+<div class="line"><a id="l00048" name="l00048"></a><span class="lineno">   48</span>    <span class="keywordtype">int</span> _sendLine(uint32_t <span class="keywordtype">id</span>, <span class="keywordtype">char</span> *data, <span class="keywordtype">int</span> num, uint32_t waitTime);</div>
+<div class="line"><a id="l00049" name="l00049"></a><span class="lineno">   49</span>    <span class="keywordtype">int</span> _send(twai_message_t message, uint32_t waitTime);</div>
+<div class="line"><a id="l00050" name="l00050"></a><span class="lineno">   50</span>    <span class="keywordtype">int</span> _read(twai_message_t *message, uint32_t waitTime);</div>
+<div class="line"><a id="l00051" name="l00051"></a><span class="lineno">   51</span>    <span class="keywordtype">void</span> bus_on();</div>
+<div class="line"><a id="l00052" name="l00052"></a><span class="lineno">   52</span>    <span class="keywordtype">void</span> bus_off();</div>
+<div class="line"><a id="l00053" name="l00053"></a><span class="lineno">   53</span>    <span class="keywordtype">int</span> return_with_compatiblity(<span class="keywordtype">int</span> return_int);</div>
+<div class="line"><a id="l00054" name="l00054"></a><span class="lineno">   54</span> </div>
+<div class="line"><a id="l00055" name="l00055"></a><span class="lineno">   55</span>    <span class="keyword">friend</span> <span class="keywordtype">void</span> <a class="code hl_friend" href="classCAN__CREATE.html#aa3269e8a5aa3ce5a4fd890a0d3e309ae">CanWatchDog</a>(<span class="keywordtype">void</span> *pvParameter);</div>
+<div class="line"><a id="l00056" name="l00056"></a><span class="lineno">   56</span> </div>
+<div class="line"><a id="l00057" name="l00057"></a><span class="lineno">   57</span><span class="keyword">public</span>:</div>
+<div class="line"><a id="l00065" name="l00065"></a><span class="lineno">   65</span>    <a class="code hl_function" href="classCAN__CREATE.html#a4a2b96990f10e9124a0cdf83b2632bdd">CAN_CREATE</a>(<span class="keywordtype">bool</span> return_new = <span class="keyword">true</span>, <span class="keywordtype">bool</span> enableCanWatchDog = <span class="keyword">true</span>);</div>
+<div class="line"><a id="l00066" name="l00066"></a><span class="lineno">   66</span></div>
+<div class="line"><a id="l00070" name="l00070"></a><span class="lineno">   70</span>    <a class="code hl_function" href="classCAN__CREATE.html#a462a021c725084ae3d72c8674b932158">~CAN_CREATE</a>();</div>
+<div class="line"><a id="l00071" name="l00071"></a><span class="lineno">   71</span></div>
+<div class="line"><a id="l00077" name="l00077"></a><span class="lineno">   77</span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classCAN__CREATE.html#ab4500ab2e6fee16eec555e6ae012a769">setPins</a>(<span class="keywordtype">int</span> rx, <span class="keywordtype">int</span> tx, uint32_t <span class="keywordtype">id</span> = UINT32_MAX, <span class="keywordtype">int</span> bus_off = GPIO_NUM_MAX);</div>
+<div class="line"><a id="l00078" name="l00078"></a><span class="lineno">   78</span></div>
+<div class="line"><a id="l00084" name="l00084"></a><span class="lineno">   84</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a5916238866687711805bb9698ba8f1cd">begin</a>(<span class="keywordtype">long</span> baudRate);</div>
+<div class="line"><a id="l00085" name="l00085"></a><span class="lineno">   85</span></div>
+<div class="line"><a id="l00122" name="l00122"></a><span class="lineno">  122</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a5916238866687711805bb9698ba8f1cd">begin</a>(<a class="code hl_struct" href="structcan__setting__t.html">can_setting_t</a> settings, <span class="keywordtype">int</span> rx, <span class="keywordtype">int</span> tx, uint32_t <span class="keywordtype">id</span> = UINT32_MAX, <span class="keywordtype">int</span> bus_off = GPIO_NUM_MAX);</div>
+<div class="line"><a id="l00123" name="l00123"></a><span class="lineno">  123</span></div>
+<div class="line"><a id="l00155" name="l00155"></a><span class="lineno">  155</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a5916238866687711805bb9698ba8f1cd">begin</a>(<span class="keywordtype">long</span> baudRate, <span class="keywordtype">int</span> rx, <span class="keywordtype">int</span> tx, uint32_t <span class="keywordtype">id</span> = UINT32_MAX, <span class="keywordtype">int</span> bus_off = GPIO_NUM_MAX);</div>
+<div class="line"><a id="l00156" name="l00156"></a><span class="lineno">  156</span></div>
+<div class="line"><a id="l00163" name="l00163"></a><span class="lineno">  163</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a913ef994e0e736eccf91d9721130e34d">re_configure</a>(<a class="code hl_struct" href="structcan__setting__t.html">can_setting_t</a> settings, twai_mode_t mode = TWAI_MODE_NORMAL);</div>
+<div class="line"><a id="l00164" name="l00164"></a><span class="lineno">  164</span></div>
+<div class="line"><a id="l00169" name="l00169"></a><span class="lineno">  169</span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classCAN__CREATE.html#abf70a47868a0175cddabaf9d06c167db">end</a>();</div>
+<div class="line"><a id="l00170" name="l00170"></a><span class="lineno">  170</span></div>
+<div class="line"><a id="l00175" name="l00175"></a><span class="lineno">  175</span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classCAN__CREATE.html#aa3e57b1a4f670c9b6c4b44a0e4dcbb9d">suspend</a>();</div>
+<div class="line"><a id="l00176" name="l00176"></a><span class="lineno">  176</span></div>
+<div class="line"><a id="l00181" name="l00181"></a><span class="lineno">  181</span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classCAN__CREATE.html#a884ff9215eb121e0aedfa7e69101350d">resume</a>();</div>
+<div class="line"><a id="l00182" name="l00182"></a><span class="lineno">  182</span></div>
+<div class="line"><a id="l00221" name="l00221"></a><span class="lineno">  221</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#af11f81d1fbd2d015d1da822803b43226">getStatus</a>();</div>
+<div class="line"><a id="l00222" name="l00222"></a><span class="lineno">  222</span></div>
+<div class="line"><a id="l00268" name="l00268"></a><span class="lineno">  268</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#ac8c2a517fe2e59f33f88d2bd297a972d">test</a>(uint32_t <span class="keywordtype">id</span> = (1 &lt;&lt; 11) - 1);</div>
+<div class="line"><a id="l00269" name="l00269"></a><span class="lineno">  269</span></div>
+<div class="line"><a id="l00274" name="l00274"></a><span class="lineno">  274</span>    <span class="keywordtype">void</span> <a class="code hl_function" href="classCAN__CREATE.html#accae32f668a9926495c5a2f2eb3b6ec2">flush</a>();</div>
+<div class="line"><a id="l00275" name="l00275"></a><span class="lineno">  275</span></div>
+<div class="line"><a id="l00299" name="l00299"></a><span class="lineno">  299</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a03d467a47071331177e24ba6f705d5f7">available</a>();</div>
+<div class="line"><a id="l00300" name="l00300"></a><span class="lineno">  300</span></div>
+<div class="line"><a id="l00305" name="l00305"></a><span class="lineno">  305</span>    <span class="keywordtype">char</span> <a class="code hl_function" href="classCAN__CREATE.html#a10d103745ded81ee9f0d89fc69de59fe">read</a>();</div>
+<div class="line"><a id="l00306" name="l00306"></a><span class="lineno">  306</span></div>
+<div class="line"><a id="l00335" name="l00335"></a><span class="lineno">  335</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a10d103745ded81ee9f0d89fc69de59fe">read</a>(<span class="keywordtype">char</span> *readData, uint32_t waitTime = MAX_READ);</div>
+<div class="line"><a id="l00336" name="l00336"></a><span class="lineno">  336</span></div>
+<div class="line"><a id="l00365" name="l00365"></a><span class="lineno">  365</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#ac569faca89ee120dcf5d3016f36a63fc">readLine</a>(<span class="keywordtype">char</span> *readData, uint32_t waitTime = MAX_READ);</div>
+<div class="line"><a id="l00366" name="l00366"></a><span class="lineno">  366</span></div>
+<div class="line"><a id="l00398" name="l00398"></a><span class="lineno">  398</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#ab39ab83c582321c63d2fcaf53d3164ba">readWithDetail</a>(<a class="code hl_struct" href="structcan__return__t.html">can_return_t</a> *data, uint32_t waitTime = MAX_READ);</div>
+<div class="line"><a id="l00399" name="l00399"></a><span class="lineno">  399</span></div>
+<div class="line"><a id="l00405" name="l00405"></a><span class="lineno">  405</span>    uint8_t <a class="code hl_function" href="classCAN__CREATE.html#a1807d64d0db173e5d10f6e9f17046988">sendPacket</a>(<span class="keywordtype">int</span> <span class="keywordtype">id</span>, <span class="keywordtype">char</span> data);</div>
+<div class="line"><a id="l00406" name="l00406"></a><span class="lineno">  406</span></div>
+<div class="line"><a id="l00431" name="l00431"></a><span class="lineno">  431</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a8f3b2d8c41e8860474f39489dfe935c1">sendChar</a>(uint32_t <span class="keywordtype">id</span>, <span class="keywordtype">char</span> data, uint32_t waitTime = MAX_TRANSMIT);</div>
+<div class="line"><a id="l00432" name="l00432"></a><span class="lineno">  432</span></div>
+<div class="line"><a id="l00457" name="l00457"></a><span class="lineno">  457</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a8f3b2d8c41e8860474f39489dfe935c1">sendChar</a>(<span class="keywordtype">char</span> data, uint32_t waitTime = MAX_TRANSMIT);</div>
+<div class="line"><a id="l00458" name="l00458"></a><span class="lineno">  458</span></div>
+<div class="line"><a id="l00508" name="l00508"></a><span class="lineno">  508</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a062379df1dd6bc45c6fd94daf72466e1">sendLine</a>(uint32_t <span class="keywordtype">id</span>, <span class="keywordtype">char</span> *data, uint32_t waitTime = MAX_TRANSMIT);</div>
+<div class="line"><a id="l00509" name="l00509"></a><span class="lineno">  509</span></div>
+<div class="line"><a id="l00559" name="l00559"></a><span class="lineno">  559</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#a062379df1dd6bc45c6fd94daf72466e1">sendLine</a>(<span class="keywordtype">char</span> *data, uint32_t waitTime = MAX_TRANSMIT);</div>
+<div class="line"><a id="l00560" name="l00560"></a><span class="lineno">  560</span></div>
+<div class="line"><a id="l00588" name="l00588"></a><span class="lineno">  588</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#ad9fe7779e629a612564d75e748d0eb1c">sendData</a>(uint32_t <span class="keywordtype">id</span>, uint8_t *data, <span class="keywordtype">int</span> num, uint32_t waitTime = MAX_TRANSMIT);</div>
+<div class="line"><a id="l00589" name="l00589"></a><span class="lineno">  589</span></div>
+<div class="line"><a id="l00617" name="l00617"></a><span class="lineno">  617</span>    <span class="keywordtype">int</span> <a class="code hl_function" href="classCAN__CREATE.html#ad9fe7779e629a612564d75e748d0eb1c">sendData</a>(uint8_t *data, <span class="keywordtype">int</span> num, uint32_t waitTime = MAX_TRANSMIT);</div>
+<div class="line"><a id="l00618" name="l00618"></a><span class="lineno">  618</span>};</div>
+</div>
+<div class="line"><a id="l00619" name="l00619"></a><span class="lineno">  619</span> </div>
+<div class="line"><a id="l00620" name="l00620"></a><span class="lineno">  620</span><span class="preprocessor">#endif</span></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html"><div class="ttname"><a href="CANCREATE__lib_8h.html">CANCREATE_lib.h</a></div><div class="ttdoc">CAN config file</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a03d467a47071331177e24ba6f705d5f7"><div class="ttname"><a href="classCAN__CREATE.html#a03d467a47071331177e24ba6f705d5f7">CAN_CREATE::available</a></div><div class="ttdeci">int available()</div><div class="ttdoc">CANにデータが送られて来ているかを判別する関数 戻り値が0でなければデータが送られてきており、read関数で読める</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:560</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a062379df1dd6bc45c6fd94daf72466e1"><div class="ttname"><a href="classCAN__CREATE.html#a062379df1dd6bc45c6fd94daf72466e1">CAN_CREATE::sendLine</a></div><div class="ttdeci">int sendLine(uint32_t id, char *data, uint32_t waitTime=MAX_TRANSMIT)</div><div class="ttdoc">8文字までの文字を送信できる関数 charの終端にnull文字がある文字列を送信することができる関数 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある ...</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:673</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a10d103745ded81ee9f0d89fc69de59fe"><div class="ttname"><a href="classCAN__CREATE.html#a10d103745ded81ee9f0d89fc69de59fe">CAN_CREATE::read</a></div><div class="ttdeci">char read()</div><div class="ttdoc">CANに送られてきているデータを読む関数 互換性のために残してある</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:636</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a1807d64d0db173e5d10f6e9f17046988"><div class="ttname"><a href="classCAN__CREATE.html#a1807d64d0db173e5d10f6e9f17046988">CAN_CREATE::sendPacket</a></div><div class="ttdeci">uint8_t sendPacket(int id, char data)</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:665</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a462a021c725084ae3d72c8674b932158"><div class="ttname"><a href="classCAN__CREATE.html#a462a021c725084ae3d72c8674b932158">CAN_CREATE::~CAN_CREATE</a></div><div class="ttdeci">~CAN_CREATE()</div><div class="ttdoc">CAN_CREATE のデストラクタ end関数を呼び出しているだけ</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:350</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a4a2b96990f10e9124a0cdf83b2632bdd"><div class="ttname"><a href="classCAN__CREATE.html#a4a2b96990f10e9124a0cdf83b2632bdd">CAN_CREATE::CAN_CREATE</a></div><div class="ttdeci">CAN_CREATE(bool return_new=true, bool enableCanWatchDog=true)</div><div class="ttdoc">CAN_CREATEのコンストラクタ</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:334</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a5916238866687711805bb9698ba8f1cd"><div class="ttname"><a href="classCAN__CREATE.html#a5916238866687711805bb9698ba8f1cd">CAN_CREATE::begin</a></div><div class="ttdeci">int begin(long baudRate)</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:363</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a884ff9215eb121e0aedfa7e69101350d"><div class="ttname"><a href="classCAN__CREATE.html#a884ff9215eb121e0aedfa7e69101350d">CAN_CREATE::resume</a></div><div class="ttdeci">void resume()</div><div class="ttdoc">CANの動作を再開させるときに利用する関数 suspend() でCANを停止させたあと再開させることができる</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:411</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a8f3b2d8c41e8860474f39489dfe935c1"><div class="ttname"><a href="classCAN__CREATE.html#a8f3b2d8c41e8860474f39489dfe935c1">CAN_CREATE::sendChar</a></div><div class="ttdeci">int sendChar(uint32_t id, char data, uint32_t waitTime=MAX_TRANSMIT)</div><div class="ttdoc">charをCANで送る関数 idを逐一指定する</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:647</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_a913ef994e0e736eccf91d9721130e34d"><div class="ttname"><a href="classCAN__CREATE.html#a913ef994e0e736eccf91d9721130e34d">CAN_CREATE::re_configure</a></div><div class="ttdeci">int re_configure(can_setting_t settings, twai_mode_t mode=TWAI_MODE_NORMAL)</div><div class="ttdoc">CANバスを再設定する関数</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:392</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_aa3269e8a5aa3ce5a4fd890a0d3e309ae"><div class="ttname"><a href="classCAN__CREATE.html#aa3269e8a5aa3ce5a4fd890a0d3e309ae">CAN_CREATE::CanWatchDog</a></div><div class="ttdeci">friend void CanWatchDog(void *pvParameter)</div><div class="ttdoc">BUS_OFFになった場合に回復させるタスク</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:43</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_aa3e57b1a4f670c9b6c4b44a0e4dcbb9d"><div class="ttname"><a href="classCAN__CREATE.html#aa3e57b1a4f670c9b6c4b44a0e4dcbb9d">CAN_CREATE::suspend</a></div><div class="ttdeci">void suspend()</div><div class="ttdoc">CANを一時停止させるときに利用できる関数 送信も受信も行わなくていいときに利用できる</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:404</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_ab39ab83c582321c63d2fcaf53d3164ba"><div class="ttname"><a href="classCAN__CREATE.html#ab39ab83c582321c63d2fcaf53d3164ba">CAN_CREATE::readWithDetail</a></div><div class="ttdeci">int readWithDetail(can_return_t *data, uint32_t waitTime=MAX_READ)</div><div class="ttdoc">CANのデータを読んで idや大きさも含まれる詳細なデータを返す関数</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:572</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_ab4500ab2e6fee16eec555e6ae012a769"><div class="ttname"><a href="classCAN__CREATE.html#ab4500ab2e6fee16eec555e6ae012a769">CAN_CREATE::setPins</a></div><div class="ttdeci">void setPins(int rx, int tx, uint32_t id=UINT32_MAX, int bus_off=GPIO_NUM_MAX)</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:355</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_abf70a47868a0175cddabaf9d06c167db"><div class="ttname"><a href="classCAN__CREATE.html#abf70a47868a0175cddabaf9d06c167db">CAN_CREATE::end</a></div><div class="ttdeci">void end()</div><div class="ttdoc">CANの利用終了時に呼び出されるべき関数 基本使わなくて良い プログラムでこれ以上CANを使わないときに呼び出せる</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:398</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_ac569faca89ee120dcf5d3016f36a63fc"><div class="ttname"><a href="classCAN__CREATE.html#ac569faca89ee120dcf5d3016f36a63fc">CAN_CREATE::readLine</a></div><div class="ttdeci">int readLine(char *readData, uint32_t waitTime=MAX_READ)</div><div class="ttdoc">CANに送られてきたデータを読む関数 CANでは8文字まで同時に送受信が可能 引数readDataに得られたデータが入り終端は0が入る</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:592</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_ac8c2a517fe2e59f33f88d2bd297a972d"><div class="ttname"><a href="classCAN__CREATE.html#ac8c2a517fe2e59f33f88d2bd297a972d">CAN_CREATE::test</a></div><div class="ttdeci">int test(uint32_t id=(1&lt;&lt; 11) - 1)</div><div class="ttdoc">CANが動作するかを確かめる関数</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:501</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_accae32f668a9926495c5a2f2eb3b6ec2"><div class="ttname"><a href="classCAN__CREATE.html#accae32f668a9926495c5a2f2eb3b6ec2">CAN_CREATE::flush</a></div><div class="ttdeci">void flush()</div><div class="ttdoc">CANトランシーバーのキューを消去する</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:548</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_ad9fe7779e629a612564d75e748d0eb1c"><div class="ttname"><a href="classCAN__CREATE.html#ad9fe7779e629a612564d75e748d0eb1c">CAN_CREATE::sendData</a></div><div class="ttdeci">int sendData(uint32_t id, uint8_t *data, int num, uint32_t waitTime=MAX_TRANSMIT)</div><div class="ttdoc">8文字までの文字を送信できる関数 uint8_t型の8個までの配列を送信できる 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある charの文字列を送信...</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:703</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html_af11f81d1fbd2d015d1da822803b43226"><div class="ttname"><a href="classCAN__CREATE.html#af11f81d1fbd2d015d1da822803b43226">CAN_CREATE::getStatus</a></div><div class="ttdeci">int getStatus()</div><div class="ttdoc">CANの送信ステータスを確認できる関数</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:418</div></div>
+<div class="ttc" id="astructcan__return__t_html"><div class="ttname"><a href="structcan__return__t.html">can_return_t</a></div><div class="ttdoc">CANバスから返されたデータを保持するための構造体</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:169</div></div>
+<div class="ttc" id="astructcan__setting__t_html"><div class="ttname"><a href="structcan__setting__t.html">can_setting_t</a></div><div class="ttdoc">CAN.begin の引数に入れてCANの動作を指定する</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:151</div></div>
+</div><!-- fragment --></div><!-- contents -->
+</div><!-- doc-content -->
+</div><!-- container -->
+<!-- start footer part -->
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="navelem"><a href="CANCREATE_8h.html">CANCREATE.h</a></li>
+    <li class="footer">構築: <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.14.0 </li>
+  </ul>
+</div>
+</body>
+</html>

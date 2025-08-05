@@ -1,0 +1,610 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja">
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=11"/>
+<meta name="generator" content="Doxygen 1.14.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CAN_CREATE: CREATE CAN Library</title>
+<link href="tabs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="jquery.js"></script>
+<script type="text/javascript" src="dynsections.js"></script>
+<script type="text/javascript" src="clipboard.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript" src="cookie.js"></script>
+<link href="search/search.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="search/searchdata.js"></script>
+<script type="text/javascript" src="search/search.js"></script>
+<link href="doxygen.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div id="top"><!-- do not remove this div, it is closed by doxygen! -->
+<div id="titlearea">
+<table cellspacing="0" cellpadding="0">
+ <tbody>
+ <tr id="projectrow">
+  <td id="projectalign">
+   <div id="projectname">CAN_CREATE
+   </div>
+  </td>
+ </tr>
+ </tbody>
+</table>
+</div>
+<!-- end header part -->
+<!-- 構築: Doxygen 1.14.0 -->
+<script type="text/javascript">
+var searchBox = new SearchBox("searchBox", "search/",'.html');
+</script>
+<script type="text/javascript">
+$(function() { codefold.init(); });
+</script>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,false,'search.php','検索',true);
+  $(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(function(){initNavTree('md_README.html','',''); });
+</script>
+<div id="container">
+<div id="doc-content">
+<!-- window showing the filter options -->
+<div id="MSearchSelectWindow"
+     onmouseover="return searchBox.OnSearchSelectShow()"
+     onmouseout="return searchBox.OnSearchSelectHide()"
+     onkeydown="return searchBox.OnSearchSelectKey(event)">
+</div>
+
+<!-- iframe showing the search results (closed by default) -->
+<div id="MSearchResultsWindow">
+<div id="MSearchResults">
+<div class="SRPage">
+<div id="SRIndex">
+<div id="SRResults"></div>
+<div class="SRStatus" id="Loading">読み取り中…</div>
+<div class="SRStatus" id="Searching">検索中…</div>
+<div class="SRStatus" id="NoMatches">一致する文字列を見つけられません</div>
+</div>
+</div>
+</div>
+</div>
+
+<div><div class="header">
+  <div class="headertitle"><div class="title">CREATE CAN Library </div></div>
+</div><!--header-->
+<div class="contents">
+<div class="textblock"><p><a class="anchor" id="autotoc_md0"></a></p>
+<p>ESP32のtwaiライブラリを簡単につかえるようにしました。 <br  />
+</p>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md1"></a>
+特徴</h1>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md2"></a>
+arduino likeで簡単に使える</h2>
+<p>begin関数を実行したらあとは旧ライブラリとほとんど同じで簡単に使えます。 </p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
+最大8文字まで同時に送信できる</h2>
+<p>sendLine関数では、charの配列を入力すればそのまま送信することができます。 </p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md4"></a>
+通信相手とプロトコルを共通化できる</h2>
+<p>sendLine関数などを用いて複数文字を送信されると困る場合、相手と共通の設定を行えるためそもそも複数文字の送信ができないようにすることが可能です。 </p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md5"></a>
+エラーの返り値が詳細</h2>
+<p>成功時の返り値は0固定で、エラー時の返り値は1以上の値となり詳細なエラー内容を知ることが可能です。また、setupでSerial.beginが実行されているときエラー内容をシリアルに送信します。 <br  />
+ (旧ライブラリ互換動作時は旧ライブラリの返り値となります) </p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md6"></a>
+旧ライブラリのプログラムをそのまま使うこともできる</h2>
+<p>旧ライブラリの帰り値と同じにするモードを搭載しているため、旧ライブラリのプログラムをそのまま使うこともできます。(setPin、 begin、 available、 read、 sendPacket関数のみ対応) </p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md7"></a>
+ESP32シリーズに対応</h2>
+<p>ESP32無印のみならず、ESP32 S3にも対応しています。また、他のESP32シリーズでも動作させられるはずです。 </p>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md8"></a>
+Arduino ESP_IDF 両対応</h2>
+<p>ArduinoはもちろんESP_IDFでの動作が可能となっています。</p>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md9"></a>
+利用方法</h1>
+<p>以下のexampleをコピーして利用することや、vscode等利用時は関数にカーソルを合わせることででるホバーにその関数の使い方を載せてあるため、それを使うこともできます。</p>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md10"></a>
+注意点</h1>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md11"></a>
+シリアルにデバッグログを流したくないとき</h2>
+<p>デフォルトの動作ではSerial0が利用可能時自動的にログを出力しますが、ログが多すぎるなど利用したくない場合はplatformio.iniに以下の内容を追記する必要があります </p><div class="fragment"><div class="line">build_flags = -DDEBUG_CAN=0</div>
+</div><!-- fragment --> <h2 class="doxsection"><a class="anchor" id="autotoc_md12"></a>
+旧ライブラリ互換で利用したいとき</h2>
+<p>旧ライブラリ互換で動作する場合、setPin、 begin、 available、 read、 sendPacket関数の一部のみ対応となっていることに注意してください。(新規利用は非推奨) <br  />
+ また、その場合コンストラクタに以下のようにfalseを渡す必要があります。 </p><div class="fragment"><div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">false</span>);</div>
+<div class="ttc" id="aclassCAN__CREATE_html"><div class="ttname"><a href="classCAN__CREATE.html">CAN_CREATE</a></div><div class="ttdoc">CANバスを制御するためのクラス</div><div class="ttdef"><b>Definition</b> CANCREATE.h:31</div></div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md13"></a>
+IDの制限</h2>
+<p>CANは11bitのIDが利用できますが、最上位bitが1のときにはブロックされる設定となっています。</p>
+<h1 class="doxsection"><a class="anchor" id="autotoc_md14"></a>
+example</h1>
+<h2 class="doxsection"><a class="anchor" id="autotoc_md15"></a>
+1文字しか送受信しない例</h2>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="CANCREATE_8h.html">CANCREATE.h</a>&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &lt;Arduino.h&gt;</span></div>
+<div class="line"> </div>
+<div class="line"><span class="preprocessor">#define CAN_RX 17 </span><span class="comment">// CAN ICのTXに接続しているピン</span></div>
+<div class="line"><span class="preprocessor">#define CAN_TX 18 </span><span class="comment">// CAN ICのRXに接続しているピン</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">true</span>); <span class="comment">// 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる</span></div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup()</div>
+<div class="line">{</div>
+<div class="line">  Serial.begin(115200);</div>
+<div class="line">  <span class="keywordflow">while</span> (!Serial)</div>
+<div class="line">    ;</div>
+<div class="line">  delay(1000);</div>
+<div class="line"> </div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;CAN Sender&quot;</span>);</div>
+<div class="line">  <span class="comment">// 100 kbpsでCANを動作させる</span></div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.begin(100E3, CAN_RX, CAN_TX, 10))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (1)</div>
+<div class="line">      ;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> loop()</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.available()) <span class="comment">// CAN受信用</span></div>
+<div class="line">  {</div>
+<div class="line">    <span class="comment">// CANを受信していたら実行される</span></div>
+<div class="line">    <span class="keywordtype">char</span> Data;</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.read(&amp;Data))</div>
+<div class="line">    { <span class="comment">// エラーの場合の処理</span></div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordflow">else</span></div>
+<div class="line">      Serial.printf(<span class="stringliteral">&quot;Can received!!!: %c\n&quot;</span>, Data);</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordtype">char</span> cmd = Serial.read();</div>
+<div class="line">    Serial.println(cmd);</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.sendChar(cmd))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="ttc" id="aCANCREATE_8h_html"><div class="ttname"><a href="CANCREATE_8h.html">CANCREATE.h</a></div><div class="ttdoc">CANCREATE.cpp header</div></div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md16"></a>
+2文字以上送信する例(uint8_t 配列を利用する場合)</h2>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="CANCREATE_8h.html">CANCREATE.h</a>&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &lt;Arduino.h&gt;</span></div>
+<div class="line"> </div>
+<div class="line"><span class="preprocessor">#define CAN_RX 17 </span><span class="comment">// CAN ICのTXに接続しているピン</span></div>
+<div class="line"><span class="preprocessor">#define CAN_TX 18 </span><span class="comment">// CAN ICのRXに接続しているピン</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">true</span>); <span class="comment">// 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる</span></div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup()</div>
+<div class="line">{</div>
+<div class="line">  Serial.begin(115200);</div>
+<div class="line">  <span class="keywordflow">while</span> (!Serial)</div>
+<div class="line">    ;</div>
+<div class="line">  delay(1000);</div>
+<div class="line"> </div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;CAN Sender&quot;</span>);</div>
+<div class="line">  <span class="comment">// start the CAN bus at 100 kbps</span></div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.begin(100E3, CAN_RX, CAN_TX, 10))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (1)</div>
+<div class="line">      ;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> loop()</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.available())</div>
+<div class="line">  {</div>
+<div class="line">    uint8_t Data[9]; <span class="comment">// 最大8文字+改行文字が送信される</span></div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.readLine((<span class="keywordtype">char</span> *)Data))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordflow">else</span></div>
+<div class="line">      Serial.printf(<span class="stringliteral">&quot;Can received!!!: %s\r\n&quot;</span>, Data);</div>
+<div class="line">  }</div>
+<div class="line">  uint8_t Data[6] = {<span class="charliteral">&#39;c&#39;</span>, <span class="charliteral">&#39;r&#39;</span>, <span class="charliteral">&#39;e&#39;</span>, <span class="charliteral">&#39;a&#39;</span>, <span class="charliteral">&#39;t&#39;</span>, <span class="charliteral">&#39;e&#39;</span>};</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.sendData(Data, 6)){</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line"> </div>
+<div class="line">  delay(10);</div>
+<div class="line">}</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md17"></a>
+2文字以上送信する例(char 文字列を利用する場合)</h2>
+<p>char文字列は、最後にnull文字(int型で0)が来ている必要があります。</p>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="CANCREATE_8h.html">CANCREATE.h</a>&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &lt;Arduino.h&gt;</span></div>
+<div class="line"> </div>
+<div class="line"><span class="preprocessor">#define CAN_RX 17 </span><span class="comment">// CAN ICのTXに接続しているピン</span></div>
+<div class="line"><span class="preprocessor">#define CAN_TX 18 </span><span class="comment">// CAN ICのRXに接続しているピン</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">true</span>); <span class="comment">// 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる</span></div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup()</div>
+<div class="line">{</div>
+<div class="line">  Serial.begin(115200);</div>
+<div class="line">  <span class="keywordflow">while</span> (!Serial)</div>
+<div class="line">    ;</div>
+<div class="line">  delay(1000);</div>
+<div class="line"> </div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;CAN Sender&quot;</span>);</div>
+<div class="line">  <span class="comment">// start the CAN bus at 100 kbps</span></div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.begin(100E3, CAN_RX, CAN_TX, 10))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (1)</div>
+<div class="line">      ;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> loop()</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordtype">char</span> Data[9]; <span class="comment">// 最大8文字+改行文字が送信される</span></div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.readLine(Data))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordflow">else</span></div>
+<div class="line">      Serial.printf(<span class="stringliteral">&quot;Can received!!!: %s\r\n&quot;</span>, Data);</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordtype">char</span> data = Serial.peek(); <span class="comment">// どの文字が入力されたかを確認(取り出さない)</span></div>
+<div class="line">    <span class="keywordflow">if</span> (data == <span class="charliteral">&#39;\n&#39;</span> || data == <span class="charliteral">&#39;\r&#39;</span>)</div>
+<div class="line">    {</div>
+<div class="line">      Serial.read(); <span class="comment">// 改行文字だったら取り出して捨てる</span></div>
+<div class="line">      <span class="keywordflow">return</span>;</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordtype">char</span> cmd[9] = {};</div>
+<div class="line">    <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; 8; i++)</div>
+<div class="line">    {</div>
+<div class="line">      <span class="keywordflow">while</span> (!Serial.available())</div>
+<div class="line">        ;</div>
+<div class="line">      <span class="keywordtype">char</span> read = Serial.read();</div>
+<div class="line">      <span class="keywordflow">if</span> (read == <span class="charliteral">&#39;\n&#39;</span> || read == <span class="charliteral">&#39;\r&#39;</span>)</div>
+<div class="line">        <span class="keywordflow">break</span>; <span class="comment">// 改行文字だったら終了</span></div>
+<div class="line">      cmd[i] = read;</div>
+<div class="line">      Serial.print(read);</div>
+<div class="line">    }</div>
+<div class="line">    Serial.println();</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.sendLine(cmd))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --><h2 class="doxsection"><a class="anchor" id="autotoc_md18"></a>
+送信ステータスを得られるようにした例</h2>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="CANCREATE_8h.html">CANCREATE.h</a>&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &lt;Arduino.h&gt;</span></div>
+<div class="line"> </div>
+<div class="line"><span class="preprocessor">#define CAN_RX 17 </span><span class="comment">// CAN ICのTXに接続しているピン</span></div>
+<div class="line"><span class="preprocessor">#define CAN_TX 18 </span><span class="comment">// CAN ICのRXに接続しているピン</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">true</span>); <span class="comment">// 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる</span></div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup()</div>
+<div class="line">{</div>
+<div class="line">  Serial.begin(115200);</div>
+<div class="line">  <span class="keywordflow">while</span> (!Serial)</div>
+<div class="line">    ;</div>
+<div class="line">  delay(1000);</div>
+<div class="line"> </div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;CAN Sender&quot;</span>);</div>
+<div class="line">  <span class="comment">// 100 kbpsでCANを動作させる</span></div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.begin(100E3, CAN_RX, CAN_TX, 10))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (1)</div>
+<div class="line">      ;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> loop()</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.available()) <span class="comment">// CAN受信用</span></div>
+<div class="line">  {</div>
+<div class="line">    <span class="comment">// CANを受信していたら実行される</span></div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;receiving data...&quot;</span>);</div>
+<div class="line">    <span class="keywordtype">char</span> Data;</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.read(&amp;Data))</div>
+<div class="line">    { <span class="comment">// エラーの場合の処理</span></div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordflow">else</span></div>
+<div class="line">      Serial.printf(<span class="stringliteral">&quot;Can received!!!: %c\n&quot;</span>, Data);</div>
+<div class="line">  }</div>
+<div class="line"> </div>
+<div class="line">  <span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordtype">char</span> cmd = Serial.read();</div>
+<div class="line">    Serial.println(cmd);</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.sendChar(cmd))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line"> </div>
+<div class="line">    <span class="comment">// CREATE_CANライブラリが裏で処理を終わらせるための待ち時間 statusを見るために必要</span></div>
+<div class="line">    delay(100);</div>
+<div class="line">    <span class="keywordflow">switch</span> (CAN.getStatus())</div>
+<div class="line">    {</div>
+<div class="line">    <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9">CAN_SUCCESS</a>:</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;Success to Send!!!&quot;</span>);</div>
+<div class="line">      <span class="keywordflow">break</span>;</div>
+<div class="line">    <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a62f6721b35c2146660b92935fce56cf8">CAN_NO_ALERTS</a>:</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;CREATE_CAN driver isn&#39;t done yet&quot;</span>);</div>
+<div class="line">      <span class="keywordflow">break</span>;</div>
+<div class="line">    <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691af42427052abed5e88df357d1a7d0b33f">CAN_BUS_ERROR</a>:</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;Got a bus error on the CAN such as ACK Error&quot;</span>);</div>
+<div class="line">      <span class="keywordflow">break</span>;</div>
+<div class="line">    <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a0a9586ab62325575231d7286dfe71dbe">CAN_TX_FAILED</a>:</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;Can&#39;t send data, something other than a bus error might wrong&quot;</span>);</div>
+<div class="line">      <span class="keywordflow">break</span>;</div>
+<div class="line">    <span class="keywordflow">default</span>:</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;Unknown error occurred!!!&quot;</span>);</div>
+<div class="line">      <span class="keywordflow">break</span>;</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691a0a9586ab62325575231d7286dfe71dbe"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a0a9586ab62325575231d7286dfe71dbe">CAN_TX_FAILED</a></div><div class="ttdeci">@ CAN_TX_FAILED</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:185</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691a62f6721b35c2146660b92935fce56cf8"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a62f6721b35c2146660b92935fce56cf8">CAN_NO_ALERTS</a></div><div class="ttdeci">@ CAN_NO_ALERTS</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:183</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9">CAN_SUCCESS</a></div><div class="ttdeci">@ CAN_SUCCESS</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:181</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691af42427052abed5e88df357d1a7d0b33f"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691af42427052abed5e88df357d1a7d0b33f">CAN_BUS_ERROR</a></div><div class="ttdeci">@ CAN_BUS_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:184</div></div>
+</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md19"></a>
+test関数を利用する例</h1>
+<p>test関数を利用することで通信ができない場合に自分のコントローラーが動いているかを確かめることができ、原因の絞り込みが可能となります。 <br  />
+ ただし、この関数で得られた結果は必ずしも正しいとは限らないことに注意してください。 </p><div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="CANCREATE_8h.html">CANCREATE.h</a>&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &lt;Arduino.h&gt;</span></div>
+<div class="line"> </div>
+<div class="line"><span class="preprocessor">#define CAN_RX 17 </span><span class="comment">// CAN ICのTXに接続しているピン</span></div>
+<div class="line"><span class="preprocessor">#define CAN_TX 18 </span><span class="comment">// CAN ICのRXに接続しているピン</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">true</span>); <span class="comment">// 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_struct" href="structcan__setting__t.html">can_setting_t</a> can_setting = {</div>
+<div class="line">    ((long)100E3),</div>
+<div class="line">    <span class="keyword">false</span>,</div>
+<div class="line">    <a class="code hl_define" href="CANCREATE__lib_8h.html#a3da68b1b6f8d084e9def1accdb8b7dbe">CAN_FILTER_DEFAULT</a>,</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup()</div>
+<div class="line">{</div>
+<div class="line">  Serial.begin(115200);</div>
+<div class="line"> </div>
+<div class="line">  delay(1000);</div>
+<div class="line"> </div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;CAN Sender&quot;</span>);</div>
+<div class="line">  <span class="comment">// 100 kbpsでCANを動作させる</span></div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.begin(can_setting, CAN_RX, CAN_TX, 10))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (1)</div>
+<div class="line">      ;</div>
+<div class="line">  }</div>
+<div class="line">  delay(100);</div>
+<div class="line">  <span class="keywordflow">switch</span> (CAN.test())</div>
+<div class="line">  {</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9">CAN_SUCCESS</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Success!!!&quot;</span>); <span class="comment">// 通信成功</span></div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691aa6c9b8224b0a200e9e6a2e32652fd9bf">CAN_UNKNOWN_ERROR</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Unknown error occurred&quot;</span>); <span class="comment">// 不可逆なエラーが発生した可能性がある 再起動推奨</span></div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40caa2aa7d091558ef986c1d28b542c0704e">CAN_NO_RESPONSE_ERROR</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;No response error&quot;</span>); <span class="comment">// 自分のコントローラーは動作している</span></div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40ca9962f352ba2d316fc59386abfffa4d71">CAN_CONTROLLER_ERROR</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;CAN CONTROLLER ERROR&quot;</span>); <span class="comment">// 自分のコントローラーが動作していない</span></div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">default</span>:</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> loop()</div>
+<div class="line">{</div>
+<div class="line"> </div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.available())</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;receiving data...&quot;</span>);</div>
+<div class="line">    <a class="code hl_struct" href="structcan__return__t.html">can_return_t</a> Data;</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.readWithDetail(&amp;Data))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordflow">else</span></div>
+<div class="line">    {</div>
+<div class="line">      Serial.printf(<span class="stringliteral">&quot;CAN received!!!\n id:\t %u \n size: \t %d \n data: \t %.*s&quot;</span>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#a58abd741ceb698ca9dc1c1e28b44cbf5">id</a>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">size</a>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">size</a>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#a83061b5a1c7340157dda6899cff461ab">data</a></div>
+<div class="line">                    );</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line"> </div>
+<div class="line">  <span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordtype">char</span> cmd = Serial.read();</div>
+<div class="line">    Serial.println(cmd);</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.sendChar(10, cmd))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_a3da68b1b6f8d084e9def1accdb8b7dbe"><div class="ttname"><a href="CANCREATE__lib_8h.html#a3da68b1b6f8d084e9def1accdb8b7dbe">CAN_FILTER_DEFAULT</a></div><div class="ttdeci">#define CAN_FILTER_DEFAULT</div><div class="ttdoc">デフォルトのCANフィルター設定</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:161</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_a47fa485955c19479dfebf34486a6e40ca9962f352ba2d316fc59386abfffa4d71"><div class="ttname"><a href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40ca9962f352ba2d316fc59386abfffa4d71">CAN_CONTROLLER_ERROR</a></div><div class="ttdeci">@ CAN_CONTROLLER_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:197</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_a47fa485955c19479dfebf34486a6e40caa2aa7d091558ef986c1d28b542c0704e"><div class="ttname"><a href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40caa2aa7d091558ef986c1d28b542c0704e">CAN_NO_RESPONSE_ERROR</a></div><div class="ttdeci">@ CAN_NO_RESPONSE_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:196</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691aa6c9b8224b0a200e9e6a2e32652fd9bf"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691aa6c9b8224b0a200e9e6a2e32652fd9bf">CAN_UNKNOWN_ERROR</a></div><div class="ttdeci">@ CAN_UNKNOWN_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:182</div></div>
+<div class="ttc" id="astructcan__return__t_html"><div class="ttname"><a href="structcan__return__t.html">can_return_t</a></div><div class="ttdoc">CANバスから返されたデータを保持するための構造体</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:169</div></div>
+<div class="ttc" id="astructcan__return__t_html_a58abd741ceb698ca9dc1c1e28b44cbf5"><div class="ttname"><a href="structcan__return__t.html#a58abd741ceb698ca9dc1c1e28b44cbf5">can_return_t::id</a></div><div class="ttdeci">uint32_t id</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:172</div></div>
+<div class="ttc" id="astructcan__return__t_html_a83061b5a1c7340157dda6899cff461ab"><div class="ttname"><a href="structcan__return__t.html#a83061b5a1c7340157dda6899cff461ab">can_return_t::data</a></div><div class="ttdeci">char data[8]</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:171</div></div>
+<div class="ttc" id="astructcan__return__t_html_aa1d4114373dcd3e34f953d781d053656"><div class="ttname"><a href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">can_return_t::size</a></div><div class="ttdeci">int size</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:170</div></div>
+<div class="ttc" id="astructcan__setting__t_html"><div class="ttname"><a href="structcan__setting__t.html">can_setting_t</a></div><div class="ttdoc">CAN.begin の引数に入れてCANの動作を指定する</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:151</div></div>
+</div><!-- fragment --><h1 class="doxsection"><a class="anchor" id="autotoc_md20"></a>
+can_setting_tを利用し、id等の正確なデータを得る例</h1>
+<div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="CANCREATE_8h.html">CANCREATE.h</a>&gt;</span></div>
+<div class="line"><span class="preprocessor">#include &lt;Arduino.h&gt;</span></div>
+<div class="line"> </div>
+<div class="line"><span class="preprocessor">#define CAN_RX 17 </span><span class="comment">// CAN ICのTXに接続しているピン</span></div>
+<div class="line"><span class="preprocessor">#define CAN_TX 18 </span><span class="comment">// CAN ICのRXに接続しているピン</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">true</span>); <span class="comment">// 旧ライブラリ互換かどうか決める trueで新ライブラリ用になる</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_struct" href="structcan__setting__t.html">can_setting_t</a> Settings = {</div>
+<div class="line">    .baudRate = (long)100E3,</div>
+<div class="line">    .multiData_send = <span class="keyword">true</span>,</div>
+<div class="line">    .filter_config = <a class="code hl_define" href="CANCREATE__lib_8h.html#a3da68b1b6f8d084e9def1accdb8b7dbe">CAN_FILTER_DEFAULT</a>,</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">int</span> i;</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup()</div>
+<div class="line">{</div>
+<div class="line">  Serial.begin(115200);</div>
+<div class="line">  <span class="keywordflow">while</span> (!Serial)</div>
+<div class="line">    ;</div>
+<div class="line">  delay(1000);</div>
+<div class="line"> </div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;CAN Sender&quot;</span>);</div>
+<div class="line">  <span class="comment">// start the CAN bus at 100 kbps</span></div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.begin(Settings, CAN_RX, CAN_TX, 10))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (<span class="keyword">true</span>)</div>
+<div class="line">      ;</div>
+<div class="line">  }</div>
+<div class="line">  i = 0;</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> loop()</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.available())</div>
+<div class="line">  {</div>
+<div class="line">    <a class="code hl_struct" href="structcan__return__t.html">can_return_t</a> Data;</div>
+<div class="line">    <span class="keywordflow">if</span> (CAN.readWithDetail(&amp;Data))</div>
+<div class="line">    {</div>
+<div class="line">      Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordflow">else</span></div>
+<div class="line">    {</div>
+<div class="line">      <span class="comment">// 得られたデータを出力する %.*s フォーマット指定子は直前の引数を参照してその文字数だけ出力する</span></div>
+<div class="line">      Serial.printf(<span class="stringliteral">&quot;CAN received!!!\r\n id:\t %u \r\n size: \t %d \r\n data: \t %.*s\r\n&quot;</span>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#a58abd741ceb698ca9dc1c1e28b44cbf5">id</a>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">size</a>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">size</a>,</div>
+<div class="line">                    Data.<a class="code hl_variable" href="structcan__return__t.html#a83061b5a1c7340157dda6899cff461ab">data</a>);</div>
+<div class="line">    }</div>
+<div class="line">    <span class="keywordflow">if</span> (i != Data.<a class="code hl_variable" href="structcan__return__t.html#a58abd741ceb698ca9dc1c1e28b44cbf5">id</a>)</div>
+<div class="line">    {</div>
+<div class="line">      Serial.printf(<span class="stringliteral">&quot;failed at %d, found %d&quot;</span>, i, Data.<a class="code hl_variable" href="structcan__return__t.html#a58abd741ceb698ca9dc1c1e28b44cbf5">id</a>);</div>
+<div class="line">    }</div>
+<div class="line">    Serial.println(i);</div>
+<div class="line">    i++;</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; (1 &lt;&lt; 29); i++)</div>
+<div class="line">    {</div>
+<div class="line">      CAN.sendChar(i, <span class="charliteral">&#39;a&#39;</span>);</div>
+<div class="line">      delay(100);</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --><hr  />
+ <h1 class="doxsection"><a class="anchor" id="autotoc_md22"></a>
+昔のモードを利用する例</h1>
+<dl class="section warning"><dt>警告</dt><dd>旧ライブラリ用として書かれたプログラムをそのまま利用できるようにしたものです。 新規に作る場合に採用は非推奨です。</dd></dl>
+<p>注意点</p><ul>
+<li>CANのコンストラクタでfalse値を渡す必要がある</li>
+<li>Arduino.hはライブラリ内でincludeしないため、インクルードが必要 <div class="fragment"><div class="line"><span class="preprocessor">#include &lt;<a class="code" href="CANCREATE_8h.html">CANCREATE.h</a>&gt;</span> <span class="comment">// 変更必要</span></div>
+<div class="line"><span class="preprocessor">#include &lt;Arduino.h&gt;</span></div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">false</span>); <span class="comment">// 変更必要</span></div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup()</div>
+<div class="line">{</div>
+<div class="line">  Serial.begin(115200);</div>
+<div class="line">  <span class="keywordflow">while</span> (!Serial)</div>
+<div class="line">    ;</div>
+<div class="line"> </div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;CAN Receiver&quot;</span>);</div>
+<div class="line">  CAN.setPins(17, 18);</div>
+<div class="line"> </div>
+<div class="line">  <span class="comment">// start the CAN bus at 100 kbps</span></div>
+<div class="line">  <span class="keywordflow">if</span> (!CAN.begin(100E3))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">while</span> (1)</div>
+<div class="line">      ;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> loop()</div>
+<div class="line">{</div>
+<div class="line">  <span class="comment">// try to parse packet</span></div>
+<div class="line"> </div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordtype">char</span> cmd = (char)CAN.read();</div>
+<div class="line">    Serial.print(cmd);</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordtype">char</span> data = Serial.read();</div>
+<div class="line">    Serial.println(data);</div>
+<div class="line">    <span class="keywordtype">int</span> result = CAN.sendPacket(0x13, data);</div>
+<div class="line">    <span class="keywordflow">if</span> (result)</div>
+<div class="line">    {</div>
+<div class="line">      Serial.print(result);</div>
+<div class="line">    }</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --> </li>
+</ul>
+</div></div><!-- contents -->
+</div><!-- PageDoc -->
+</div><!-- doc-content -->
+<div id="page-nav" class="page-nav-panel">
+<div id="page-nav-resize-handle"></div>
+<div id="page-nav-tree">
+<div id="page-nav-contents">
+</div><!-- page-nav-contents -->
+</div><!-- page-nav-tree -->
+</div><!-- page-nav -->
+</div><!-- container -->
+<!-- start footer part -->
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="footer">構築: <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.14.0 </li>
+  </ul>
+</div>
+</body>
+</html>

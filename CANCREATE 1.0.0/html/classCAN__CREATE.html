@@ -1,0 +1,1230 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "https://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="ja">
+<head>
+<meta http-equiv="Content-Type" content="text/xhtml;charset=UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=11"/>
+<meta name="generator" content="Doxygen 1.14.0"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>CAN_CREATE: CAN_CREATE クラス</title>
+<link href="tabs.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="jquery.js"></script>
+<script type="text/javascript" src="dynsections.js"></script>
+<script type="text/javascript" src="clipboard.js"></script>
+<link href="navtree.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="navtreedata.js"></script>
+<script type="text/javascript" src="navtree.js"></script>
+<script type="text/javascript" src="cookie.js"></script>
+<link href="search/search.css" rel="stylesheet" type="text/css"/>
+<script type="text/javascript" src="search/searchdata.js"></script>
+<script type="text/javascript" src="search/search.js"></script>
+<link href="doxygen.css" rel="stylesheet" type="text/css" />
+</head>
+<body>
+<div id="top"><!-- do not remove this div, it is closed by doxygen! -->
+<div id="titlearea">
+<table cellspacing="0" cellpadding="0">
+ <tbody>
+ <tr id="projectrow">
+  <td id="projectalign">
+   <div id="projectname">CAN_CREATE
+   </div>
+  </td>
+ </tr>
+ </tbody>
+</table>
+</div>
+<!-- end header part -->
+<!-- 構築: Doxygen 1.14.0 -->
+<script type="text/javascript">
+var searchBox = new SearchBox("searchBox", "search/",'.html');
+</script>
+<script type="text/javascript">
+$(function() { codefold.init(); });
+</script>
+<script type="text/javascript" src="menudata.js"></script>
+<script type="text/javascript" src="menu.js"></script>
+<script type="text/javascript">
+$(function() {
+  initMenu('',true,false,'search.php','検索',true);
+  $(function() { init_search(); });
+});
+</script>
+<div id="main-nav"></div>
+</div><!-- top -->
+<div id="side-nav" class="ui-resizable side-nav-resizable">
+  <div id="nav-tree">
+    <div id="nav-tree-contents">
+      <div id="nav-sync" class="sync"></div>
+    </div>
+  </div>
+  <div id="splitbar" style="-moz-user-select:none;" 
+       class="ui-resizable-handle">
+  </div>
+</div>
+<script type="text/javascript">
+$(function(){initNavTree('classCAN__CREATE.html','','classCAN__CREATE-members'); });
+</script>
+<div id="container">
+<div id="doc-content">
+<!-- window showing the filter options -->
+<div id="MSearchSelectWindow"
+     onmouseover="return searchBox.OnSearchSelectShow()"
+     onmouseout="return searchBox.OnSearchSelectHide()"
+     onkeydown="return searchBox.OnSearchSelectKey(event)">
+</div>
+
+<!-- iframe showing the search results (closed by default) -->
+<div id="MSearchResultsWindow">
+<div id="MSearchResults">
+<div class="SRPage">
+<div id="SRIndex">
+<div id="SRResults"></div>
+<div class="SRStatus" id="Loading">読み取り中…</div>
+<div class="SRStatus" id="Searching">検索中…</div>
+<div class="SRStatus" id="NoMatches">一致する文字列を見つけられません</div>
+</div>
+</div>
+</div>
+</div>
+
+<div class="header">
+  <div class="headertitle"><div class="title">CAN_CREATE クラス</div></div>
+</div><!--header-->
+<div class="contents">
+
+<p>CANバスを制御するためのクラス  
+ <a href="#details">[詳解]</a></p>
+
+<p><code>#include &lt;<a class="el" href="CANCREATE_8h_source.html">CANCREATE.h</a>&gt;</code></p>
+<table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 id="header-pub-methods" class="groupheader"><a id="pub-methods" name="pub-methods"></a>
+公開メンバ関数</h2></td></tr>
+<tr class="memitem:a4a2b96990f10e9124a0cdf83b2632bdd" id="r_a4a2b96990f10e9124a0cdf83b2632bdd"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a4a2b96990f10e9124a0cdf83b2632bdd">CAN_CREATE</a> (bool return_new=true, bool enableCanWatchDog=true)</td></tr>
+<tr class="memdesc:a4a2b96990f10e9124a0cdf83b2632bdd"><td class="mdescLeft">&#160;</td><td class="mdescRight">CAN_CREATEのコンストラクタ  <br /></td></tr>
+<tr class="memitem:a462a021c725084ae3d72c8674b932158" id="r_a462a021c725084ae3d72c8674b932158"><td class="memItemLeft" align="right" valign="top"><a id="a462a021c725084ae3d72c8674b932158" name="a462a021c725084ae3d72c8674b932158"></a>
+&#160;</td><td class="memItemRight" valign="bottom"><b>~CAN_CREATE</b> ()</td></tr>
+<tr class="memdesc:a462a021c725084ae3d72c8674b932158"><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classCAN__CREATE.html" title="CANバスを制御するためのクラス">CAN_CREATE</a> のデストラクタ end関数を呼び出しているだけ <br /></td></tr>
+<tr class="memitem:ab4500ab2e6fee16eec555e6ae012a769" id="r_ab4500ab2e6fee16eec555e6ae012a769"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ab4500ab2e6fee16eec555e6ae012a769">setPins</a> (int rx, int tx, uint32_t id=UINT32_MAX, int bus_off=GPIO_NUM_MAX)</td></tr>
+<tr class="memitem:a5916238866687711805bb9698ba8f1cd" id="r_a5916238866687711805bb9698ba8f1cd"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a5916238866687711805bb9698ba8f1cd">begin</a> (long baudRate)</td></tr>
+<tr class="memitem:ac050e410f60f9376bd4f3b01fd782e00" id="r_ac050e410f60f9376bd4f3b01fd782e00"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ac050e410f60f9376bd4f3b01fd782e00">begin</a> (<a class="el" href="structcan__setting__t.html">can_setting_t</a> settings, int rx, int tx, uint32_t id=UINT32_MAX, int bus_off=GPIO_NUM_MAX)</td></tr>
+<tr class="memdesc:ac050e410f60f9376bd4f3b01fd782e00"><td class="mdescLeft">&#160;</td><td class="mdescRight">setup内で最初に実行するべき関数 一度だけ実行できる  <br /></td></tr>
+<tr class="memitem:a0e26028ade0562cbe24ee497a6e571fc" id="r_a0e26028ade0562cbe24ee497a6e571fc"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a0e26028ade0562cbe24ee497a6e571fc">begin</a> (long baudRate, int rx, int tx, uint32_t id=UINT32_MAX, int bus_off=GPIO_NUM_MAX)</td></tr>
+<tr class="memdesc:a0e26028ade0562cbe24ee497a6e571fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">setup内等で最初に実行するべき関数 一度だけのみ実行できる  <br /></td></tr>
+<tr class="memitem:a913ef994e0e736eccf91d9721130e34d" id="r_a913ef994e0e736eccf91d9721130e34d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a913ef994e0e736eccf91d9721130e34d">re_configure</a> (<a class="el" href="structcan__setting__t.html">can_setting_t</a> settings, twai_mode_t mode=TWAI_MODE_NORMAL)</td></tr>
+<tr class="memdesc:a913ef994e0e736eccf91d9721130e34d"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANバスを再設定する関数  <br /></td></tr>
+<tr class="memitem:abf70a47868a0175cddabaf9d06c167db" id="r_abf70a47868a0175cddabaf9d06c167db"><td class="memItemLeft" align="right" valign="top"><a id="abf70a47868a0175cddabaf9d06c167db" name="abf70a47868a0175cddabaf9d06c167db"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>end</b> ()</td></tr>
+<tr class="memdesc:abf70a47868a0175cddabaf9d06c167db"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANの利用終了時に呼び出されるべき関数 基本使わなくて良い プログラムでこれ以上CANを使わないときに呼び出せる <br /></td></tr>
+<tr class="memitem:aa3e57b1a4f670c9b6c4b44a0e4dcbb9d" id="r_aa3e57b1a4f670c9b6c4b44a0e4dcbb9d"><td class="memItemLeft" align="right" valign="top"><a id="aa3e57b1a4f670c9b6c4b44a0e4dcbb9d" name="aa3e57b1a4f670c9b6c4b44a0e4dcbb9d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>suspend</b> ()</td></tr>
+<tr class="memdesc:aa3e57b1a4f670c9b6c4b44a0e4dcbb9d"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANを一時停止させるときに利用できる関数 送信も受信も行わなくていいときに利用できる <br /></td></tr>
+<tr class="memitem:a884ff9215eb121e0aedfa7e69101350d" id="r_a884ff9215eb121e0aedfa7e69101350d"><td class="memItemLeft" align="right" valign="top"><a id="a884ff9215eb121e0aedfa7e69101350d" name="a884ff9215eb121e0aedfa7e69101350d"></a>
+void&#160;</td><td class="memItemRight" valign="bottom"><b>resume</b> ()</td></tr>
+<tr class="memdesc:a884ff9215eb121e0aedfa7e69101350d"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANの動作を再開させるときに利用する関数 <a class="el" href="#aa3e57b1a4f670c9b6c4b44a0e4dcbb9d" title="CANを一時停止させるときに利用できる関数 送信も受信も行わなくていいときに利用できる">suspend()</a> でCANを停止させたあと再開させることができる <br /></td></tr>
+<tr class="memitem:af11f81d1fbd2d015d1da822803b43226" id="r_af11f81d1fbd2d015d1da822803b43226"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#af11f81d1fbd2d015d1da822803b43226">getStatus</a> ()</td></tr>
+<tr class="memdesc:af11f81d1fbd2d015d1da822803b43226"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANの送信ステータスを確認できる関数  <br /></td></tr>
+<tr class="memitem:ac8c2a517fe2e59f33f88d2bd297a972d" id="r_ac8c2a517fe2e59f33f88d2bd297a972d"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ac8c2a517fe2e59f33f88d2bd297a972d">test</a> (uint32_t id=(1&lt;&lt; 11) - 1)</td></tr>
+<tr class="memdesc:ac8c2a517fe2e59f33f88d2bd297a972d"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANが動作するかを確かめる関数  <br /></td></tr>
+<tr class="memitem:accae32f668a9926495c5a2f2eb3b6ec2" id="r_accae32f668a9926495c5a2f2eb3b6ec2"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#accae32f668a9926495c5a2f2eb3b6ec2">flush</a> ()</td></tr>
+<tr class="memdesc:accae32f668a9926495c5a2f2eb3b6ec2"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANトランシーバーのキューを消去する  <br /></td></tr>
+<tr class="memitem:a03d467a47071331177e24ba6f705d5f7" id="r_a03d467a47071331177e24ba6f705d5f7"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a03d467a47071331177e24ba6f705d5f7">available</a> ()</td></tr>
+<tr class="memdesc:a03d467a47071331177e24ba6f705d5f7"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANにデータが送られて来ているかを判別する関数 戻り値が0でなければデータが送られてきており、read関数で読める  <br /></td></tr>
+<tr class="memitem:a10d103745ded81ee9f0d89fc69de59fe" id="r_a10d103745ded81ee9f0d89fc69de59fe"><td class="memItemLeft" align="right" valign="top">char&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a> ()</td></tr>
+<tr class="memdesc:a10d103745ded81ee9f0d89fc69de59fe"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANに送られてきているデータを読む関数 互換性のために残してある  <br /></td></tr>
+<tr class="memitem:a68d5f19b15cdfec71d1cdcca08947097" id="r_a68d5f19b15cdfec71d1cdcca08947097"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a68d5f19b15cdfec71d1cdcca08947097">read</a> (char *readData, uint32_t waitTime=MAX_READ)</td></tr>
+<tr class="memdesc:a68d5f19b15cdfec71d1cdcca08947097"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANに送られてきているデータを読む関数 引数readDataに得られたデータが入る 複数文字が送られてきた場合は1文字のみを返す  <br /></td></tr>
+<tr class="memitem:ac569faca89ee120dcf5d3016f36a63fc" id="r_ac569faca89ee120dcf5d3016f36a63fc"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ac569faca89ee120dcf5d3016f36a63fc">readLine</a> (char *readData, uint32_t waitTime=MAX_READ)</td></tr>
+<tr class="memdesc:ac569faca89ee120dcf5d3016f36a63fc"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANに送られてきたデータを読む関数 CANでは8文字まで同時に送受信が可能 引数readDataに得られたデータが入り終端は0が入る  <br /></td></tr>
+<tr class="memitem:ab39ab83c582321c63d2fcaf53d3164ba" id="r_ab39ab83c582321c63d2fcaf53d3164ba"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ab39ab83c582321c63d2fcaf53d3164ba">readWithDetail</a> (<a class="el" href="structcan__return__t.html">can_return_t</a> *data, uint32_t waitTime=MAX_READ)</td></tr>
+<tr class="memdesc:ab39ab83c582321c63d2fcaf53d3164ba"><td class="mdescLeft">&#160;</td><td class="mdescRight">CANのデータを読んで idや大きさも含まれる詳細なデータを返す関数  <br /></td></tr>
+<tr class="memitem:a1807d64d0db173e5d10f6e9f17046988" id="r_a1807d64d0db173e5d10f6e9f17046988"><td class="memItemLeft" align="right" valign="top">uint8_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a1807d64d0db173e5d10f6e9f17046988">sendPacket</a> (int id, char data)</td></tr>
+<tr class="memitem:a8f3b2d8c41e8860474f39489dfe935c1" id="r_a8f3b2d8c41e8860474f39489dfe935c1"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a8f3b2d8c41e8860474f39489dfe935c1">sendChar</a> (uint32_t id, char data, uint32_t waitTime=MAX_TRANSMIT)</td></tr>
+<tr class="memdesc:a8f3b2d8c41e8860474f39489dfe935c1"><td class="mdescLeft">&#160;</td><td class="mdescRight">charをCANで送る関数 idを逐一指定する  <br /></td></tr>
+<tr class="memitem:ae5e539136990c1c5ea560f07eaec3446" id="r_ae5e539136990c1c5ea560f07eaec3446"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae5e539136990c1c5ea560f07eaec3446">sendChar</a> (char data, uint32_t waitTime=MAX_TRANSMIT)</td></tr>
+<tr class="memdesc:ae5e539136990c1c5ea560f07eaec3446"><td class="mdescLeft">&#160;</td><td class="mdescRight">charをCANで送る関数 beginでidを指定していなければfailする  <br /></td></tr>
+<tr class="memitem:a062379df1dd6bc45c6fd94daf72466e1" id="r_a062379df1dd6bc45c6fd94daf72466e1"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a062379df1dd6bc45c6fd94daf72466e1">sendLine</a> (uint32_t id, char *data, uint32_t waitTime=MAX_TRANSMIT)</td></tr>
+<tr class="memdesc:a062379df1dd6bc45c6fd94daf72466e1"><td class="mdescLeft">&#160;</td><td class="mdescRight">8文字までの文字を送信できる関数 charの終端にnull文字がある文字列を送信することができる関数 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある このため、begin関数内で渡される <a class="el" href="structcan__setting__t.html" title="CAN.begin の引数に入れてCANの動作を指定する">can_setting_t</a> の multiData_send がfalseである場合は送信されない  <br /></td></tr>
+<tr class="memitem:ae74ae6139d9e4540e83a8c87b4aca7df" id="r_ae74ae6139d9e4540e83a8c87b4aca7df"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ae74ae6139d9e4540e83a8c87b4aca7df">sendLine</a> (char *data, uint32_t waitTime=MAX_TRANSMIT)</td></tr>
+<tr class="memdesc:ae74ae6139d9e4540e83a8c87b4aca7df"><td class="mdescLeft">&#160;</td><td class="mdescRight">8文字までの文字を送信できる関数 charの終端にnull文字がある文字列を送信することができる関数 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある charの文字列を送信する以外の用途であれば sendData 関数のほうが良い  <br /></td></tr>
+<tr class="memitem:ad9fe7779e629a612564d75e748d0eb1c" id="r_ad9fe7779e629a612564d75e748d0eb1c"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#ad9fe7779e629a612564d75e748d0eb1c">sendData</a> (uint32_t id, uint8_t *data, int num, uint32_t waitTime=MAX_TRANSMIT)</td></tr>
+<tr class="memdesc:ad9fe7779e629a612564d75e748d0eb1c"><td class="mdescLeft">&#160;</td><td class="mdescRight">8文字までの文字を送信できる関数 uint8_t型の8個までの配列を送信できる 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある charの文字列を送信する以外の用途であれば sendData 関数のほうが良い  <br /></td></tr>
+<tr class="memitem:a1862db4af257ef95b5bf7fa176eb05f2" id="r_a1862db4af257ef95b5bf7fa176eb05f2"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#a1862db4af257ef95b5bf7fa176eb05f2">sendData</a> (uint8_t *data, int num, uint32_t waitTime=MAX_TRANSMIT)</td></tr>
+<tr class="memdesc:a1862db4af257ef95b5bf7fa176eb05f2"><td class="mdescLeft">&#160;</td><td class="mdescRight">8文字までの文字を送信できる関数 uint8_t型の8個までの配列を送信できる 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある charの文字列を送信する以外の用途であれば sendData 関数のほうが良い  <br /></td></tr>
+</table><table class="memberdecls">
+<tr class="heading"><td colspan="2"><h2 id="header-friends" class="groupheader"><a id="friends" name="friends"></a>
+フレンド</h2></td></tr>
+<tr class="memitem:aa3269e8a5aa3ce5a4fd890a0d3e309ae" id="r_aa3269e8a5aa3ce5a4fd890a0d3e309ae"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="#aa3269e8a5aa3ce5a4fd890a0d3e309ae">CanWatchDog</a> (void *pvParameter)</td></tr>
+<tr class="memdesc:aa3269e8a5aa3ce5a4fd890a0d3e309ae"><td class="mdescLeft">&#160;</td><td class="mdescRight">BUS_OFFになった場合に回復させるタスク  <br /></td></tr>
+</table>
+<a name="details" id="details"></a><h2 id="header-details" class="groupheader">詳解</h2>
+<div class="textblock"><p>CANバスを制御するためのクラス </p>
+</div><a name="doc-constructors" id="doc-constructors"></a><h2 id="header-doc-constructors" class="groupheader">構築子と解体子</h2>
+<a id="a4a2b96990f10e9124a0cdf83b2632bdd" name="a4a2b96990f10e9124a0cdf83b2632bdd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a4a2b96990f10e9124a0cdf83b2632bdd">&#9670;&#160;</a></span>CAN_CREATE()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">CAN_CREATE::CAN_CREATE </td>
+          <td>(</td>
+          <td class="paramtype">bool</td>          <td class="paramname"><span class="paramname"><em>return_new</em></span><span class="paramdefsep"> = </span><span class="paramdefval">true</span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool</td>          <td class="paramname"><span class="paramname"><em>enableCanWatchDog</em></span><span class="paramdefsep"> = </span><span class="paramdefval">true</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CAN_CREATEのコンストラクタ </p>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">return_new</td><td>古いreturn手法を用いるか否か true推奨 falseにした場合、setPin begin read sendPacket関数のみを用いる必要がある </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">enableCanWatchDog</td><td>Canが動作しなくなったら回復を試みるWatchDogを有効にする </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a name="doc-func-members" id="doc-func-members"></a><h2 id="header-doc-func-members" class="groupheader">関数詳解</h2>
+<a id="a03d467a47071331177e24ba6f705d5f7" name="a03d467a47071331177e24ba6f705d5f7"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a03d467a47071331177e24ba6f705d5f7">&#9670;&#160;</a></span>available()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::available </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANにデータが送られて来ているかを判別する関数 戻り値が0でなければデータが送られてきており、read関数で読める </p>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>データが受信されていない or 受信エラー </td></tr>
+    <tr><td class="paramname">1以上</td><td>データが受信キューにある</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>警告</dt><dd>この関数は性質上エラーも0で返してしまうため注意</dd></dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><span class="keywordflow">if</span> (CAN.available()) {</div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;receiving data...&quot;</span>);</div>
+<div class="line">  <span class="keywordtype">char</span> Data;</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.read(&amp;Data)) {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">else</span></div>
+<div class="line">    Serial.printf(<span class="stringliteral">&quot;Can received!!!: %c\r\n&quot;</span>, Data);</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="ac050e410f60f9376bd4f3b01fd782e00" name="ac050e410f60f9376bd4f3b01fd782e00"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac050e410f60f9376bd4f3b01fd782e00">&#9670;&#160;</a></span>begin() <span class="overload">[1/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::begin </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structcan__setting__t.html">can_setting_t</a></td>          <td class="paramname"><span class="paramname"><em>settings</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>rx</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>tx</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>id</em></span><span class="paramdefsep"> = </span><span class="paramdefval">UINT32_MAX</span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>bus_off</em></span><span class="paramdefsep"> = </span><span class="paramdefval">GPIO_NUM_MAX</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>setup内で最初に実行するべき関数 一度だけ実行できる </p>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">settings</td><td><a class="el" href="structcan__setting__t.html" title="CAN.begin の引数に入れてCANの動作を指定する">can_setting_t</a> 型の引数 通信周波数等を設定可能 通信相手と共通化しておくこと </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">rx</td><td>rxピンを指定する。CANトランシーバーのrxピンに接続されているピンを指定すること </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">tx</td><td>txピンを指定する。CANトランシーバーのtxピンに接続されているピンを指定すること </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">id</td><td>送信するときにデフォルトで利用するidを選択する 省略できるが、その場合送るときに逐一idを指定する必要がある </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">bus_off</td><td>CANトランシーバーのSTBYピンに接続されているピンを指定する なければ省略可</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">2</td><td>対応していない通信周波数を指定した </td></tr>
+    <tr><td class="paramname">3</td><td>twai driverがインストールできなかった (txピン、rxピンに使用できないピンが指定されてる) </td></tr>
+    <tr><td class="paramname">4</td><td>twai driverがstartできなかった (基本ないはず) </td></tr>
+    <tr><td class="paramname">5</td><td>begin関数が再度呼び出された </td></tr>
+    <tr><td class="paramname">6</td><td>bus_offピンにOUTPUTに指定できないピンが指定された </td></tr>
+    <tr><td class="paramname">7</td><td>rxピンにOUTPUTに指定できないピンが指定された </td></tr>
+    <tr><td class="paramname">8</td><td>txピンにOUTPUTに指定できないピンが指定された</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><a class="code hl_struct" href="structcan__setting__t.html">can_setting_t</a> can_setting = {</div>
+<div class="line">  ((long)100E3),</div>
+<div class="line">  <span class="keyword">false</span>,</div>
+<div class="line">  <a class="code hl_define" href="CANCREATE__lib_8h.html#a3da68b1b6f8d084e9def1accdb8b7dbe">CAN_FILTER_DEFAULT</a>,</div>
+<div class="line">};</div>
+<div class="line"> </div>
+<div class="line"><a class="code hl_class" href="classCAN__CREATE.html">CAN_CREATE</a> CAN(<span class="keyword">true</span>);</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup() {</div>
+<div class="line">    <span class="keywordflow">if</span>(CAN.begin(100E3, 18, 19, 10, 20))</div>
+<div class="line">    {</div>
+<div class="line">        Serial.println(<span class="stringliteral">&quot;Starting CAN failed!!!&quot;</span>);</div>
+<div class="line">        ESP.restart(); <span class="comment">// CANが初期化できなかったときにESPを再起動する</span></div>
+<div class="line">    }</div>
+<div class="line">}</div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_a3da68b1b6f8d084e9def1accdb8b7dbe"><div class="ttname"><a href="CANCREATE__lib_8h.html#a3da68b1b6f8d084e9def1accdb8b7dbe">CAN_FILTER_DEFAULT</a></div><div class="ttdeci">#define CAN_FILTER_DEFAULT</div><div class="ttdoc">デフォルトのCANフィルター設定</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:161</div></div>
+<div class="ttc" id="aclassCAN__CREATE_html"><div class="ttname"><a href="classCAN__CREATE.html">CAN_CREATE</a></div><div class="ttdoc">CANバスを制御するためのクラス</div><div class="ttdef"><b>Definition</b> CANCREATE.h:31</div></div>
+<div class="ttc" id="astructcan__setting__t_html"><div class="ttname"><a href="structcan__setting__t.html">can_setting_t</a></div><div class="ttdoc">CAN.begin の引数に入れてCANの動作を指定する</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:151</div></div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="a5916238866687711805bb9698ba8f1cd" name="a5916238866687711805bb9698ba8f1cd"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a5916238866687711805bb9698ba8f1cd">&#9670;&#160;</a></span>begin() <span class="overload">[2/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::begin </td>
+          <td>(</td>
+          <td class="paramtype">long</td>          <td class="paramname"><span class="paramname"><em>baudRate</em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000002">非推奨</a></b></dt><dd>互換性のために残してある 利用は非推奨 </dd></dl>
+
+</div>
+</div>
+<a id="a0e26028ade0562cbe24ee497a6e571fc" name="a0e26028ade0562cbe24ee497a6e571fc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a0e26028ade0562cbe24ee497a6e571fc">&#9670;&#160;</a></span>begin() <span class="overload">[3/3]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::begin </td>
+          <td>(</td>
+          <td class="paramtype">long</td>          <td class="paramname"><span class="paramname"><em>baudRate</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>rx</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>tx</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>id</em></span><span class="paramdefsep"> = </span><span class="paramdefval">UINT32_MAX</span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>bus_off</em></span><span class="paramdefsep"> = </span><span class="paramdefval">GPIO_NUM_MAX</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>setup内等で最初に実行するべき関数 一度だけのみ実行できる </p>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">baudRate</td><td>通信周波数 通信する相手と揃える必要がある </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">rx</td><td>rxピン </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">tx</td><td>txピン </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">id</td><td>CANの通信id (send時に逐一切り替えるなら空欄で良い) </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">bus_off</td><td>canの有効化と無効化を切り替えるピン(利用しなければ空欄で良い)</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">2</td><td>対応していない通信周波数を指定した </td></tr>
+    <tr><td class="paramname">3</td><td>twai driverがインストールできなかった (txピン、rxピンに使用できないピンが指定されてる) </td></tr>
+    <tr><td class="paramname">4</td><td>twai driverがstartできなかった (基本ないはず) </td></tr>
+    <tr><td class="paramname">5</td><td>begin関数が再度呼び出された </td></tr>
+    <tr><td class="paramname">6</td><td>bus_offピンにOUTPUTに指定できないピンが指定された </td></tr>
+    <tr><td class="paramname">7</td><td>rxピンにOUTPUTに指定できないピンが指定された </td></tr>
+    <tr><td class="paramname">8</td><td>txピンにOUTPUTに指定できないピンが指定された</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><a class="code hl_function" href="#a4a2b96990f10e9124a0cdf83b2632bdd">CAN_CREATE</a> CAN(<span class="keyword">true</span>);</div>
+<div class="line"> </div>
+<div class="line"><span class="keywordtype">void</span> setup() {</div>
+<div class="line">  <span class="keywordflow">if</span>(CAN.begin(100E3, 18, 19, 10, 20))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Starting CAN failed!!!&quot;</span>);</div>
+<div class="line">    ESP.restart(); <span class="comment">// CANが初期化できなかったときにESPを再起動する</span></div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="ttc" id="aclassCAN__CREATE_html_a4a2b96990f10e9124a0cdf83b2632bdd"><div class="ttname"><a href="#a4a2b96990f10e9124a0cdf83b2632bdd">CAN_CREATE::CAN_CREATE</a></div><div class="ttdeci">CAN_CREATE(bool return_new=true, bool enableCanWatchDog=true)</div><div class="ttdoc">CAN_CREATEのコンストラクタ</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:334</div></div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="accae32f668a9926495c5a2f2eb3b6ec2" name="accae32f668a9926495c5a2f2eb3b6ec2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#accae32f668a9926495c5a2f2eb3b6ec2">&#9670;&#160;</a></span>flush()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void CAN_CREATE::flush </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANトランシーバーのキューを消去する </p>
+<dl class="section warning"><dt>警告</dt><dd>受信待ち、送信待ちのデータが消去されるため注意!!! </dd></dl>
+
+</div>
+</div>
+<a id="af11f81d1fbd2d015d1da822803b43226" name="af11f81d1fbd2d015d1da822803b43226"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#af11f81d1fbd2d015d1da822803b43226">&#9670;&#160;</a></span>getStatus()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::getStatus </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANの送信ステータスを確認できる関数 </p>
+<dl class="section return"><dt>戻り値</dt><dd>enumの can_errで定義されている </dd></dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">can_err::CAN_SUCCESS</td><td>前回の送信が正常に成功した </td></tr>
+    <tr><td class="paramname">can_err::CAN_NO_ALERTS</td><td>まだstatusが届いていない (send関数のすぐ後の配置などが要因でまだ送信中) </td></tr>
+    <tr><td class="paramname">can_err::CAN_BUS_ERROR</td><td>ACK ErrorやBit Errorなどのバスのエラー </td></tr>
+    <tr><td class="paramname">can_err::CAN_TX_FAILED</td><td>CAN_BUS_ERROR以外の理由でデータが送信できなかった </td></tr>
+    <tr><td class="paramname">can_err::CAN_UNKNOWN_ERROR</td><td>begin関数を実行していないまたは不明なエラー</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">//example</span></div>
+<div class="line"><span class="keywordflow">if</span> (CAN.sendChar(<span class="charliteral">&#39;a&#39;</span>)) {</div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">}</div>
+<div class="line"> </div>
+<div class="line">delay(100); <span class="comment">// CANライブラリが裏で処理を終わらせるのに必要な待ち時間 ステータスを見るためにある</span></div>
+<div class="line"><span class="keywordflow">switch</span> (CAN.getStatus())</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9">CAN_SUCCESS</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Success to Send!!!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a62f6721b35c2146660b92935fce56cf8">CAN_NO_ALERTS</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;CREATE_CAN driver isn&#39;t done yet&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691af42427052abed5e88df357d1a7d0b33f">CAN_BUS_ERROR</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Got a bus error on the CAN such as ACK Error&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a0a9586ab62325575231d7286dfe71dbe">CAN_TX_FAILED</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Can&#39;t send data, something other than a bus error might wrong&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">default</span>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Unknown error occurred!!!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  }</div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691a0a9586ab62325575231d7286dfe71dbe"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a0a9586ab62325575231d7286dfe71dbe">CAN_TX_FAILED</a></div><div class="ttdeci">@ CAN_TX_FAILED</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:185</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691a62f6721b35c2146660b92935fce56cf8"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a62f6721b35c2146660b92935fce56cf8">CAN_NO_ALERTS</a></div><div class="ttdeci">@ CAN_NO_ALERTS</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:183</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9">CAN_SUCCESS</a></div><div class="ttdeci">@ CAN_SUCCESS</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:181</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691af42427052abed5e88df357d1a7d0b33f"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691af42427052abed5e88df357d1a7d0b33f">CAN_BUS_ERROR</a></div><div class="ttdeci">@ CAN_BUS_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:184</div></div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="a913ef994e0e736eccf91d9721130e34d" name="a913ef994e0e736eccf91d9721130e34d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a913ef994e0e736eccf91d9721130e34d">&#9670;&#160;</a></span>re_configure()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::re_configure </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structcan__setting__t.html">can_setting_t</a></td>          <td class="paramname"><span class="paramname"><em>settings</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">twai_mode_t</td>          <td class="paramname"><span class="paramname"><em>mode</em></span><span class="paramdefsep"> = </span><span class="paramdefval">TWAI_MODE_NORMAL</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANバスを再設定する関数 </p>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">settings</td><td>CANバスの新しい設定 </td></tr>
+    <tr><td class="paramname">mode</td><td>CANバスの新しいモード </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>戻り値</dt><dd>成功した場合は0、それ以外の場合はエラー </dd></dl>
+
+</div>
+</div>
+<a id="a10d103745ded81ee9f0d89fc69de59fe" name="a10d103745ded81ee9f0d89fc69de59fe"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a10d103745ded81ee9f0d89fc69de59fe">&#9670;&#160;</a></span>read() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">char CAN_CREATE::read </td>
+          <td>(</td>
+          <td class="paramname"><span class="paramname"><em></em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANに送られてきているデータを読む関数 互換性のために残してある </p>
+<dl class="section warning"><dt>警告</dt><dd>読むのに失敗したときの挙動が安全でないため利用は非推奨 </dd></dl>
+
+</div>
+</div>
+<a id="a68d5f19b15cdfec71d1cdcca08947097" name="a68d5f19b15cdfec71d1cdcca08947097"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a68d5f19b15cdfec71d1cdcca08947097">&#9670;&#160;</a></span>read() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::read </td>
+          <td>(</td>
+          <td class="paramtype">char *</td>          <td class="paramname"><span class="paramname"><em>readData</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_READ</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANに送られてきているデータを読む関数 引数readDataに得られたデータが入る 複数文字が送られてきた場合は1文字のみを返す </p>
+<dl class="section warning"><dt>警告</dt><dd>available関数で1以上が帰ってきたときのみ利用可能 </dd>
+<dd>
+また、1文字までしか対応しないため相手がsendPacket以外を利用した場合には最初の文字だけを返す</dd></dl>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">readData</td><td>charのポインタ 成功時これにデータが入る</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">1</td><td>CANに送られてきたデータを読むのに失敗した available関数を実行していない等 </td></tr>
+    <tr><td class="paramname">2~4</td><td>CANを読むときにエラーが発生した </td></tr>
+    <tr><td class="paramname">5</td><td>得られたデータがISO 11898-1互換ではなかった </td></tr>
+    <tr><td class="paramname">6</td><td>何も入っていないデータが得られた</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><span class="keywordflow">if</span> (CAN.available()) {</div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;receiving data...&quot;</span>);</div>
+<div class="line">  <span class="keywordtype">char</span> Data;</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.read(&amp;Data)) {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">else</span></div>
+<div class="line">    Serial.printf(<span class="stringliteral">&quot;Can received!!!: %c\n&quot;</span>, Data);</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="ac569faca89ee120dcf5d3016f36a63fc" name="ac569faca89ee120dcf5d3016f36a63fc"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac569faca89ee120dcf5d3016f36a63fc">&#9670;&#160;</a></span>readLine()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::readLine </td>
+          <td>(</td>
+          <td class="paramtype">char *</td>          <td class="paramname"><span class="paramname"><em>readData</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_READ</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANに送られてきたデータを読む関数 CANでは8文字まで同時に送受信が可能 引数readDataに得られたデータが入り終端は0が入る </p>
+<dl class="section warning"><dt>警告</dt><dd>available 関数で1以上が帰ってきたときのみ利用可能</dd></dl>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">readData</td><td>charの配列のポインタ 9文字は入れられるサイズが必要 これにデータが入る </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">waitTime</td><td>CANにデータが入っていなかったときにどのぐらい待つか デフォルトは空欄とすれば0msとなる</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">1</td><td>CANに送られてきたデータを読むのに失敗した available関数を実行していない等 </td></tr>
+    <tr><td class="paramname">2~4</td><td>CANを読むときにエラーが発生した </td></tr>
+    <tr><td class="paramname">5</td><td>得られたデータがISO 11898-1互換ではなかった </td></tr>
+    <tr><td class="paramname">6</td><td>何も入っていないデータが得られた</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><span class="keywordflow">if</span> (CAN.available()) {</div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;receiving data...&quot;</span>);</div>
+<div class="line">  <span class="keywordtype">char</span>[9] Data; <span class="comment">// 配列は9文字以上必要!!!</span></div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.readLine(Data)) {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">else</span></div>
+<div class="line">    Serial.printf(<span class="stringliteral">&quot;Can received!!!: %s\r\n&quot;</span>, Data);</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="ab39ab83c582321c63d2fcaf53d3164ba" name="ab39ab83c582321c63d2fcaf53d3164ba"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab39ab83c582321c63d2fcaf53d3164ba">&#9670;&#160;</a></span>readWithDetail()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::readWithDetail </td>
+          <td>(</td>
+          <td class="paramtype"><a class="el" href="structcan__return__t.html">can_return_t</a> *</td>          <td class="paramname"><span class="paramname"><em>data</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_READ</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANのデータを読んで idや大きさも含まれる詳細なデータを返す関数 </p>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[out]</td><td class="paramname">readData</td><td>得られたデータを返す変数 詳細なデータも含まれているデータ型 <a class="el" href="structcan__return__t.html" title="CANバスから返されたデータを保持するための構造体">can_return_t</a></td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">1</td><td>CANに送られてきたデータを読むのに失敗した available関数を実行していない等 </td></tr>
+    <tr><td class="paramname">2~4</td><td>CANを読むときにエラーが発生した</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section warning"><dt>警告</dt><dd>返り値のdataフィールドはnull文字が最後に入っていないことに注意すること</dd></dl>
+<div class="fragment"><div class="line"><span class="comment">//example</span></div>
+<div class="line"><span class="keywordflow">if</span> (CAN.available()) {</div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;receiving data...&quot;</span>);</div>
+<div class="line">  <a class="code hl_struct" href="structcan__return__t.html">can_return_t</a> Data;</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.readWithDetail(&amp;Data)) {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to get CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordflow">else</span> {</div>
+<div class="line">     <span class="comment">// 得られたデータを出力する %.*s フォーマット指定子は直前の引数を参照してその文字数だけ出力する</span></div>
+<div class="line">     Serial.printf(<span class="stringliteral">&quot;CAN received!!!\r\n id:\t %u \r\n size: \t %d \r\n data: \t %.*s\r\n&quot;</span>,</div>
+<div class="line">                     Data.<a class="code hl_variable" href="structcan__return__t.html#a58abd741ceb698ca9dc1c1e28b44cbf5">id</a>,</div>
+<div class="line">                     Data.<a class="code hl_variable" href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">size</a>,</div>
+<div class="line">                     Data.<a class="code hl_variable" href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">size</a>,</div>
+<div class="line">                     Data.<a class="code hl_variable" href="structcan__return__t.html#a83061b5a1c7340157dda6899cff461ab">data</a></div>
+<div class="line">                  );</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="ttc" id="astructcan__return__t_html"><div class="ttname"><a href="structcan__return__t.html">can_return_t</a></div><div class="ttdoc">CANバスから返されたデータを保持するための構造体</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:169</div></div>
+<div class="ttc" id="astructcan__return__t_html_a58abd741ceb698ca9dc1c1e28b44cbf5"><div class="ttname"><a href="structcan__return__t.html#a58abd741ceb698ca9dc1c1e28b44cbf5">can_return_t::id</a></div><div class="ttdeci">uint32_t id</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:172</div></div>
+<div class="ttc" id="astructcan__return__t_html_a83061b5a1c7340157dda6899cff461ab"><div class="ttname"><a href="structcan__return__t.html#a83061b5a1c7340157dda6899cff461ab">can_return_t::data</a></div><div class="ttdeci">char data[8]</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:171</div></div>
+<div class="ttc" id="astructcan__return__t_html_aa1d4114373dcd3e34f953d781d053656"><div class="ttname"><a href="structcan__return__t.html#aa1d4114373dcd3e34f953d781d053656">can_return_t::size</a></div><div class="ttdeci">int size</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:170</div></div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="ae5e539136990c1c5ea560f07eaec3446" name="ae5e539136990c1c5ea560f07eaec3446"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae5e539136990c1c5ea560f07eaec3446">&#9670;&#160;</a></span>sendChar() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::sendChar </td>
+          <td>(</td>
+          <td class="paramtype">char</td>          <td class="paramname"><span class="paramname"><em>data</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_TRANSMIT</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>charをCANで送る関数 beginでidを指定していなければfailする </p>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">data</td><td>char型の送信するデータ</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">1</td><td>idが指定されていない begin内でidを指定することが必要 </td></tr>
+    <tr><td class="paramname">2</td><td>不正なid idは11bitまで </td></tr>
+    <tr><td class="paramname">3</td><td>データに誤りがある </td></tr>
+    <tr><td class="paramname">4</td><td>txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか </td></tr>
+    <tr><td class="paramname">5</td><td>twaiドライバが動作していない </td></tr>
+    <tr><td class="paramname">6</td><td>unknown error</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><span class="keywordflow">if</span> (Serial.available()) {</div>
+<div class="line">  <span class="keywordtype">char</span> cmd = Serial.read()</div>
+<div class="line">  Serial.println(cmd);</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.sendChar(cmd)) {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="a8f3b2d8c41e8860474f39489dfe935c1" name="a8f3b2d8c41e8860474f39489dfe935c1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a8f3b2d8c41e8860474f39489dfe935c1">&#9670;&#160;</a></span>sendChar() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::sendChar </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>id</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">char</td>          <td class="paramname"><span class="paramname"><em>data</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_TRANSMIT</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>charをCANで送る関数 idを逐一指定する </p>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">id</td><td>int型の送信するid </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">data</td><td>char型の送信するデータ</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">2</td><td>不正なid idは11bitまで </td></tr>
+    <tr><td class="paramname">3</td><td>データに誤りがある </td></tr>
+    <tr><td class="paramname">4</td><td>txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか </td></tr>
+    <tr><td class="paramname">5</td><td>twaiドライバが動作していない </td></tr>
+    <tr><td class="paramname">6</td><td>unknown error</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><span class="keywordflow">if</span> (Serial.available()) {</div>
+<div class="line">  <span class="keywordtype">char</span> cmd = Serial.read()</div>
+<div class="line">  Serial.println(cmd);</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.sendChar(10, cmd)) {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="ad9fe7779e629a612564d75e748d0eb1c" name="ad9fe7779e629a612564d75e748d0eb1c"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ad9fe7779e629a612564d75e748d0eb1c">&#9670;&#160;</a></span>sendData() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::sendData </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>id</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint8_t *</td>          <td class="paramname"><span class="paramname"><em>data</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>num</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_TRANSMIT</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>8文字までの文字を送信できる関数 uint8_t型の8個までの配列を送信できる 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある charの文字列を送信する以外の用途であれば sendData 関数のほうが良い </p>
+<dl class="section warning"><dt>警告</dt><dd>numに配列の正確な個数を入れないと正常に送信されなかったりESPがパニックしたりするため注意</dd></dl>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">id</td><td>CANの送信するid </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">data</td><td>送信したいdata </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">num</td><td>送信したいdataの個数</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">2</td><td>charの配列が8文字以上あった CANは8文字以下しか送信できない </td></tr>
+    <tr><td class="paramname">3</td><td>不正なid idは11bitまで </td></tr>
+    <tr><td class="paramname">4</td><td>データに誤りがある </td></tr>
+    <tr><td class="paramname">5</td><td>txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか </td></tr>
+    <tr><td class="paramname">6</td><td>twaiドライバが動作していない </td></tr>
+    <tr><td class="paramname">7</td><td>unknown error </td></tr>
+    <tr><td class="paramname">-1</td><td>multiData_send がfalseなため、複数データを送信できない</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line">uint8_t Data[6] = {<span class="charliteral">&#39;c&#39;</span>, <span class="charliteral">&#39;r&#39;</span>, <span class="charliteral">&#39;e&#39;</span>, <span class="charliteral">&#39;a&#39;</span>, <span class="charliteral">&#39;t&#39;</span>, <span class="charliteral">&#39;e&#39;</span>};</div>
+<div class="line"><span class="keywordflow">if</span> (CAN.sendData(10, Data, 6)){ <span class="comment">// 正しい文字数を入力!!!(ここでは6)</span></div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="a1862db4af257ef95b5bf7fa176eb05f2" name="a1862db4af257ef95b5bf7fa176eb05f2"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1862db4af257ef95b5bf7fa176eb05f2">&#9670;&#160;</a></span>sendData() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::sendData </td>
+          <td>(</td>
+          <td class="paramtype">uint8_t *</td>          <td class="paramname"><span class="paramname"><em>data</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>num</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_TRANSMIT</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>8文字までの文字を送信できる関数 uint8_t型の8個までの配列を送信できる 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある charの文字列を送信する以外の用途であれば sendData 関数のほうが良い </p>
+<dl class="section warning"><dt>警告</dt><dd>numに配列の正確な個数を入れないと正常に送信されなかったりESPがパニックしたりするため注意</dd></dl>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">data</td><td>送信したいdata </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">num</td><td>送信したいdataの個数</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">1</td><td>idが指定されていない begin内でidを指定することが必要 </td></tr>
+    <tr><td class="paramname">2</td><td>charの配列が8文字以上あった CANは8文字以下しか送信できない </td></tr>
+    <tr><td class="paramname">3</td><td>不正なid idは11bitまで </td></tr>
+    <tr><td class="paramname">4</td><td>データに誤りがある </td></tr>
+    <tr><td class="paramname">5</td><td>txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか </td></tr>
+    <tr><td class="paramname">6</td><td>twaiドライバが動作していない </td></tr>
+    <tr><td class="paramname">7</td><td>unknown error </td></tr>
+    <tr><td class="paramname">-1</td><td>multiData_send がfalseなため、複数データを送信できない</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line">uint8_t Data[6] = {<span class="charliteral">&#39;c&#39;</span>, <span class="charliteral">&#39;r&#39;</span>, <span class="charliteral">&#39;e&#39;</span>, <span class="charliteral">&#39;a&#39;</span>, <span class="charliteral">&#39;t&#39;</span>, <span class="charliteral">&#39;e&#39;</span>};</div>
+<div class="line"><span class="keywordflow">if</span> (CAN.sendData(10, Data, 6)){ <span class="comment">// 正しい文字数を入力!!!(ここでは6)</span></div>
+<div class="line">  Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="ae74ae6139d9e4540e83a8c87b4aca7df" name="ae74ae6139d9e4540e83a8c87b4aca7df"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ae74ae6139d9e4540e83a8c87b4aca7df">&#9670;&#160;</a></span>sendLine() <span class="overload">[1/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::sendLine </td>
+          <td>(</td>
+          <td class="paramtype">char *</td>          <td class="paramname"><span class="paramname"><em>data</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_TRANSMIT</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>8文字までの文字を送信できる関数 charの終端にnull文字がある文字列を送信することができる関数 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある charの文字列を送信する以外の用途であれば sendData 関数のほうが良い </p>
+<dl class="section warning"><dt>警告</dt><dd>最後にnull文字がないとespがパニックするため注意!!!</dd></dl>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">data</td><td>送信したいdata</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">1</td><td>idが指定されていない begin内でidを指定することが必要 </td></tr>
+    <tr><td class="paramname">2</td><td>charの配列が8文字以上あった CANは8文字以下しか送信できない </td></tr>
+    <tr><td class="paramname">3</td><td>不正なid idは11bitまで </td></tr>
+    <tr><td class="paramname">4</td><td>データに誤りがある </td></tr>
+    <tr><td class="paramname">5</td><td>txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか </td></tr>
+    <tr><td class="paramname">6</td><td>twaiドライバが動作していない </td></tr>
+    <tr><td class="paramname">7</td><td>unknown error </td></tr>
+    <tr><td class="paramname">-1</td><td>multiData_send がfalseなため、複数データを送信できない</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line">  <span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordtype">char</span> data = Serial.peek(); <span class="comment">// どの文字が入力されたかを確認(取り出さない)</span></div>
+<div class="line">  <span class="keywordflow">if</span> (data == <span class="charliteral">&#39;\n&#39;</span> || data == <span class="charliteral">&#39;\r&#39;</span>)</div>
+<div class="line">  {</div>
+<div class="line">    Serial.read(); <span class="comment">// 改行文字だったら取り出して捨てる</span></div>
+<div class="line">    <span class="keywordflow">return</span>;</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordtype">char</span> cmd[9] = {}; <span class="comment">// 0の配列で初期化 null終端のために必要</span></div>
+<div class="line">  <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; 8; i++)</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordflow">while</span> (!Serial.available())</div>
+<div class="line">      ;</div>
+<div class="line">    <span class="keywordtype">char</span> <a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a> = Serial.read();</div>
+<div class="line">    <span class="keywordflow">if</span> (<a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a> == <span class="charliteral">&#39;\n&#39;</span> || <a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a> == <span class="charliteral">&#39;\r&#39;</span>)</div>
+<div class="line">      <span class="keywordflow">break</span>; <span class="comment">// 改行文字だったら終了</span></div>
+<div class="line">    cmd[i] = <a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a>;</div>
+<div class="line">    Serial.print(<a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a>);</div>
+<div class="line">  }</div>
+<div class="line">  Serial.println();</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.sendLine(cmd))</div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="ttc" id="aclassCAN__CREATE_html_a10d103745ded81ee9f0d89fc69de59fe"><div class="ttname"><a href="#a10d103745ded81ee9f0d89fc69de59fe">CAN_CREATE::read</a></div><div class="ttdeci">char read()</div><div class="ttdoc">CANに送られてきているデータを読む関数 互換性のために残してある</div><div class="ttdef"><b>Definition</b> CANCREATE.cpp:636</div></div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="a062379df1dd6bc45c6fd94daf72466e1" name="a062379df1dd6bc45c6fd94daf72466e1"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a062379df1dd6bc45c6fd94daf72466e1">&#9670;&#160;</a></span>sendLine() <span class="overload">[2/2]</span></h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::sendLine </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>id</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">char *</td>          <td class="paramname"><span class="paramname"><em>data</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>waitTime</em></span><span class="paramdefsep"> = </span><span class="paramdefval">MAX_TRANSMIT</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>8文字までの文字を送信できる関数 charの終端にnull文字がある文字列を送信することができる関数 利用するには相手側がreadLine関数かreadWithDetail関数を採用している必要がある このため、begin関数内で渡される <a class="el" href="structcan__setting__t.html" title="CAN.begin の引数に入れてCANの動作を指定する">can_setting_t</a> の multiData_send がfalseである場合は送信されない </p>
+<dl class="section warning"><dt>警告</dt><dd>最後にnull文字がないとespがパニックするため注意!!!</dd></dl>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">id</td><td>CANの送信するid </td></tr>
+    <tr><td class="paramdir">[in]</td><td class="paramname">data</td><td>送信したいdata</td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">0</td><td>success </td></tr>
+    <tr><td class="paramname">2</td><td>charの配列が8文字以上あった CANは8文字以下しか送信できない </td></tr>
+    <tr><td class="paramname">3</td><td>不正なid idは11bitまで </td></tr>
+    <tr><td class="paramname">4</td><td>データに誤りがある </td></tr>
+    <tr><td class="paramname">5</td><td>txキューがいっぱい 送信間隔が早すぎるかそもそも送信ができてないか </td></tr>
+    <tr><td class="paramname">6</td><td>twaiドライバが動作していない </td></tr>
+    <tr><td class="paramname">7</td><td>unknown error </td></tr>
+    <tr><td class="paramname">-1</td><td>multiData_send がfalseなため、複数データを送信できない</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">// example</span></div>
+<div class="line"><span class="keywordflow">if</span> (Serial.available())</div>
+<div class="line">{</div>
+<div class="line">  <span class="keywordtype">char</span> data = Serial.peek(); <span class="comment">// どの文字が入力されたかを確認(取り出さない)</span></div>
+<div class="line">  <span class="keywordflow">if</span> (data == <span class="charliteral">&#39;\n&#39;</span> || data == <span class="charliteral">&#39;\r&#39;</span>)</div>
+<div class="line">  {</div>
+<div class="line">    Serial.read(); <span class="comment">// 改行文字だったら取り出して捨てる</span></div>
+<div class="line">    <span class="keywordflow">return</span>;</div>
+<div class="line">  }</div>
+<div class="line">  <span class="keywordtype">char</span> cmd[9] = {}; <span class="comment">// 0の配列で初期化 null終端のために必要</span></div>
+<div class="line">  <span class="keywordflow">for</span> (<span class="keywordtype">int</span> i = 0; i &lt; 8; i++)</div>
+<div class="line">  {</div>
+<div class="line">    <span class="keywordflow">while</span> (!Serial.available())</div>
+<div class="line">      ;</div>
+<div class="line">    <span class="keywordtype">char</span> <a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a> = Serial.read();</div>
+<div class="line">    <span class="keywordflow">if</span> (<a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a> == <span class="charliteral">&#39;\n&#39;</span> || <a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a> == <span class="charliteral">&#39;\r&#39;</span>)</div>
+<div class="line">      <span class="keywordflow">break</span>; <span class="comment">// 改行文字だったら終了</span></div>
+<div class="line">    cmd[i] = <a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a>;</div>
+<div class="line">    Serial.print(<a class="code hl_function" href="#a10d103745ded81ee9f0d89fc69de59fe">read</a>);</div>
+<div class="line">  }</div>
+<div class="line">  Serial.println();</div>
+<div class="line">  <span class="keywordflow">if</span> (CAN.sendLine(10, cmd)) <span class="comment">// id 10で送信</span></div>
+<div class="line">  {</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;failed to send CAN data&quot;</span>);</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a id="a1807d64d0db173e5d10f6e9f17046988" name="a1807d64d0db173e5d10f6e9f17046988"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#a1807d64d0db173e5d10f6e9f17046988">&#9670;&#160;</a></span>sendPacket()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">uint8_t CAN_CREATE::sendPacket </td>
+          <td>(</td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>id</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">char</td>          <td class="paramname"><span class="paramname"><em>data</em></span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000003">非推奨</a></b></dt><dd>互換性のために残してある 利用は非推奨 </dd></dl>
+
+</div>
+</div>
+<a id="ab4500ab2e6fee16eec555e6ae012a769" name="ab4500ab2e6fee16eec555e6ae012a769"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ab4500ab2e6fee16eec555e6ae012a769">&#9670;&#160;</a></span>setPins()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void CAN_CREATE::setPins </td>
+          <td>(</td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>rx</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>tx</em></span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>id</em></span><span class="paramdefsep"> = </span><span class="paramdefval">UINT32_MAX</span>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">int</td>          <td class="paramname"><span class="paramname"><em>bus_off</em></span><span class="paramdefsep"> = </span><span class="paramdefval">GPIO_NUM_MAX</span>&#160;)</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000001">非推奨</a></b></dt><dd>互換性のために残してある 利用は非推奨 </dd></dl>
+
+</div>
+</div>
+<a id="ac8c2a517fe2e59f33f88d2bd297a972d" name="ac8c2a517fe2e59f33f88d2bd297a972d"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#ac8c2a517fe2e59f33f88d2bd297a972d">&#9670;&#160;</a></span>test()</h2>
+
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int CAN_CREATE::test </td>
+          <td>(</td>
+          <td class="paramtype">uint32_t</td>          <td class="paramname"><span class="paramname"><em>id</em></span><span class="paramdefsep"> = </span><span class="paramdefval">(1&#160;&lt;&lt;&#160;11)&#160;-&#160;1</span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+
+<p>CANが動作するかを確かめる関数 </p>
+<p>あくまで参考として利用してください テストデータを送信して、Bus Errorとなった場合に自分が送ったデータを自分で読み取れるかを確認する</p>
+<dl class="section attention"><dt>注意</dt><dd>この関数は実行に0.2~3s程度かかるため、setup関数でのみ利用可能 </dd>
+<dd>
+実行中に送信されてきたメッセージは受け取れない可能性がある。 </dd>
+<dd>
+お互いにtest関数を実行する場合、正しい結果が得られないことがある。 </dd></dl>
+<dl class="section note"><dt>覚え書き</dt><dd>デフォルトでは通信id (1 &lt;&lt; 11 - 1)で送信するため、このidはフィルタリングされる必要がある can_setting_tのfilter_configがデフォルト設定なら自動的に設定される</dd></dl>
+<dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramdir">[in]</td><td class="paramname">id</td><td>テストで送信するidを指定する。空欄ならid 1 &lt;&lt; 11 - 1 で送信される デフォルトの設定では1 &lt;&lt; 11 - 1は事前に除外されているため CANのフィルタリング方法を知らないなら空欄のままが無難 </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>戻り値</dt><dd>CANの動作が正常に終了したかを確かめる </dd></dl>
+<dl class="retval"><dt>戻り値</dt><dd>
+  <table class="retval">
+    <tr><td class="paramname">CAN_SUCCESS</td><td>正常終了 </td></tr>
+    <tr><td class="paramname">CAN_UNKNOWN_ERROR</td><td>失敗 </td></tr>
+    <tr><td class="paramname">CAN_NO_RESPONSE_ERROR</td><td>相手側のコントローラーかBUSが動いていないときのエラー </td></tr>
+    <tr><td class="paramname">CAN_CONTROLLER_ERROR</td><td>自分のコントローラーが動いていないときのエラー</td></tr>
+  </table>
+  </dd>
+</dl>
+<div class="fragment"><div class="line"><span class="comment">//example</span></div>
+<div class="line"><span class="keywordtype">void</span> setup() {</div>
+<div class="line">  ...</div>
+<div class="line">  <span class="comment">// beginした後</span></div>
+<div class="line">  <span class="keywordflow">switch</span> (CAN.test())</div>
+<div class="line">  {</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691a8896d67b488b4fcf29c391190214bbe9">CAN_SUCCESS</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Success!!!&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691aa6c9b8224b0a200e9e6a2e32652fd9bf">CAN_UNKNOWN_ERROR</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;Unknown error occurred&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40caa2aa7d091558ef986c1d28b542c0704e">CAN_NO_RESPONSE_ERROR</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;No response error&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">case</span> <a class="code hl_enumvalue" href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40ca9962f352ba2d316fc59386abfffa4d71">CAN_CONTROLLER_ERROR</a>:</div>
+<div class="line">    Serial.println(<span class="stringliteral">&quot;CAN CONTROLLER ERROR&quot;</span>);</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  <span class="keywordflow">default</span>:</div>
+<div class="line">    <span class="keywordflow">break</span>;</div>
+<div class="line">  }</div>
+<div class="line">}</div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_a47fa485955c19479dfebf34486a6e40ca9962f352ba2d316fc59386abfffa4d71"><div class="ttname"><a href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40ca9962f352ba2d316fc59386abfffa4d71">CAN_CONTROLLER_ERROR</a></div><div class="ttdeci">@ CAN_CONTROLLER_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:197</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_a47fa485955c19479dfebf34486a6e40caa2aa7d091558ef986c1d28b542c0704e"><div class="ttname"><a href="CANCREATE__lib_8h.html#a47fa485955c19479dfebf34486a6e40caa2aa7d091558ef986c1d28b542c0704e">CAN_NO_RESPONSE_ERROR</a></div><div class="ttdeci">@ CAN_NO_RESPONSE_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:196</div></div>
+<div class="ttc" id="aCANCREATE__lib_8h_html_aaacd5266e1d1604d062b5e57a443b691aa6c9b8224b0a200e9e6a2e32652fd9bf"><div class="ttname"><a href="CANCREATE__lib_8h.html#aaacd5266e1d1604d062b5e57a443b691aa6c9b8224b0a200e9e6a2e32652fd9bf">CAN_UNKNOWN_ERROR</a></div><div class="ttdeci">@ CAN_UNKNOWN_ERROR</div><div class="ttdef"><b>Definition</b> CANCREATE_lib.h:182</div></div>
+</div><!-- fragment --> 
+</div>
+</div>
+<a name="doc-related-members" id="doc-related-members"></a><h2 id="header-doc-related-members" class="groupheader">フレンドと関連関数の詳解</h2>
+<a id="aa3269e8a5aa3ce5a4fd890a0d3e309ae" name="aa3269e8a5aa3ce5a4fd890a0d3e309ae"></a>
+<h2 class="memtitle"><span class="permalink"><a href="#aa3269e8a5aa3ce5a4fd890a0d3e309ae">&#9670;&#160;</a></span>CanWatchDog</h2>
+
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">void CanWatchDog </td>
+          <td>(</td>
+          <td class="paramtype">void *</td>          <td class="paramname"><span class="paramname"><em>pvParameter</em></span></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel friend">friend</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+
+<p>BUS_OFFになった場合に回復させるタスク </p>
+<p>ESP32 twai_driverはエラーが256回以上引き起こされるとBUS_OFFになる。 このため、BUS_OFFになったら自動的に回復するWatchDogを仕掛けることにする。 回復できなければ送信をやめる </p><dl class="params"><dt>引数</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">pvParameter</td><td>タスクのパラメーターへのポインター </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<hr/>このクラス詳解は次のファイルから抽出されました:<ul>
+<li><a class="el" href="CANCREATE_8h_source.html">CANCREATE.h</a></li>
+<li><a class="el" href="CANCREATE_8cpp.html">CANCREATE.cpp</a></li>
+</ul>
+</div><!-- contents -->
+</div><!-- doc-content -->
+<div id="page-nav" class="page-nav-panel">
+<div id="page-nav-resize-handle"></div>
+<div id="page-nav-tree">
+<div id="page-nav-contents">
+</div><!-- page-nav-contents -->
+</div><!-- page-nav-tree -->
+</div><!-- page-nav -->
+</div><!-- container -->
+<!-- start footer part -->
+<div id="nav-path" class="navpath"><!-- id is needed for treeview function! -->
+  <ul>
+    <li class="navelem"><a href="classCAN__CREATE.html">CAN_CREATE</a></li>
+    <li class="footer">構築: <a href="https://www.doxygen.org/index.html"><img class="footer" src="doxygen.svg" width="104" height="31" alt="doxygen"/></a> 1.14.0 </li>
+  </ul>
+</div>
+</body>
+</html>
