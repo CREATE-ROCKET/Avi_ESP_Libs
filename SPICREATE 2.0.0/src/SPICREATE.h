@@ -29,7 +29,7 @@ namespace arduino
                 class SPICreate
                 {
                     spi_bus_config_t bus_cfg = {};
-                    spi_device_handle_t handle[3];
+                    spi_device_handle_t handle[4];
                     int deviceNum{0};
 #if IS_S3
                     spi_host_device_t host{SPI2_HOST};
