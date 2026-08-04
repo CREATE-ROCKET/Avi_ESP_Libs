@@ -1,4 +1,6 @@
 **/.pio/
-**/build/
+**/build*/
 **/sdkconfig
 **/sdkconfig.*
+!**/sdkconfig.defaults
+**/dependencies.lock
