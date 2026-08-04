@@ -1,0 +1,5 @@
+version: "3.0.0"
+description: ESP32-S3 bus and device drivers
+url: https://github.com/CREATE-ROCKET/Avi_ESP_Libs
+dependencies:
+  idf: ">=4.4"
