@@ -1,1 +1,4 @@
-
+**/.pio/
+**/build/
+**/sdkconfig
+**/sdkconfig.*
