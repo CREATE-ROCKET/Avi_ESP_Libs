@@ -12,7 +12,8 @@ struct RawFrame { twai_frame_header_t header; uint8_t data[8]; };
 struct Backend { twai_node_handle_t node{}; QueueHandle_t queue{}; };
 bool receiveFrame(twai_node_handle_t node, const twai_rx_done_event_data_t*, void* context) {
     // contextはbegin()で生成しend()まで保持するQueueHandle_tで、ISRからのみ参照される。
-    RawFrame raw{}; twai_frame_t frame{raw.header, raw.data, sizeof(raw.data)};
+    RawFrame raw{}; twai_frame_t frame{};
+    frame.header = raw.header; frame.buffer = raw.data; frame.buffer_len = sizeof(raw.data);
     if (twai_node_receive_from_isr(node, &frame) != ESP_OK) return false;
     raw.header = frame.header; BaseType_t awake = pdFALSE;
     xQueueSendFromISR(static_cast<QueueHandle_t>(context), &raw, &awake);
