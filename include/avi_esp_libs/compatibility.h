@@ -1,7 +1,7 @@
 #pragma once
-#include <cstdint>
 #include "driver/uart.h"
 #include "esp_idf_version.h"
+#include <cstdint>
 #if ESP_IDF_VERSION_MAJOR >= 5
 constexpr uart_sclk_t AVI_UART_DEFAULT_CLOCK = UART_SCLK_DEFAULT;
 #else
