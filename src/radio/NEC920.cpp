@@ -1,5 +1,7 @@
 #include "NEC920.h"
 #include "avi_esp_libs/compatibility.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 NEC920::~NEC920() {
   if (initialized_)
     (void)end();
