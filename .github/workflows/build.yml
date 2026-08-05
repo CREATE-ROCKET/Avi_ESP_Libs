@@ -1,59 +1,91 @@
 name: Build
+
 on:
   push:
   schedule:
     - cron: "0 0 1 * *"
   workflow_dispatch:
+
 permissions:
   contents: read
+
 concurrency:
   group: build-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'push' }}
+
 jobs:
   platformio-arduino:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
+
       - uses: actions/cache@v4
         with:
           path: ~/.platformio/.cache
           key: pio-arduino-${{ hashFiles('test_apps/platformio_arduino/platformio.ini') }}
-      - run: pip install platformio==6.1.19
-      - run: pio run -d test_apps/platformio_arduino
+
+      - name: Install PlatformIO
+        run: python -m pip install platformio==6.1.19
+
+      - name: Build PlatformIO Arduino
+        run: pio run -d test_apps/platformio_arduino
+
   platformio-espidf:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
+
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-          cache: pip
+
       - uses: actions/cache@v4
         with:
           path: ~/.platformio/.cache
           key: pio-espidf-${{ hashFiles('test_apps/platformio_espidf/platformio.ini') }}
-      - run: pip install platformio==6.1.19
-      - run: pio run -d test_apps/platformio_espidf
+
+      - name: Install PlatformIO
+        run: python -m pip install platformio==6.1.19
+
+      - name: Build PlatformIO ESP-IDF
+        run: pio run -d test_apps/platformio_espidf
+
   espidf-stable:
     runs-on: ubuntu-latest
-    container: espressif/idf:v6.0.2
+    container:
+      image: espressif/idf:v6.0.2
+
     steps:
       - uses: actions/checkout@v6
-      - run: idf.py --version
-      - working-directory: test_apps/espidf
+
+      - name: Build with stable ESP-IDF
+        shell: bash
+        working-directory: test_apps/espidf
         run: |
+          source "${IDF_PATH}/export.sh"
+          idf.py --version
           idf.py set-target esp32s3
           idf.py -B build-stable build
+
   espidf-latest:
     runs-on: ubuntu-latest
-    container: espressif/idf:latest
+    container:
+      image: espressif/idf:latest
+
     steps:
       - uses: actions/checkout@v6
-      - run: idf.py --version
-      - working-directory: test_apps/espidf
+
+      - name: Build with latest ESP-IDF
+        shell: bash
+        working-directory: test_apps/espidf
         run: |
+          source "${IDF_PATH}/export.sh"
+          idf.py --version
           idf.py set-target esp32s3
           idf.py -B build-latest build
