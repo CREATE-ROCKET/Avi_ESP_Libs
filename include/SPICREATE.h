@@ -6,6 +6,8 @@
 
 #include "driver/spi_master.h"
 #include "esp_err.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 class H3LIS331;
 class ICM20602;
@@ -23,6 +25,7 @@ public:
     int miso{13};
     int mosi{11};
     std::size_t max_transfer_size{SPI_MAX_DMA_LEN};
+    uint32_t transaction_timeout_ms{1000};
   };
 
   SPICREATE() = default;
@@ -71,10 +74,14 @@ private:
   [[nodiscard]] esp_err_t read(Device device, uint8_t command, uint8_t *data,
                                std::size_t length);
   [[nodiscard]] esp_err_t sendCommand(Device device, uint8_t command);
+  [[nodiscard]] esp_err_t takeBusLock();
+  void giveBusLock();
   [[nodiscard]] bool owns(Device device) const;
 
   static constexpr std::size_t kMaxDevices = 8;
   spi_host_device_t host_{SPI2_HOST};
+  uint32_t transaction_timeout_ms_{1000};
+  SemaphoreHandle_t bus_lock_{nullptr};
   bool initialized_{false};
   std::array<Device, kMaxDevices> devices_{};
 };
