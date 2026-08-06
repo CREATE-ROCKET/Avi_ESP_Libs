@@ -1,5 +1,4 @@
 #include "LPS25HB.h"
-#include "spi_sensor.h"
 LPS25HB::~LPS25HB() {
   if (device_)
     (void)end();
@@ -7,7 +6,7 @@ LPS25HB::~LPS25HB() {
 esp_err_t LPS25HB::begin(SPICREATE &s, int cs, uint32_t f) {
   if (device_)
     return ESP_ERR_INVALID_STATE;
-  auto r = avi_spi_add(s, cs, f, 3, device_);
+  auto r = s.addDevice({cs, f, 3, 1}, device_);
   if (r != ESP_OK)
     return r;
   spi_ = &s;

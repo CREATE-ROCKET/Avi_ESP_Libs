@@ -12,11 +12,7 @@ S25FL127S::~S25FL127S() {
 esp_err_t S25FL127S::begin(SPICREATE &s, int cs, uint32_t f) {
   if (device_)
     return ESP_ERR_INVALID_STATE;
-  spi_device_interface_config_t c{};
-  c.clock_speed_hz = f;
-  c.mode = 3;
-  c.queue_size = 1;
-  auto r = s.addDevice(c, cs, device_);
+  auto r = s.addDevice({cs, f, 3, 1}, device_);
   if (r == ESP_OK)
     spi_ = &s;
   return r;

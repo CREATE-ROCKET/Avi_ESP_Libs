@@ -1,5 +1,4 @@
 #include "ICM20948.h"
-#include "spi_sensor.h"
 ICM20948::~ICM20948() {
   if (device_)
     (void)end();
@@ -10,7 +9,7 @@ esp_err_t ICM20948::selectBank(uint8_t bank) {
 esp_err_t ICM20948::begin(SPICREATE &s, int cs, uint32_t f) {
   if (device_)
     return ESP_ERR_INVALID_STATE;
-  auto r = avi_spi_add(s, cs, f, 0, device_);
+  auto r = s.addDevice({cs, f, 0, 1}, device_);
   if (r != ESP_OK)
     return r;
   spi_ = &s;
@@ -52,13 +51,13 @@ esp_err_t ICM20948::get(Data &d) {
   if (r != ESP_OK)
     return r;
   uint8_t raw[12]{};
-  r = avi_spi_read(*spi_, device_, 0xAD, raw, sizeof(raw));
+  r = spi_->read(device_, 0xAD, raw, sizeof(raw));
   if (r != ESP_OK)
     return r;
   for (size_t i = 0; i < 6; ++i)
     d.imu[i] = (raw[i * 2] << 8) | raw[i * 2 + 1];
   uint8_t mag[9]{};
-  r = avi_spi_read(*spi_, device_, 0xBB, mag, sizeof(mag));
+  r = spi_->read(device_, 0xBB, mag, sizeof(mag));
   if (r != ESP_OK)
     return r;
   for (size_t i = 0; i < 3; ++i)

@@ -1,5 +1,4 @@
 #include "ICM20602.h"
-#include "spi_sensor.h"
 ICM20602::~ICM20602() {
   if (device_)
     (void)end();
@@ -7,7 +6,7 @@ ICM20602::~ICM20602() {
 esp_err_t ICM20602::begin(SPICREATE &spi, int cs, uint32_t f) {
   if (device_)
     return ESP_ERR_INVALID_STATE;
-  esp_err_t r = avi_spi_add(spi, cs, f, 0, device_);
+  esp_err_t r = spi.addDevice({cs, f, 0, 1}, device_);
   if (r != ESP_OK)
     return r;
   spi_ = &spi;
@@ -35,7 +34,7 @@ esp_err_t ICM20602::get(Data &d) {
   if (!spi_)
     return ESP_ERR_INVALID_STATE;
   uint8_t raw[14]{};
-  auto r = avi_spi_read(*spi_, device_, 0xBB, raw, sizeof(raw));
+  auto r = spi_->read(device_, 0xBB, raw, sizeof(raw));
   if (r != ESP_OK)
     return r;
   for (size_t i = 0; i < 3; ++i)

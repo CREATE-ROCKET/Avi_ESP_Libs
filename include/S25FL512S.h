@@ -6,7 +6,12 @@ class S25FL512S {
 public:
   static constexpr size_t kPageSize = 256;
   static constexpr uint32_t kCapacity = 64U * 1024U * 1024U;
+  S25FL512S() = default;
   ~S25FL512S();
+  S25FL512S(const S25FL512S &) = delete;
+  S25FL512S &operator=(const S25FL512S &) = delete;
+  S25FL512S(S25FL512S &&) = delete;
+  S25FL512S &operator=(S25FL512S &&) = delete;
   [[nodiscard]] esp_err_t begin(SPICREATE &spi, int chip_select,
                                 uint32_t frequency = 8000000);
   [[nodiscard]] esp_err_t end();

@@ -1,5 +1,4 @@
 #include "ICM42688.h"
-#include "spi_sensor.h"
 
 ICM42688::~ICM42688() {
   if (device_ != nullptr)
@@ -8,7 +7,7 @@ ICM42688::~ICM42688() {
 esp_err_t ICM42688::begin(SPICREATE &spi, int cs, uint32_t frequency) {
   if (device_ != nullptr)
     return ESP_ERR_INVALID_STATE;
-  esp_err_t result = avi_spi_add(spi, cs, frequency, 0, device_);
+  esp_err_t result = spi.addDevice({cs, frequency, 0, 1}, device_);
   if (result != ESP_OK)
     return result;
   spi_ = &spi;
@@ -37,7 +36,7 @@ esp_err_t ICM42688::get(Data &data) {
   if (spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   uint8_t raw[12]{};
-  const esp_err_t r = avi_spi_read(*spi_, device_, 0x9F, raw, sizeof(raw));
+  const esp_err_t r = spi_->read(device_, 0x9F, raw, sizeof(raw));
   if (r != ESP_OK)
     return r;
   for (size_t i = 0; i < data.size(); ++i)

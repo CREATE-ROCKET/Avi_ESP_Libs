@@ -1,5 +1,4 @@
 #include "H3LIS331.h"
-#include "spi_sensor.h"
 H3LIS331::~H3LIS331() {
   if (device_)
     (void)end();
@@ -7,7 +6,7 @@ H3LIS331::~H3LIS331() {
 esp_err_t H3LIS331::begin(SPICREATE &s, int cs, uint32_t f) {
   if (device_)
     return ESP_ERR_INVALID_STATE;
-  auto r = avi_spi_add(s, cs, f, 0, device_);
+  auto r = s.addDevice({cs, f, 0, 1}, device_);
   if (r != ESP_OK)
     return r;
   spi_ = &s;
@@ -41,7 +40,7 @@ esp_err_t H3LIS331::get(Data &d) {
   if (!spi_)
     return ESP_ERR_INVALID_STATE;
   uint8_t raw[6]{};
-  auto r = avi_spi_read(*spi_, device_, 0xE8, raw, sizeof(raw));
+  auto r = spi_->read(device_, 0xE8, raw, sizeof(raw));
   if (r != ESP_OK)
     return r;
   for (size_t i = 0; i < 3; ++i)

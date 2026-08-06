@@ -5,7 +5,12 @@
 class S25FL127S {
 public:
   static constexpr size_t kPageSize = 256;
+  S25FL127S() = default;
   ~S25FL127S();
+  S25FL127S(const S25FL127S &) = delete;
+  S25FL127S &operator=(const S25FL127S &) = delete;
+  S25FL127S(S25FL127S &&) = delete;
+  S25FL127S &operator=(S25FL127S &&) = delete;
   [[nodiscard]] esp_err_t begin(SPICREATE &spi, int chip_select,
                                 uint32_t frequency = 8000000);
   [[nodiscard]] esp_err_t end();
