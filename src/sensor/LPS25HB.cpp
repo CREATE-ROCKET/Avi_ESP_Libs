@@ -193,6 +193,13 @@ esp_err_t LPS25HB::get(Data &data) {
         return ESP_ERR_TIMEOUT;
       avi_delay_ms(1);
     }
+  } else {
+    Status status{};
+    const esp_err_t result = getStatus(status);
+    if (result != ESP_OK)
+      return result;
+    if (!status.pressure_ready || !status.temperature_ready)
+      return ESP_ERR_NOT_FINISHED;
   }
 
   uint8_t raw[5]{};
