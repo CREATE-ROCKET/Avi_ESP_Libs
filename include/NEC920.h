@@ -1,4 +1,6 @@
 #pragma once
+#pragma message("TODO: NEC920はTier 2であり、ESP32-S3実機では未検証です")
+
 #include "driver/gpio.h"
 #include "driver/uart.h"
 #include "esp_err.h"

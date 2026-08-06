@@ -1,4 +1,6 @@
 #pragma once
+#pragma message("TODO: S25FL512SはTier 2であり、ESP32-S3実機では未検証です")
+
 #include "SPICREATE.h"
 #include <cstddef>
 #include <cstdint>
