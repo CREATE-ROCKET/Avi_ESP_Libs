@@ -4,8 +4,6 @@
 #include <new>
 
 #include "avi_esp_libs/compatibility.h"
-#include "esp_attr.h"
-#include "esp_intr_alloc.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
@@ -28,12 +26,11 @@ constexpr uint32_t kMaximumSpiFrequency = 24000000;
 
 struct InterruptBackend {
   SemaphoreHandle_t signal{};
-  bool owns_isr_service{false};
 };
 
-void IRAM_ATTR dataReadyIsr(void *context) {
+void dataReadyIsr(void *context) {
   // SAFETY: contextはgpio_isr_handler_remove()成功まで保持するBackendであり、
-  // ISR内では固定semaphoreの通知以外を行わない。
+  // ISR内では固定セマフォの通知以外を行わない。
   auto *backend = static_cast<InterruptBackend *>(context);
   BaseType_t task_awoken = pdFALSE;
   (void)xSemaphoreGiveFromISR(backend->signal, &task_awoken);
@@ -236,12 +233,9 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
         gpio.intr_type = GPIO_INTR_POSEDGE;
         result = gpio_config(&gpio);
         if (result == ESP_OK) {
-          result = gpio_install_isr_service(ESP_INTR_FLAG_IRAM);
-          if (result == ESP_OK) {
-            backend->owns_isr_service = true;
-          } else if (result == ESP_ERR_INVALID_STATE) {
+          result = gpio_install_isr_service(0);
+          if (result == ESP_ERR_INVALID_STATE)
             result = ESP_OK;
-          }
         }
         if (result == ESP_OK)
           result = gpio_isr_handler_add(config.int_gpio, dataReadyIsr, backend);
@@ -249,8 +243,6 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
           interrupt_ = backend;
           int_gpio_ = config.int_gpio;
         } else {
-          if (backend->owns_isr_service)
-            gpio_uninstall_isr_service();
           vSemaphoreDelete(backend->signal);
           delete backend;
           (void)gpio_reset_pin(config.int_gpio);
@@ -277,8 +269,8 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
     result = gpio_intr_enable(int_gpio_);
 
   if (result != ESP_OK) {
-    (void)end();
-    return result;
+    const esp_err_t cleanup_result = end();
+    return cleanup_result == ESP_OK ? result : cleanup_result;
   }
   initialized_ = true;
   return ESP_OK;
@@ -297,8 +289,8 @@ esp_err_t ICM42688::end() {
     rememberFirst(remove_result, first_error);
     if (remove_result != ESP_OK)
       return first_error;
-    if (backend->owns_isr_service)
-      gpio_uninstall_isr_service();
+    // GPIO ISRサービスはプロセス全体の共有資源なので、対象GPIOの
+    // ハンドラだけを外す。サービス全体の解除は他コンポーネントを破壊する。
     vSemaphoreDelete(backend->signal);
     delete backend;
     interrupt_ = nullptr;
@@ -377,8 +369,6 @@ esp_err_t ICM42688::get(Data &data) {
   esp_err_t result = getStatus(status);
   if (result != ESP_OK)
     return result;
-  if (!status.data_ready)
-    return ESP_ERR_NOT_FINISHED;
 
   uint8_t raw[14]{};
   result = spi_->read(device_, kTemperatureData | 0x80, raw, sizeof(raw));
