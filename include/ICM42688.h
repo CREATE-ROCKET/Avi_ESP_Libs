@@ -1,24 +1,74 @@
 #pragma once
-#include "SPICREATE.h"
+
 #include <array>
 #include <cstdint>
 
+#include "SPICREATE.h"
+#include "driver/gpio.h"
+
 class ICM42688 {
 public:
-  using Data = std::array<int16_t, 6>;
+  enum class AccelRange : uint8_t { g2, g4, g8, g16 };
+  enum class GyroRange : uint8_t {
+    dps125,
+    dps250,
+    dps500,
+    dps1000,
+    dps2000
+  };
+  enum class Odr : uint8_t { hz25, hz50, hz100, hz200, hz500, hz1000 };
+  enum class Filter : uint8_t {
+    odr_div2,
+    odr_div4,
+    odr_div5,
+    odr_div8,
+    odr_div10,
+    odr_div16,
+    odr_div20,
+    odr_div40
+  };
+
+  struct Config {
+    uint32_t frequency_hz{8000000};
+    AccelRange accel_range{AccelRange::g16};
+    GyroRange gyro_range{GyroRange::dps2000};
+    Odr odr{Odr::hz1000};
+    Filter filter{Filter::odr_div4};
+    gpio_num_t int_gpio{GPIO_NUM_NC};
+  };
+
+  struct Data {
+    std::array<int16_t, 3> acceleration{};
+    std::array<int16_t, 3> angular_velocity{};
+    int16_t temperature{};
+  };
+
+  struct Status {
+    bool data_ready{false};
+  };
+
   ICM42688() = default;
   ~ICM42688();
   ICM42688(const ICM42688 &) = delete;
   ICM42688 &operator=(const ICM42688 &) = delete;
   ICM42688(ICM42688 &&) = delete;
   ICM42688 &operator=(ICM42688 &&) = delete;
+
+  [[nodiscard]] esp_err_t begin(SPICREATE &spi, int chip_select,
+                                const Config &config);
   [[nodiscard]] esp_err_t begin(SPICREATE &spi, int chip_select,
                                 uint32_t frequency = 8000000);
   [[nodiscard]] esp_err_t end();
   [[nodiscard]] esp_err_t whoAmI(uint8_t &value);
+  [[nodiscard]] esp_err_t getStatus(Status &status);
+  [[nodiscard]] esp_err_t waitDataReady(uint32_t timeout_ms = 100);
   [[nodiscard]] esp_err_t get(Data &data);
+  [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
   SPICREATE *spi_{nullptr};
   SPICREATE::Device device_{nullptr};
+  void *interrupt_{nullptr};
+  gpio_num_t int_gpio_{GPIO_NUM_NC};
+  bool initialized_{false};
 };
