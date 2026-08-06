@@ -7,6 +7,7 @@
 #include "avi_esp_libs/compatibility.h"
 #include "esp_idf_version.h"
 #include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 namespace {
 
@@ -60,13 +61,15 @@ bool validConfig(const CANCREATE::Config &config) {
           validIdentifier(config.filter.mask, config.filter.extended));
 }
 
-} // namespace
+} // 名前なし名前空間
 
 #if ESP_IDF_VERSION_MAJOR >= 6
 
 #include "esp_attr.h"
+#include "esp_heap_caps.h"
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
+#include "freertos/idf_additions.h"
 #include "freertos/queue.h"
 #include "freertos/semphr.h"
 
@@ -84,14 +87,22 @@ struct Backend {
   twai_frame_t tx_frame{};
   uint8_t tx_data[8]{};
   uint32_t dropped_rx{};
+  uint32_t recovering{};
 };
+
+Backend *createBackend() {
+  void *memory = heap_caps_malloc(
+      sizeof(Backend), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  return memory == nullptr ? nullptr : new (memory) Backend{};
+}
 
 void destroyBackend(Backend *backend) {
   if (backend->tx_available != nullptr)
-    vSemaphoreDelete(backend->tx_available);
+    vSemaphoreDeleteWithCaps(backend->tx_available);
   if (backend->rx_queue != nullptr)
-    vQueueDelete(backend->rx_queue);
-  delete backend;
+    vQueueDeleteWithCaps(backend->rx_queue);
+  backend->~Backend();
+  heap_caps_free(backend);
 }
 
 esp_err_t releaseNode(Backend *backend) {
@@ -111,8 +122,8 @@ esp_err_t releaseNode(Backend *backend) {
 
 bool IRAM_ATTR receiveFrame(twai_node_handle_t node,
                             const twai_rx_done_event_data_t *, void *context) {
-  // SAFETY: contextはcallback解除を含むnode削除完了まで生存するBackendであり、
-  // ISR内では固定長データのqueue送信とdrop数更新だけを行う。
+  // SAFETY: contextはコールバック解除を含むノード削除完了まで生存する
+  // Backendであり、ISR内では固定長データのキュー送信と破棄数更新だけを行う。
   auto *backend = static_cast<Backend *>(context);
   RawFrame raw{};
   twai_frame_t frame{};
@@ -132,20 +143,39 @@ bool IRAM_ATTR receiveFrame(twai_node_handle_t node,
 
 bool IRAM_ATTR transmitDone(twai_node_handle_t,
                             const twai_tx_done_event_data_t *, void *context) {
-  // SAFETY: contextと送信slotはnode削除完了まで生存し、ISRではsemaphoreを
-  // 返すだけでSPI通信、ログ、動的確保、blocking処理を行わない。
+  // SAFETY: contextと送信領域はノード削除完了まで生存し、ISRではセマフォを
+  // 返すだけでSPI通信、ログ、動的確保、ブロッキング処理を行わない。
   auto *backend = static_cast<Backend *>(context);
   BaseType_t task_awoken = pdFALSE;
   (void)xSemaphoreGiveFromISR(backend->tx_available, &task_awoken);
   return task_awoken == pdTRUE;
 }
 
-CANCREATE::State stateFrom(twai_error_state_t state) {
-  return state == TWAI_ERROR_BUS_OFF ? CANCREATE::State::bus_off
-                                    : CANCREATE::State::running;
+bool IRAM_ATTR stateChanged(twai_node_handle_t,
+                            const twai_state_change_event_data_t *event,
+                            void *context) {
+  // SAFETY: contextはノード削除完了まで内部RAM上で生存するBackendである。
+  // ISRでは不可分な状態更新とセマフォ返却だけを行い、通信やブロッキング処理は
+  // 行わない。BUS_OFFではドライバがTX完了を通知しない場合にも送信領域を回収する。
+  auto *backend = static_cast<Backend *>(context);
+  if (event->new_sta != TWAI_ERROR_BUS_OFF) {
+    __atomic_store_n(&backend->recovering, 0U, __ATOMIC_RELEASE);
+    return false;
+  }
+
+  BaseType_t task_awoken = pdFALSE;
+  (void)xSemaphoreGiveFromISR(backend->tx_available, &task_awoken);
+  return task_awoken == pdTRUE;
 }
 
-} // namespace
+CANCREATE::State stateFrom(twai_error_state_t state, bool recovering) {
+  if (state == TWAI_ERROR_BUS_OFF)
+    return recovering ? CANCREATE::State::recovering
+                      : CANCREATE::State::bus_off;
+  return CANCREATE::State::running;
+}
+
+} // 名前なし名前空間
 
 #else
 
@@ -155,6 +185,7 @@ namespace {
 
 struct Backend {
   bool running{false};
+  CANCREATE::Filter filter{};
 };
 
 twai_mode_t modeFrom(CANCREATE::Mode mode) {
@@ -204,13 +235,18 @@ twai_filter_config_t filterFrom(const CANCREATE::Filter &filter) {
   if (!filter.enabled)
     return TWAI_FILTER_CONFIG_ACCEPT_ALL();
   const uint8_t shift = filter.extended ? 3 : 21;
-  const uint32_t format_bit = filter.extended ? (1U << 1) : (1U << 19);
   twai_filter_config_t result{};
-  result.acceptance_code =
-      (filter.identifier << shift) | (filter.extended ? format_bit : 0U);
-  result.acceptance_mask = ~((filter.mask << shift) | format_bit);
+  result.acceptance_code = filter.identifier << shift;
+  result.acceptance_mask = ~(filter.mask << shift);
   result.single_filter = true;
   return result;
+}
+
+bool filterAccepts(const CANCREATE::Filter &filter,
+                   const twai_message_t &message) {
+  return !filter.enabled ||
+         (message.extd == filter.extended &&
+          ((message.identifier ^ filter.identifier) & filter.mask) == 0);
 }
 
 CANCREATE::State stateFrom(twai_state_t state) {
@@ -227,7 +263,7 @@ CANCREATE::State stateFrom(twai_state_t state) {
   }
 }
 
-} // namespace
+} // 名前なし名前空間
 
 #endif
 
@@ -251,11 +287,14 @@ esp_err_t CANCREATE::begin(const Config &config) {
     return ESP_ERR_INVALID_ARG;
 
 #if ESP_IDF_VERSION_MAJOR >= 6
-  auto *backend = new (std::nothrow) Backend{};
+  auto *backend = createBackend();
   if (backend == nullptr)
     return ESP_ERR_NO_MEM;
-  backend->rx_queue = xQueueCreate(config.rx_queue_depth, sizeof(RawFrame));
-  backend->tx_available = xSemaphoreCreateBinary();
+  backend->rx_queue = xQueueCreateWithCaps(
+      config.rx_queue_depth, sizeof(RawFrame),
+      MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  backend->tx_available = xSemaphoreCreateBinaryWithCaps(
+      MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (backend->rx_queue == nullptr || backend->tx_available == nullptr) {
     destroyBackend(backend);
     return ESP_ERR_NO_MEM;
@@ -282,6 +321,7 @@ esp_err_t CANCREATE::begin(const Config &config) {
   twai_event_callbacks_t callbacks{};
   callbacks.on_rx_done = receiveFrame;
   callbacks.on_tx_done = transmitDone;
+  callbacks.on_state_change = stateChanged;
   result = twai_node_register_event_callbacks(backend->node, &callbacks,
                                                backend);
   if (result == ESP_OK && config.filter.enabled) {
@@ -304,6 +344,7 @@ esp_err_t CANCREATE::begin(const Config &config) {
   auto *backend = new (std::nothrow) Backend{};
   if (backend == nullptr)
     return ESP_ERR_NO_MEM;
+  backend->filter = config.filter;
 
   twai_timing_config_t timing{};
   if (!timingFrom(config.bitrate, timing)) {
@@ -339,13 +380,13 @@ esp_err_t CANCREATE::begin(const Config &config) {
 esp_err_t CANCREATE::end() {
   if (backend_ == nullptr)
     return ESP_ERR_INVALID_STATE;
+  initialized_ = false;
 
 #if ESP_IDF_VERSION_MAJOR >= 6
   auto *backend = static_cast<Backend *>(backend_);
   const esp_err_t result = releaseNode(backend);
   if (result == ESP_OK) {
     backend_ = nullptr;
-    initialized_ = false;
   }
   return result;
 #else
@@ -360,7 +401,6 @@ esp_err_t CANCREATE::end() {
   if (uninstall_result != ESP_OK)
     return uninstall_result;
   backend_ = nullptr;
-  initialized_ = false;
   delete backend;
   return stop_result == ESP_OK || stop_result == ESP_ERR_INVALID_STATE
              ? ESP_OK
@@ -426,13 +466,25 @@ esp_err_t CANCREATE::read(Frame &frame, uint32_t timeout_ms) {
   next.remote = raw.header.rtr;
   std::memcpy(next.data, raw.data, next.data_length);
 #else
+  auto *backend = static_cast<Backend *>(backend_);
+  const TickType_t started_at = xTaskGetTickCount();
+  TickType_t remaining_ticks = timeout_ticks;
   twai_message_t message{};
-  const esp_err_t result = twai_receive(&message, timeout_ticks);
-  if (result != ESP_OK)
-    return result;
-  if (message.data_length_code > sizeof(next.data) ||
-      !validIdentifier(message.identifier, message.extd))
-    return ESP_ERR_INVALID_SIZE;
+  for (;;) {
+    const esp_err_t result = twai_receive(&message, remaining_ticks);
+    if (result != ESP_OK)
+      return result;
+    if (message.data_length_code > sizeof(next.data) ||
+        !validIdentifier(message.identifier, message.extd))
+      return ESP_ERR_INVALID_SIZE;
+    if (filterAccepts(backend->filter, message))
+      break;
+
+    const TickType_t elapsed = xTaskGetTickCount() - started_at;
+    if (elapsed >= timeout_ticks)
+      return ESP_ERR_TIMEOUT;
+    remaining_ticks = timeout_ticks - elapsed;
+  }
   next.identifier = message.identifier;
   next.data_length = message.data_length_code;
   next.extended = message.extd;
@@ -470,7 +522,9 @@ esp_err_t CANCREATE::getStatus(Status &status) const {
       twai_node_get_info(backend->node, &node_status, &record);
   if (result != ESP_OK)
     return result;
-  next.state = stateFrom(node_status.state);
+  next.state = stateFrom(
+      node_status.state,
+      __atomic_load_n(&backend->recovering, __ATOMIC_ACQUIRE) != 0);
   next.pending_tx = uxSemaphoreGetCount(backend->tx_available) == 0 ? 1 : 0;
   next.pending_rx = uxQueueMessagesWaiting(backend->rx_queue);
   next.tx_error_count = node_status.tx_error_count;
@@ -510,9 +564,15 @@ esp_err_t CANCREATE::recover(uint32_t timeout_ms) {
     return result;
   if (initial.state != TWAI_ERROR_BUS_OFF)
     return ESP_ERR_INVALID_STATE;
-  result = twai_node_recover(backend->node);
-  if (result != ESP_OK)
-    return result;
+  uint32_t expected = 0;
+  if (__atomic_compare_exchange_n(&backend->recovering, &expected, 1U, false,
+                                  __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE)) {
+    result = twai_node_recover(backend->node);
+    if (result != ESP_OK) {
+      __atomic_store_n(&backend->recovering, 0U, __ATOMIC_RELEASE);
+      return result;
+    }
+  }
 #else
   twai_status_info_t initial{};
   esp_err_t result = twai_get_status_info(&initial);
@@ -541,8 +601,11 @@ esp_err_t CANCREATE::recover(uint32_t timeout_ms) {
                                 nullptr);
     if (result != ESP_OK)
       return result;
-    if (info.state != TWAI_ERROR_BUS_OFF)
+    if (info.state != TWAI_ERROR_BUS_OFF) {
+      __atomic_store_n(&static_cast<Backend *>(backend_)->recovering, 0U,
+                       __ATOMIC_RELEASE);
       return ESP_OK;
+    }
 #else
     twai_status_info_t info{};
     result = twai_get_status_info(&info);
