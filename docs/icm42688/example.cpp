@@ -1,41 +1,40 @@
-#include "ICM42688.h"
-#include <Arduino.h>
+#include <ICM42688.h>
+#include <SPICREATE.h>
 
-namespace ICMPIN {
-const int SCK = 14;
-const int MISO = 12;
-const int MOSI = 13;
-const int CS = 15;
-} // namespace ICMPIN
+SPICREATE spi;
+ICM42688 imu;
+bool ready = false;
 
-ICM icm42688;
+void setup()
+{
+    if (spi.begin(SPI2_HOST, 14, 12, 13) != ESP_OK) {
+        return;
+    }
 
-SPICREATE::SPICreate SPIC;
+    ICM42688::Config config;
+    config.accel_range = ICM42688::AccelRange::g8;
+    config.gyro_range = ICM42688::GyroRange::dps1000;
+    config.odr = ICM42688::Odr::hz200;
+    config.filter = ICM42688::Filter::odr_div4;
+    config.int_gpio = GPIO_NUM_4;
 
-void setup() {
-  Serial.begin(115200);
-  SPIC.begin(VSPI, ICMPIN::SCK, ICMPIN::MISO, ICMPIN::MOSI);
-  icm42688.begin(&SPIC, ICMPIN::CS, 1000000);
-  Serial.print("ICM WhoAmI checking ,");
-  while (icm42688.WhoAmI() != 0x47) {
-    delay(100);
-    Serial.print(",");
-  }
-  Serial.println("ICM Connected!");
+    if (imu.begin(spi, 15, config) != ESP_OK) {
+        (void)spi.end();
+        return;
+    }
+    ready = true;
 }
 
-void loop() {
-  int16_t ICM_data[7];
-  icm42688.Get(ICM_data);
-  Serial.print(ICM_data[0]);
-  Serial.print(",");
-  Serial.print(ICM_data[1]);
-  Serial.print(",");
-  Serial.print(ICM_data[2]);
-  Serial.print(",");
-  Serial.print(ICM_data[3]);
-  Serial.print(",");
-  Serial.print(ICM_data[4]);
-  Serial.print(",");
-  Serial.println(ICM_data[5]);
+void loop()
+{
+    if (!ready || imu.waitDataReady(100) != ESP_OK) {
+        return;
+    }
+
+    ICM42688::Data data;
+    if (imu.get(data) != ESP_OK) {
+        return;
+    }
+
+    // ここでdata.acceleration、data.angular_velocity、data.temperatureを利用する。
 }
