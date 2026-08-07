@@ -5,36 +5,34 @@ SPICREATE spi;
 ICM42688 imu;
 bool ready = false;
 
-void setup()
-{
-    if (spi.begin(SPI2_HOST, 14, 12, 13) != ESP_OK) {
-        return;
-    }
+void setup() {
+  if (spi.begin(SPI2_HOST, 14, 12, 13) != ESP_OK) {
+    return;
+  }
 
-    ICM42688::Config config;
-    config.accel_range = ICM42688::AccelRange::g8;
-    config.gyro_range = ICM42688::GyroRange::dps1000;
-    config.odr = ICM42688::Odr::hz200;
-    config.filter = ICM42688::Filter::odr_div4;
-    config.int_gpio = GPIO_NUM_4;
+  ICM42688::Config config;
+  config.accel_range = ICM42688::AccelRange::g8;
+  config.gyro_range = ICM42688::GyroRange::dps1000;
+  config.odr = ICM42688::Odr::hz200;
+  config.filter = ICM42688::Filter::odr_div4;
+  config.int_gpio = GPIO_NUM_4;
 
-    if (imu.begin(spi, 15, config) != ESP_OK) {
-        (void)spi.end();
-        return;
-    }
-    ready = true;
+  if (imu.begin(spi, 15, config) != ESP_OK) {
+    (void)spi.end();
+    return;
+  }
+  ready = true;
 }
 
-void loop()
-{
-    if (!ready || imu.waitDataReady(100) != ESP_OK) {
-        return;
-    }
+void loop() {
+  if (!ready || imu.waitDataReady(100) != ESP_OK) {
+    return;
+  }
 
-    ICM42688::Data data;
-    if (imu.get(data) != ESP_OK) {
-        return;
-    }
+  ICM42688::Data data;
+  if (imu.get(data) != ESP_OK) {
+    return;
+  }
 
-    // ここでdata.acceleration、data.angular_velocity、data.temperatureを利用する。
+  // ここでdata.acceleration、data.angular_velocity、data.temperatureを利用する。
 }

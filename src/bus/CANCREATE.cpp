@@ -37,8 +37,7 @@ bool validIdentifier(uint32_t identifier, bool extended) {
 bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
   if (timeout_ms > INT_MAX)
     return false;
-  uint64_t value =
-      (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
+  uint64_t value = (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
   if (timeout_ms != 0 && value == 0)
     value = 1;
   if (value >= portMAX_DELAY)
@@ -48,9 +47,8 @@ bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
 }
 
 bool validConfig(const CANCREATE::Config &config) {
-  if (!GPIO_IS_VALID_OUTPUT_GPIO(config.tx) ||
-      !GPIO_IS_VALID_GPIO(config.rx) || !validBitrate(config.bitrate) ||
-      config.rx_queue_depth == 0)
+  if (!GPIO_IS_VALID_OUTPUT_GPIO(config.tx) || !GPIO_IS_VALID_GPIO(config.rx) ||
+      !validBitrate(config.bitrate) || config.rx_queue_depth == 0)
     return false;
   if (config.mode != CANCREATE::Mode::normal &&
       config.mode != CANCREATE::Mode::no_ack &&
@@ -91,8 +89,8 @@ struct Backend {
 };
 
 Backend *createBackend() {
-  void *memory = heap_caps_malloc(
-      sizeof(Backend), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  void *memory =
+      heap_caps_malloc(sizeof(Backend), MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   return memory == nullptr ? nullptr : new (memory) Backend{};
 }
 
@@ -290,11 +288,11 @@ esp_err_t CANCREATE::begin(const Config &config) {
   auto *backend = createBackend();
   if (backend == nullptr)
     return ESP_ERR_NO_MEM;
-  backend->rx_queue = xQueueCreateWithCaps(
-      config.rx_queue_depth, sizeof(RawFrame),
-      MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
-  backend->tx_available = xSemaphoreCreateBinaryWithCaps(
-      MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  backend->rx_queue =
+      xQueueCreateWithCaps(config.rx_queue_depth, sizeof(RawFrame),
+                           MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
+  backend->tx_available =
+      xSemaphoreCreateBinaryWithCaps(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT);
   if (backend->rx_queue == nullptr || backend->tx_available == nullptr) {
     destroyBackend(backend);
     return ESP_ERR_NO_MEM;
@@ -322,8 +320,8 @@ esp_err_t CANCREATE::begin(const Config &config) {
   callbacks.on_rx_done = receiveFrame;
   callbacks.on_tx_done = transmitDone;
   callbacks.on_state_change = stateChanged;
-  result = twai_node_register_event_callbacks(backend->node, &callbacks,
-                                               backend);
+  result =
+      twai_node_register_event_callbacks(backend->node, &callbacks, backend);
   if (result == ESP_OK && config.filter.enabled) {
     twai_mask_filter_config_t filter{};
     filter.id = config.filter.identifier;
@@ -428,8 +426,8 @@ esp_err_t CANCREATE::write(const Frame &frame, uint32_t timeout_ms) {
   std::memcpy(backend->tx_data, frame.data, frame.data_length);
   backend->tx_frame.buffer = backend->tx_data;
   backend->tx_frame.buffer_len = frame.data_length;
-  const esp_err_t result = twai_node_transmit(
-      backend->node, &backend->tx_frame, static_cast<int>(timeout_ms));
+  const esp_err_t result = twai_node_transmit(backend->node, &backend->tx_frame,
+                                              static_cast<int>(timeout_ms));
   if (result != ESP_OK)
     (void)xSemaphoreGive(backend->tx_available);
   return result;
@@ -522,9 +520,9 @@ esp_err_t CANCREATE::getStatus(Status &status) const {
       twai_node_get_info(backend->node, &node_status, &record);
   if (result != ESP_OK)
     return result;
-  next.state = stateFrom(
-      node_status.state,
-      __atomic_load_n(&backend->recovering, __ATOMIC_ACQUIRE) != 0);
+  next.state =
+      stateFrom(node_status.state,
+                __atomic_load_n(&backend->recovering, __ATOMIC_ACQUIRE) != 0);
   next.pending_tx = uxSemaphoreGetCount(backend->tx_available) == 0 ? 1 : 0;
   next.pending_rx = uxQueueMessagesWaiting(backend->rx_queue);
   next.tx_error_count = node_status.tx_error_count;

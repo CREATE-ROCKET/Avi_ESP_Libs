@@ -56,8 +56,7 @@ public:
   [[nodiscard]] esp_err_t begin(gpio_num_t tx, gpio_num_t rx,
                                 uint32_t bitrate = 500000);
   [[nodiscard]] esp_err_t end();
-  [[nodiscard]] esp_err_t write(const Frame &frame,
-                                uint32_t timeout_ms = 100);
+  [[nodiscard]] esp_err_t write(const Frame &frame, uint32_t timeout_ms = 100);
   [[nodiscard]] esp_err_t read(Frame &frame, uint32_t timeout_ms = 100);
   [[nodiscard]] esp_err_t available(std::size_t &count) const;
   [[nodiscard]] esp_err_t getStatus(Status &status) const;

@@ -9,13 +9,7 @@
 class ICM42688 {
 public:
   enum class AccelRange : uint8_t { g2, g4, g8, g16 };
-  enum class GyroRange : uint8_t {
-    dps125,
-    dps250,
-    dps500,
-    dps1000,
-    dps2000
-  };
+  enum class GyroRange : uint8_t { dps125, dps250, dps500, dps1000, dps2000 };
   enum class Odr : uint8_t { hz25, hz50, hz100, hz200, hz500, hz1000 };
   enum class Filter : uint8_t {
     odr_div2,

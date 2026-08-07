@@ -41,8 +41,7 @@ void dataReadyIsr(void *context) {
 bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
   if (timeout_ms > INT_MAX)
     return false;
-  uint64_t value =
-      (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
+  uint64_t value = (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
   if (timeout_ms != 0 && value == 0)
     value = 1;
   if (value >= portMAX_DELAY)
@@ -160,8 +159,7 @@ ICM42688::~ICM42688() {
     (void)end();
 }
 
-esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
-                          uint32_t frequency) {
+esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select, uint32_t frequency) {
   Config config{};
   config.frequency_hz = frequency;
   return begin(spi, chip_select, config);
@@ -176,8 +174,7 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
   uint8_t gyro_range{};
   uint8_t odr{};
   uint8_t filter{};
-  if (config.frequency_hz == 0 ||
-      config.frequency_hz > kMaximumSpiFrequency ||
+  if (config.frequency_hz == 0 || config.frequency_hz > kMaximumSpiFrequency ||
       (config.int_gpio != GPIO_NUM_NC &&
        !GPIO_IS_VALID_GPIO(config.int_gpio)) ||
       !accelBits(config.accel_range, accel_range) ||
@@ -207,9 +204,8 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
     result = spi_->writeRegister(device_, kAccelConfig,
                                  static_cast<uint8_t>(accel_range | odr));
   if (result == ESP_OK)
-    result = spi_->writeRegister(
-        device_, kGyroAccelFilter,
-        static_cast<uint8_t>((filter << 4) | filter));
+    result = spi_->writeRegister(device_, kGyroAccelFilter,
+                                 static_cast<uint8_t>((filter << 4) | filter));
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kPowerManagement, 0x0F);
   if (result == ESP_OK)

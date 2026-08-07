@@ -12,8 +12,7 @@ namespace {
 bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
   if (timeout_ms > INT_MAX)
     return false;
-  uint64_t value =
-      (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
+  uint64_t value = (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
   if (timeout_ms != 0 && value == 0)
     value = 1;
   if (value >= portMAX_DELAY)
@@ -100,9 +99,7 @@ esp_err_t SPICREATE::takeBusLock() {
                                                        : ESP_ERR_TIMEOUT;
 }
 
-void SPICREATE::giveBusLock() {
-  (void)xSemaphoreGive(bus_lock_);
-}
+void SPICREATE::giveBusLock() { (void)xSemaphoreGive(bus_lock_); }
 
 esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
                                Device &device) {

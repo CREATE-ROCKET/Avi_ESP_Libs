@@ -79,8 +79,8 @@ esp_err_t LPS25HB::begin(SPICREATE &spi, int chip_select,
   if (identity != kExpectedWhoAmI)
     return fail(ESP_ERR_INVALID_RESPONSE);
 
-  result = spi_->writeRegister(device_, kControl2,
-                               kI2cDisable | kSoftwareReset);
+  result =
+      spi_->writeRegister(device_, kControl2, kI2cDisable | kSoftwareReset);
   if (result != ESP_OK)
     return fail(result);
 
@@ -111,8 +111,8 @@ esp_err_t LPS25HB::begin(SPICREATE &spi, int chip_select,
 
   uint8_t control1 = kBlockDataUpdate;
   if (config.odr != Odr::one_shot) {
-    control1 |= kPowerOn |
-                static_cast<uint8_t>(static_cast<uint8_t>(config.odr) << 4);
+    control1 |=
+        kPowerOn | static_cast<uint8_t>(static_cast<uint8_t>(config.odr) << 4);
   }
   result = spi_->writeRegister(device_, kControl1, control1);
   if (result != ESP_OK)
@@ -150,8 +150,7 @@ esp_err_t LPS25HB::getStatus(Status &status) {
     return ESP_ERR_INVALID_STATE;
 
   uint8_t raw = 0;
-  const esp_err_t result =
-      spi_->readRegister(device_, kRead | kStatus, raw);
+  const esp_err_t result = spi_->readRegister(device_, kRead | kStatus, raw);
   if (result != ESP_OK)
     return result;
 
@@ -203,15 +202,13 @@ esp_err_t LPS25HB::get(Data &data) {
   }
 
   uint8_t raw[5]{};
-  const esp_err_t result =
-      spi_->read(device_, kRead | kAutoIncrement | kPressureOutput, raw,
-                 sizeof(raw));
+  const esp_err_t result = spi_->read(
+      device_, kRead | kAutoIncrement | kPressureOutput, raw, sizeof(raw));
   if (result != ESP_OK)
     return result;
 
-  const uint32_t pressure_bits = uint32_t{raw[0]} |
-                                 (uint32_t{raw[1]} << 8) |
-                                 (uint32_t{raw[2]} << 16);
+  const uint32_t pressure_bits =
+      uint32_t{raw[0]} | (uint32_t{raw[1]} << 8) | (uint32_t{raw[2]} << 16);
   int32_t pressure_raw = static_cast<int32_t>(pressure_bits);
   if ((pressure_bits & 0x00800000U) != 0)
     pressure_raw -= 0x01000000;

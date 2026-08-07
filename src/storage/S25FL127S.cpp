@@ -1,7 +1,7 @@
 #include "S25FL127S.h"
 
-#include <algorithm>
 #include "avi_esp_libs/compatibility.h"
+#include <algorithm>
 
 namespace {
 constexpr uint8_t kRead = 0x03;
@@ -18,8 +18,8 @@ constexpr uint32_t kMaximumReadFrequencyHz = 50000000;
 
 int64_t deadlineAfter(uint32_t timeout_ms) {
   return avi_micros() + static_cast<int64_t>(timeout_ms) * 1000;
-} // 名前なし名前空間
 }
+} // 名前なし名前空間
 
 S25FL127S::~S25FL127S() {
   if (device_ != nullptr)
@@ -27,20 +27,19 @@ S25FL127S::~S25FL127S() {
 }
 
 esp_err_t S25FL127S::begin(SPICREATE &spi, int chip_select,
-                            uint32_t frequency_hz) {
+                           uint32_t frequency_hz) {
   return begin(spi, chip_select, Config{frequency_hz, 1000});
 }
 
 esp_err_t S25FL127S::begin(SPICREATE &spi, int chip_select,
-                            const Config &config) {
+                           const Config &config) {
   if (spi_ != nullptr || device_ != nullptr)
     return ESP_ERR_INVALID_STATE;
-  if (config.frequency_hz == 0 ||
-      config.frequency_hz > kMaximumReadFrequencyHz)
+  if (config.frequency_hz == 0 || config.frequency_hz > kMaximumReadFrequencyHz)
     return ESP_ERR_INVALID_ARG;
 
-  esp_err_t result = spi.addDevice(
-      {chip_select, config.frequency_hz, 3, 1}, device_);
+  esp_err_t result =
+      spi.addDevice({chip_select, config.frequency_hz, 3, 1}, device_);
   if (result != ESP_OK)
     return result;
 
@@ -200,8 +199,7 @@ esp_err_t S25FL127S::write(uint32_t address, const uint8_t *data,
   return ESP_OK;
 }
 
-esp_err_t S25FL127S::read(uint32_t address, uint8_t *data,
-                          std::size_t length) {
+esp_err_t S25FL127S::read(uint32_t address, uint8_t *data, std::size_t length) {
   if (!initialized())
     return ESP_ERR_INVALID_STATE;
   if (data == nullptr || length == 0 || address >= kCapacity ||

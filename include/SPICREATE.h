@@ -60,8 +60,7 @@ private:
   friend class S25FL127S;
   friend class S25FL512S;
 
-  [[nodiscard]] esp_err_t addDevice(const DeviceConfig &config,
-                                    Device &device);
+  [[nodiscard]] esp_err_t addDevice(const DeviceConfig &config, Device &device);
   [[nodiscard]] esp_err_t removeDevice(Device &device);
   [[nodiscard]] esp_err_t transmit(Device device,
                                    spi_transaction_t &transaction);

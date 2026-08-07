@@ -98,8 +98,7 @@ bool validConfig(const ICM20948::Config &config) {
          config.frequency_hz <= kMaximumSpiFrequencyHz &&
          static_cast<uint8_t>(config.accel_range) <= 3 &&
          static_cast<uint8_t>(config.gyro_range) <= 3 &&
-         config.accel_sample_rate_divider <=
-             kMaximumAccelSampleRateDivider &&
+         config.accel_sample_rate_divider <= kMaximumAccelSampleRateDivider &&
          validDlpf(config.accel_dlpf) && validDlpf(config.gyro_dlpf) &&
          validMagnetometerOdr(config.magnetometer_odr) &&
          config.operation_timeout_ms > 0;
@@ -142,8 +141,8 @@ int16_t signedBigEndian(const uint8_t *data) {
 }
 
 int16_t signedLittleEndian(const uint8_t *data) {
-  int32_t value = static_cast<int32_t>(uint16_t{data[0]} |
-                                       (uint16_t{data[1]} << 8));
+  int32_t value =
+      static_cast<int32_t>(uint16_t{data[0]} | (uint16_t{data[1]} << 8));
   if ((value & 0x8000) != 0)
     value -= 0x10000;
   return static_cast<int16_t>(value);
@@ -165,8 +164,7 @@ esp_err_t ICM20948::selectBank(uint8_t bank) {
 }
 
 esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
-                                         uint8_t *value,
-                                         uint32_t timeout_ms) {
+                                         uint8_t *value, uint32_t timeout_ms) {
   if (spi_ == nullptr || device_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   if (value == nullptr || timeout_ms == 0)
@@ -182,8 +180,8 @@ esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
     return result;
 
   uint8_t ignored_status = 0;
-  result = spi_->readRegister(device_, kRead | kI2cMasterStatus,
-                              ignored_status);
+  result =
+      spi_->readRegister(device_, kRead | kI2cMasterStatus, ignored_status);
   if (result != ESP_OK)
     return result;
 
@@ -198,8 +196,7 @@ esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
   if (result == ESP_OK && !read)
     result = spi_->writeRegister(device_, kI2cSlave4Output, *value);
   if (result == ESP_OK)
-    result = spi_->writeRegister(device_, kI2cSlave4Control,
-                                 kI2cSlaveEnable);
+    result = spi_->writeRegister(device_, kI2cSlave4Control, kI2cSlaveEnable);
   if (result != ESP_OK)
     return finish(result);
 
@@ -207,8 +204,7 @@ esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
   if (result != ESP_OK)
     return result;
 
-  const int64_t deadline_us =
-      avi_micros() + int64_t{timeout_ms} * 1000;
+  const int64_t deadline_us = avi_micros() + int64_t{timeout_ms} * 1000;
   bool transfer_complete = false;
   while (avi_micros() < deadline_us) {
     uint8_t status = 0;
@@ -231,8 +227,7 @@ esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
 
   result = selectBank(kBank3);
   if (result == ESP_OK)
-    result =
-        spi_->readRegister(device_, kRead | kI2cSlave4Input, *value);
+    result = spi_->readRegister(device_, kRead | kI2cSlave4Input, *value);
   return finish(result);
 }
 
@@ -254,8 +249,8 @@ esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
                               interrupt_config);
   if (result == ESP_OK) {
     interrupt_config &= static_cast<uint8_t>(~kBypassEnable);
-    result = spi_->writeRegister(device_, kInterruptPinConfig,
-                                 interrupt_config);
+    result =
+        spi_->writeRegister(device_, kInterruptPinConfig, interrupt_config);
   }
   if (result == ESP_OK)
     result = selectBank(kBank3);
@@ -313,13 +308,13 @@ esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
 
   result = selectBank(kBank3);
   if (result == ESP_OK) {
-    result = spi_->writeRegister(
-        device_, kI2cSlave0Address,
-        static_cast<uint8_t>(kRead | kMagnetometerAddress));
+    result =
+        spi_->writeRegister(device_, kI2cSlave0Address,
+                            static_cast<uint8_t>(kRead | kMagnetometerAddress));
   }
   if (result == ESP_OK) {
-    result = spi_->writeRegister(device_, kI2cSlave0Register,
-                                 kMagnetometerStatus1);
+    result =
+        spi_->writeRegister(device_, kI2cSlave0Register, kMagnetometerStatus1);
   }
   if (result == ESP_OK) {
     result = spi_->writeRegister(device_, kI2cSlave0Control,
@@ -331,13 +326,11 @@ esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
 
   avi_delay_ms(magnetometerStartupDelayMs(odr));
   uint8_t master_status = 0;
-  result = spi_->readRegister(device_, kRead | kI2cMasterStatus,
-                              master_status);
+  result = spi_->readRegister(device_, kRead | kI2cMasterStatus, master_status);
   if (result != ESP_OK)
     return result;
-  return (master_status & kAuxiliaryI2cErrors) == 0
-             ? ESP_OK
-             : ESP_ERR_INVALID_RESPONSE;
+  return (master_status & kAuxiliaryI2cErrors) == 0 ? ESP_OK
+                                                    : ESP_ERR_INVALID_RESPONSE;
 }
 
 esp_err_t ICM20948::shutdownHardware(bool stop_magnetometer) {
@@ -360,13 +353,13 @@ esp_err_t ICM20948::shutdownHardware(bool stop_magnetometer) {
   }
 
   rememberFirst(selectBank(kBank0), first_error);
-  rememberFirst(spi_->writeRegister(device_, kUserControl,
-                                    kI2cInterfaceDisable),
-                first_error);
-  rememberFirst(spi_->writeRegister(
-                    device_, kPowerManagement1,
-                    static_cast<uint8_t>(kSleep | kAutomaticClock)),
-                first_error);
+  rememberFirst(
+      spi_->writeRegister(device_, kUserControl, kI2cInterfaceDisable),
+      first_error);
+  rememberFirst(
+      spi_->writeRegister(device_, kPowerManagement1,
+                          static_cast<uint8_t>(kSleep | kAutomaticClock)),
+      first_error);
   return first_error;
 }
 
@@ -449,8 +442,7 @@ esp_err_t ICM20948::begin(SPICREATE &spi, int chip_select,
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kUserControl, kI2cInterfaceDisable);
   if (result == ESP_OK)
-    result =
-        spi_->writeRegister(device_, kPowerManagement1, kAutomaticClock);
+    result = spi_->writeRegister(device_, kPowerManagement1, kAutomaticClock);
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kPowerManagement2, 0x00);
   if (result != ESP_OK)
@@ -505,8 +497,8 @@ esp_err_t ICM20948::end() {
     return ESP_ERR_INVALID_STATE;
 
   initialized_ = false;
-  const esp_err_t shutdown = shutdownHardware(
-      config_.magnetometer_odr != MagnetometerOdr::off);
+  const esp_err_t shutdown =
+      shutdownHardware(config_.magnetometer_odr != MagnetometerOdr::off);
   const esp_err_t remove = spi_->removeDevice(device_);
   if (remove != ESP_OK)
     return remove;
@@ -520,9 +512,8 @@ esp_err_t ICM20948::whoAmI(uint8_t &value) {
   if (!initialized_ || spi_ == nullptr || device_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   const esp_err_t result = selectBank(kBank0);
-  return result == ESP_OK
-             ? spi_->readRegister(device_, kRead | kWhoAmI, value)
-             : result;
+  return result == ESP_OK ? spi_->readRegister(device_, kRead | kWhoAmI, value)
+                          : result;
 }
 
 esp_err_t ICM20948::getStatus(Status &status) {
@@ -534,35 +525,29 @@ esp_err_t ICM20948::getStatus(Status &status) {
     return result;
 
   uint8_t data_ready = 0;
-  result =
-      spi_->readRegister(device_, kRead | kDataReadyStatus, data_ready);
+  result = spi_->readRegister(device_, kRead | kDataReadyStatus, data_ready);
   if (result != ESP_OK)
     return result;
 
   Status next{};
   next.data_ready = (data_ready & 0x01) != 0;
-  next.magnetometer_enabled =
-      config_.magnetometer_odr != MagnetometerOdr::off;
+  next.magnetometer_enabled = config_.magnetometer_odr != MagnetometerOdr::off;
   if (next.magnetometer_enabled) {
     uint8_t master_status = 0;
-    result = spi_->readRegister(device_, kRead | kI2cMasterStatus,
-                                master_status);
+    result =
+        spi_->readRegister(device_, kRead | kI2cMasterStatus, master_status);
     if (result != ESP_OK)
       return result;
-    next.auxiliary_i2c_error =
-        (master_status & kAuxiliaryI2cErrors) != 0;
+    next.auxiliary_i2c_error = (master_status & kAuxiliaryI2cErrors) != 0;
 
     uint8_t magnetic[9]{};
     result = spi_->read(device_, kRead | kExternalSensorData, magnetic,
                         sizeof(magnetic));
     if (result != ESP_OK)
       return result;
-    next.magnetometer_ready =
-        (magnetic[0] & kMagnetometerDataReady) != 0;
-    next.magnetometer_overrun =
-        (magnetic[0] & kMagnetometerOverrun) != 0;
-    next.magnetometer_overflow =
-        (magnetic[8] & kMagnetometerOverflow) != 0;
+    next.magnetometer_ready = (magnetic[0] & kMagnetometerDataReady) != 0;
+    next.magnetometer_overrun = (magnetic[0] & kMagnetometerOverrun) != 0;
+    next.magnetometer_overflow = (magnetic[8] & kMagnetometerOverflow) != 0;
   }
 
   status = next;
@@ -585,8 +570,8 @@ esp_err_t ICM20948::get(Data &data) {
   uint8_t magnetic[9]{};
   if (config_.magnetometer_odr != MagnetometerOdr::off) {
     uint8_t master_status = 0;
-    result = spi_->readRegister(device_, kRead | kI2cMasterStatus,
-                                master_status);
+    result =
+        spi_->readRegister(device_, kRead | kI2cMasterStatus, master_status);
     if (result != ESP_OK)
       return result;
     if ((master_status & kAuxiliaryI2cErrors) != 0)
