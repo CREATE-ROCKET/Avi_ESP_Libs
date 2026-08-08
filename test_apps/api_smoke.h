@@ -91,6 +91,7 @@ inline void aviApiSmoke() {
   CANCREATE::Config can_config{};
   CANCREATE::Frame can_frame{};
   CANCREATE::Status can_status{};
+  CANCREATE::TestResult can_test{};
   uint8_t can_data[8]{};
   std::array<uint8_t, 8> can_array{};
   std::size_t available_count{};
@@ -104,11 +105,18 @@ inline void aviApiSmoke() {
   (void)can.write(0x100, can_array);
   (void)can.writeText(0x100, "start");
   (void)can.write(can_frame);
+  can_frame.identifier = CANCREATE::kApplicationIdMax;
+  (void)can.write(can_frame);
+  can_frame.identifier = CANCREATE::kDiagnosticIdMask;
+  (void)can.write(can_frame);
+  can_frame.extended = true;
+  (void)can.write(can_frame);
   (void)can.read(can_frame);
   (void)can.available();
   (void)can.available(available_count);
   (void)can.getStatus(can_status);
   (void)can.recover();
+  (void)can.test(can_test, avi::Timeout::seconds(1));
   (void)can.initialized();
   (void)can.end();
 

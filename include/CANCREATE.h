@@ -23,6 +23,15 @@ public:
   };
   enum class Mode : uint8_t { normal, no_ack, listen_only };
   enum class State : uint8_t { stopped, running, bus_off, recovering };
+  enum class TestState : uint8_t {
+    success,
+    no_peer_response,
+    controller_failure
+  };
+
+  static constexpr uint32_t kApplicationIdMax = 0x3FF;
+  static constexpr uint32_t kDiagnosticIdMask = 0x400;
+  static constexpr uint32_t kTestIdentifier = 0x7FF;
 
   struct Frame {
     uint32_t identifier{0};
@@ -56,6 +65,11 @@ public:
     uint32_t rx_error_count{0};
     uint32_t bus_error_count{0};
     uint32_t dropped_rx_count{0};
+  };
+
+  struct TestResult {
+    TestState state{TestState::controller_failure};
+    bool restored{false};
   };
 
   CANCREATE() = default;
@@ -97,9 +111,15 @@ public:
   [[nodiscard]] esp_err_t getStatus(Status &status) const;
   [[nodiscard]] esp_err_t
   recover(avi::Timeout timeout = avi::Timeout::noWait());
+  [[nodiscard]] esp_err_t
+  test(TestResult &result,
+       avi::Timeout timeout = avi::Timeout::milliseconds(1000));
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
+  [[nodiscard]] esp_err_t start(const Config &config, bool self_test,
+                                bool loopback, int8_t retry_count);
   bool initialized_{false};
   void *backend_{nullptr};
+  Config config_{};
 };

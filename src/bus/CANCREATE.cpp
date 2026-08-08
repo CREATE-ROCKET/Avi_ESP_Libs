@@ -34,6 +34,10 @@ bool validIdentifier(uint32_t identifier, bool extended) {
   return identifier <= (extended ? kExtendedIdMask : kStandardIdMask);
 }
 
+bool applicationIdentifier(uint32_t identifier, bool extended) {
+  return extended || identifier <= CANCREATE::kApplicationIdMax;
+}
+
 bool validConfig(const CANCREATE::Config &config) {
   if (!GPIO_IS_VALID_OUTPUT_GPIO(config.tx) || !GPIO_IS_VALID_GPIO(config.rx) ||
       !validBitrate(config.bitrate) || config.rx_queue_depth == 0)
@@ -74,6 +78,8 @@ struct Backend {
   uint8_t tx_data[8]{};
   uint32_t dropped_rx{};
   uint32_t recovering{};
+  uint32_t tx_success{};
+  bool allow_diagnostic{false};
 };
 
 Backend *createBackend() {
@@ -120,6 +126,9 @@ bool IRAM_ATTR receiveFrame(twai_node_handle_t node,
     __atomic_fetch_add(&backend->dropped_rx, 1U, __ATOMIC_RELAXED);
     return false;
   }
+  if (!backend->allow_diagnostic && !frame.header.ide &&
+      frame.header.id > CANCREATE::kApplicationIdMax)
+    return false;
   raw.header = frame.header;
   BaseType_t task_awoken = pdFALSE;
   if (xQueueSendFromISR(backend->rx_queue, &raw, &task_awoken) != pdTRUE)
@@ -128,10 +137,14 @@ bool IRAM_ATTR receiveFrame(twai_node_handle_t node,
 }
 
 bool IRAM_ATTR transmitDone(twai_node_handle_t,
-                            const twai_tx_done_event_data_t *, void *context) {
-  // SAFETY: contextと送信領域はノード削除完了まで生存し、ISRではセマフォを
-  // 返すだけでSPI通信、ログ、動的確保、ブロッキング処理を行わない。
+                            const twai_tx_done_event_data_t *event,
+                            void *context) {
+  // SAFETY: contextと送信領域はnode delete完了まで生存する。eventはcallback中
+  // だけ有効であり、値を固定領域へコピーする。ISRではFromISR APIだけを使い、
+  // heap確保、ログ、ブロッキング処理を行わない。
   auto *backend = static_cast<Backend *>(context);
+  __atomic_store_n(&backend->tx_success, event->is_tx_success ? 1U : 0U,
+                   __ATOMIC_RELEASE);
   BaseType_t task_awoken = pdFALSE;
   (void)xSemaphoreGiveFromISR(backend->tx_available, &task_awoken);
   return task_awoken == pdTRUE;
@@ -172,6 +185,10 @@ namespace {
 struct Backend {
   bool running{false};
   CANCREATE::Filter filter{};
+  CANCREATE::Frame *prefetched{};
+  std::size_t prefetch_capacity{};
+  std::size_t prefetch_head{};
+  std::size_t prefetch_count{};
 };
 
 twai_mode_t modeFrom(CANCREATE::Mode mode) {
@@ -235,6 +252,34 @@ bool filterAccepts(const CANCREATE::Filter &filter,
           ((message.identifier ^ filter.identifier) & filter.mask) == 0);
 }
 
+void copyFrame(const twai_message_t &message, CANCREATE::Frame &frame) {
+  frame = {};
+  frame.identifier = message.identifier;
+  frame.data_length = message.data_length_code;
+  frame.extended = message.extd;
+  frame.remote = message.rtr;
+  std::memcpy(frame.data, message.data, frame.data_length);
+}
+
+esp_err_t drainReceiveQueue(Backend &backend) {
+  twai_message_t message{};
+  while (twai_receive(&message, 0) == ESP_OK) {
+    if (message.data_length_code > 8 ||
+        !validIdentifier(message.identifier, message.extd))
+      return ESP_ERR_INVALID_SIZE;
+    if (!applicationIdentifier(message.identifier, message.extd) ||
+        !filterAccepts(backend.filter, message))
+      continue;
+    if (backend.prefetch_count == backend.prefetch_capacity)
+      return ESP_ERR_NO_MEM;
+    const std::size_t slot = (backend.prefetch_head + backend.prefetch_count) %
+                             backend.prefetch_capacity;
+    copyFrame(message, backend.prefetched[slot]);
+    ++backend.prefetch_count;
+  }
+  return ESP_OK;
+}
+
 CANCREATE::State stateFrom(twai_state_t state) {
   switch (state) {
   case TWAI_STATE_RUNNING:
@@ -271,6 +316,15 @@ esp_err_t CANCREATE::begin(const Config &config) {
     return ESP_ERR_INVALID_STATE;
   if (!validConfig(config))
     return ESP_ERR_INVALID_ARG;
+  const esp_err_t result =
+      start(config, config.mode == Mode::no_ack, false, -1);
+  if (result == ESP_OK)
+    config_ = config;
+  return result;
+}
+
+esp_err_t CANCREATE::start(const Config &config, bool self_test, bool loopback,
+                           int8_t retry_count) {
 
 #if ESP_IDF_VERSION_MAJOR >= 6
   auto *backend = createBackend();
@@ -294,8 +348,9 @@ esp_err_t CANCREATE::begin(const Config &config) {
   node_config.io_cfg.bus_off_indicator = GPIO_NUM_NC;
   node_config.bit_timing.bitrate = static_cast<uint32_t>(config.bitrate);
   node_config.tx_queue_depth = 1;
-  node_config.fail_retry_cnt = -1;
-  node_config.flags.enable_self_test = config.mode == Mode::no_ack;
+  node_config.fail_retry_cnt = retry_count;
+  node_config.flags.enable_self_test = self_test;
+  node_config.flags.enable_loopback = loopback;
   node_config.flags.enable_listen_only = config.mode == Mode::listen_only;
 
   esp_err_t result = twai_new_node_onchip(&node_config, &backend->node);
@@ -331,9 +386,17 @@ esp_err_t CANCREATE::begin(const Config &config) {
   if (backend == nullptr)
     return ESP_ERR_NO_MEM;
   backend->filter = config.filter;
+  backend->prefetched =
+      new (std::nothrow) Frame[static_cast<std::size_t>(config.rx_queue_depth)];
+  if (backend->prefetched == nullptr) {
+    delete backend;
+    return ESP_ERR_NO_MEM;
+  }
+  backend->prefetch_capacity = config.rx_queue_depth;
 
   twai_timing_config_t timing{};
   if (!timingFrom(config.bitrate, timing)) {
+    delete[] backend->prefetched;
     delete backend;
     return ESP_ERR_INVALID_ARG;
   }
@@ -344,6 +407,7 @@ esp_err_t CANCREATE::begin(const Config &config) {
   const twai_filter_config_t filter = filterFrom(config.filter);
   esp_err_t result = twai_driver_install(&general, &timing, &filter);
   if (result != ESP_OK) {
+    delete[] backend->prefetched;
     delete backend;
     return result;
   }
@@ -352,6 +416,7 @@ esp_err_t CANCREATE::begin(const Config &config) {
   if (result != ESP_OK) {
     if (twai_driver_uninstall() == ESP_OK) {
       backend_ = nullptr;
+      delete[] backend->prefetched;
       delete backend;
     }
     return result;
@@ -373,6 +438,7 @@ esp_err_t CANCREATE::end() {
   const esp_err_t result = releaseNode(backend);
   if (result == ESP_OK) {
     backend_ = nullptr;
+    config_ = Config{};
   }
   return result;
 #else
@@ -387,7 +453,9 @@ esp_err_t CANCREATE::end() {
   if (uninstall_result != ESP_OK)
     return uninstall_result;
   backend_ = nullptr;
+  delete[] backend->prefetched;
   delete backend;
+  config_ = Config{};
   return stop_result == ESP_OK || stop_result == ESP_ERR_INVALID_STATE
              ? ESP_OK
              : stop_result;
@@ -401,7 +469,8 @@ esp_err_t CANCREATE::write(const Frame &frame, avi::Timeout timeout) {
   if (frame.data_length > 8)
     return ESP_ERR_INVALID_SIZE;
   if (avi::internal::timeoutToTicks(timeout, timeout_ticks) != ESP_OK ||
-      !validIdentifier(frame.identifier, frame.extended))
+      !validIdentifier(frame.identifier, frame.extended) ||
+      !applicationIdentifier(frame.identifier, frame.extended))
     return ESP_ERR_INVALID_ARG;
 
 #if ESP_IDF_VERSION_MAJOR >= 6
@@ -448,7 +517,7 @@ esp_err_t CANCREATE::write(uint32_t identifier, uint8_t value,
 esp_err_t CANCREATE::write(uint32_t identifier, const uint8_t *data,
                            std::size_t length, avi::Timeout timeout) {
   if ((data == nullptr && length != 0) || length > 8 ||
-      !validIdentifier(identifier, false))
+      identifier > kApplicationIdMax)
     return length > 8 ? ESP_ERR_INVALID_SIZE : ESP_ERR_INVALID_ARG;
   Frame frame{};
   frame.identifier = identifier;
@@ -489,6 +558,14 @@ esp_err_t CANCREATE::read(Frame &frame, avi::Timeout timeout) {
   std::memcpy(next.data, raw.data, next.data_length);
 #else
   auto *backend = static_cast<Backend *>(backend_);
+  if (backend->prefetch_count != 0) {
+    next = backend->prefetched[backend->prefetch_head];
+    backend->prefetch_head =
+        (backend->prefetch_head + 1) % backend->prefetch_capacity;
+    --backend->prefetch_count;
+    frame = next;
+    return ESP_OK;
+  }
   const TickType_t started_at = xTaskGetTickCount();
   TickType_t remaining_ticks = timeout_ticks;
   twai_message_t message{};
@@ -501,23 +578,18 @@ esp_err_t CANCREATE::read(Frame &frame, avi::Timeout timeout) {
     if (message.data_length_code > sizeof(next.data) ||
         !validIdentifier(message.identifier, message.extd))
       return ESP_ERR_INVALID_SIZE;
-    if (filterAccepts(backend->filter, message))
+    if (applicationIdentifier(message.identifier, message.extd) &&
+        filterAccepts(backend->filter, message))
       break;
 
-    if (timeout.isNoWait())
-      return ESP_ERR_NOT_FINISHED;
-    if (!timeout.isForever()) {
+    if (!timeout.isForever() && !timeout.isNoWait()) {
       const TickType_t elapsed = xTaskGetTickCount() - started_at;
       if (elapsed >= timeout_ticks)
         return ESP_ERR_TIMEOUT;
       remaining_ticks = timeout_ticks - elapsed;
     }
   }
-  next.identifier = message.identifier;
-  next.data_length = message.data_length_code;
-  next.extended = message.extd;
-  next.remote = message.rtr;
-  std::memcpy(next.data, message.data, next.data_length);
+  copyFrame(message, next);
 #endif
   frame = next;
   return ESP_OK;
@@ -530,10 +602,10 @@ esp_err_t CANCREATE::available(std::size_t &count) const {
   count = uxQueueMessagesWaiting(static_cast<Backend *>(backend_)->rx_queue);
   return ESP_OK;
 #else
-  twai_status_info_t info{};
-  const esp_err_t result = twai_get_status_info(&info);
+  auto &backend = *static_cast<Backend *>(backend_);
+  const esp_err_t result = drainReceiveQueue(backend);
   if (result == ESP_OK)
-    count = info.msgs_to_rx;
+    count = backend.prefetch_count;
   return result;
 #endif
 }
@@ -566,13 +638,17 @@ esp_err_t CANCREATE::getStatus(Status &status) const {
   next.dropped_rx_count =
       __atomic_load_n(&backend->dropped_rx, __ATOMIC_RELAXED);
 #else
+  auto &backend = *static_cast<Backend *>(backend_);
+  const esp_err_t drain = drainReceiveQueue(backend);
+  if (drain != ESP_OK)
+    return drain;
   twai_status_info_t info{};
   const esp_err_t result = twai_get_status_info(&info);
   if (result != ESP_OK)
     return result;
   next.state = stateFrom(info.state);
   next.pending_tx = info.msgs_to_tx;
-  next.pending_rx = info.msgs_to_rx;
+  next.pending_rx = backend.prefetch_count;
   next.tx_error_count = info.tx_error_counter;
   next.rx_error_count = info.rx_error_counter;
   next.bus_error_count = info.bus_error_count;
@@ -658,4 +734,145 @@ esp_err_t CANCREATE::recover(avi::Timeout timeout) {
     avi_delay_ms(1);
   } while (!avi::internal::expired(deadline));
   return ESP_ERR_TIMEOUT;
+}
+
+esp_err_t CANCREATE::test(TestResult &result, avi::Timeout timeout) {
+  if (!initialized_ || backend_ == nullptr)
+    return ESP_ERR_INVALID_STATE;
+  uint64_t timeout_ms{};
+  TickType_t timeout_ticks{};
+  if (!timeout.isFinite() || !timeout.millisecondsValue(timeout_ms) ||
+      timeout_ms == 0 ||
+      avi::internal::timeoutToTicks(timeout, timeout_ticks) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
+  Status status{};
+  esp_err_t test_error = getStatus(status);
+  if (test_error != ESP_OK)
+    return test_error;
+  if (status.state == State::bus_off || status.state == State::recovering)
+    return ESP_ERR_INVALID_STATE;
+
+  const Config saved = config_;
+  TestResult next{};
+  test_error = end();
+  bool normal_success = false;
+  Config temporary = saved;
+  temporary.mode = Mode::normal;
+  temporary.filter = {};
+  if (test_error == ESP_OK)
+    test_error = start(temporary, false, false, 0);
+
+  if (test_error == ESP_OK) {
+#if ESP_IDF_VERSION_MAJOR >= 6
+    auto *backend = static_cast<Backend *>(backend_);
+    if (xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
+      backend->tx_frame = {};
+      backend->tx_frame.header.id = kTestIdentifier;
+      backend->tx_frame.header.dlc = 0;
+      backend->tx_frame.buffer = backend->tx_data;
+      backend->tx_frame.buffer_len = 0;
+      __atomic_store_n(&backend->tx_success, 0U, __ATOMIC_RELEASE);
+      int timeout_value{};
+      test_error =
+          avi::internal::timeoutToIntMilliseconds(timeout, timeout_value);
+      if (test_error == ESP_OK)
+        test_error = twai_node_transmit(backend->node, &backend->tx_frame,
+                                        timeout_value);
+      if (test_error == ESP_OK &&
+          xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE)
+        normal_success =
+            __atomic_load_n(&backend->tx_success, __ATOMIC_ACQUIRE) != 0;
+      if (test_error != ESP_OK)
+        (void)xSemaphoreGive(backend->tx_available);
+    }
+#else
+    uint32_t alerts{};
+    test_error = twai_reconfigure_alerts(
+        TWAI_ALERT_TX_SUCCESS | TWAI_ALERT_TX_FAILED | TWAI_ALERT_BUS_ERROR,
+        nullptr);
+    twai_message_t message{};
+    message.identifier = kTestIdentifier;
+    message.ss = 1;
+    if (test_error == ESP_OK)
+      test_error = twai_transmit(&message, timeout_ticks);
+    if (test_error == ESP_OK &&
+        twai_read_alerts(&alerts, timeout_ticks) == ESP_OK)
+      normal_success = (alerts & TWAI_ALERT_TX_SUCCESS) != 0;
+#endif
+  }
+
+  if (backend_ != nullptr) {
+    const esp_err_t stop = end();
+    if (test_error == ESP_OK && stop != ESP_OK)
+      test_error = stop;
+  }
+
+  bool self_reception_success = false;
+  if (test_error == ESP_OK && !normal_success) {
+    temporary.mode = Mode::no_ack;
+    test_error = start(temporary, true, true, 0);
+    if (test_error == ESP_OK) {
+#if ESP_IDF_VERSION_MAJOR >= 6
+      auto *backend = static_cast<Backend *>(backend_);
+      backend->allow_diagnostic = true;
+      if (xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
+        backend->tx_frame = {};
+        backend->tx_frame.header.id = kTestIdentifier;
+        backend->tx_frame.header.dlc = 0;
+        backend->tx_frame.buffer = backend->tx_data;
+        int timeout_value{};
+        test_error =
+            avi::internal::timeoutToIntMilliseconds(timeout, timeout_value);
+        if (test_error == ESP_OK)
+          test_error = twai_node_transmit(backend->node, &backend->tx_frame,
+                                          timeout_value);
+        if (test_error == ESP_OK &&
+            xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
+          RawFrame received{};
+          self_reception_success = xQueueReceive(backend->rx_queue, &received,
+                                                 timeout_ticks) == pdTRUE &&
+                                   !received.header.ide &&
+                                   received.header.id == kTestIdentifier;
+        }
+        if (test_error != ESP_OK)
+          (void)xSemaphoreGive(backend->tx_available);
+      }
+#else
+      twai_message_t message{};
+      message.identifier = kTestIdentifier;
+      message.ss = 1;
+      message.self = 1;
+      test_error = twai_transmit(&message, timeout_ticks);
+      twai_message_t received{};
+      if (test_error == ESP_OK)
+        self_reception_success =
+            twai_receive(&received, timeout_ticks) == ESP_OK &&
+            !received.extd && received.identifier == kTestIdentifier;
+#endif
+    }
+    if (backend_ != nullptr) {
+      const esp_err_t stop = end();
+      if (test_error == ESP_OK && stop != ESP_OK)
+        test_error = stop;
+    }
+  }
+
+  next.state = normal_success
+                   ? TestState::success
+                   : (self_reception_success ? TestState::no_peer_response
+                                             : TestState::controller_failure);
+  esp_err_t restore = ESP_OK;
+  if (backend_ != nullptr)
+    restore = ESP_ERR_INVALID_STATE;
+  else
+    restore = start(saved, saved.mode == Mode::no_ack, false, -1);
+  if (restore == ESP_OK) {
+    config_ = saved;
+    next.restored = true;
+  } else {
+    initialized_ = false;
+    config_ = Config{};
+  }
+  result = next;
+  return restore != ESP_OK ? restore : test_error;
 }
