@@ -32,9 +32,9 @@ frame.extended = true;
 frame.data_length = 2;
 frame.data[0] = 0xCA;
 frame.data[1] = 0xFE;
-can.write(frame, 100);
+can.write(frame, avi::Timeout::milliseconds(100));
 ```
 
 詳細設定では`Config`へ`Bitrate`、normal/no-ack/listen-only mode、標準/拡張ID filter、RX queue depthを指定できます。bitrateは`kbps25`、`kbps50`、`kbps100`、`kbps125`、`kbps250`、`kbps500`、`kbps800`、`mbps1`です。
 
-`available(std::size_t&)`、`getStatus()`、`recover()`はエラーを区別する詳細APIです。引数なし`available()`はエラー時に0を返す便利版です。`read(Frame&)`の既定timeoutは非blockingの0 msです。
+`available(std::size_t&)`、`getStatus()`、`recover()`はエラーを区別する詳細APIです。引数なし`available()`はエラー時に0を返す便利版です。`read()`、`write()`、`recover()`の既定timeoutは`avi::Timeout::noWait()`です。no-waitでqueueが空または満杯なら`ESP_ERR_NOT_FINISHED`、有限待機が期限切れなら`ESP_ERR_TIMEOUT`を返します。`avi::Timeout::forever()`は明示した場合だけ永久待機します。

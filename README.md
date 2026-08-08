@@ -41,6 +41,17 @@ if (can.available()) {
 
 Tier 1 sensorは `begin()`、`available()`、`read()`、`end()` が基本です。`read()`は単位付きの物理値、`readRaw()`はdevice registerの符号付き整数を返します。
 
+待機時間は整数ではなく`avi::Timeout`で明示します。
+
+```cpp
+avi::Timeout::noWait();          // 0 ms
+avi::Timeout::milliseconds(20); // 有限待機
+avi::Timeout::seconds(1);       // 有限待機
+avi::Timeout::forever();        // 明示した場合だけ無限待機
+```
+
+CAN queue、Data Ready、SPI bus lockなど、利用者が任意に待つAPIの既定値は`noWait()`です。準備前なら`ESP_ERR_NOT_FINISHED`、有限待機の期限切れなら`ESP_ERR_TIMEOUT`を返します。一方、sensor reset、one-shot、Flash program/eraseなどを成立させる内部期限は故障検出に必要なので、Configに有限の既定値を持ちます。これらのoperation timeoutは`noWait()`と`forever()`を拒否します。
+
 ## ドライバの区分
 
 Tier 1は今回、設定、初期化確認、測定または通信、状態取得、有限timeout、終了処理を重点整備した対象です。
@@ -49,8 +60,8 @@ Tier 1は今回、設定、初期化確認、測定または通信、状態取�
 | --- | --- |
 | `SPICREATE` | SPI busの所有、最大8 deviceの共有、有限timeout、初期化・終了状態の検査 |
 | `CANCREATE` | Classic TWAI frame、標準/拡張ID filter、3 mode、状態取得、bus-off復旧 |
-| `ICM42688` | 加速度/角速度range、ODR、filter、INT GPIO、Data Ready待機 |
-| `ICM20602` | 加速度/角速度range、sample divider、DLPF、Data Ready状態 |
+| `ICM42688` | 全加速度/角速度range、accel/gyro別ODR、filter、INT GPIO、Data Ready待機 |
+| `ICM20602` | 加速度/角速度range、sample divider、accel/gyro別DLPF、Data Ready状態 |
 | `ICM20948` | 加速度/角速度range、sample divider、DLPF、AK09916 ODR、9軸測定 |
 | `LPS25HB` | ODR、圧力/温度average、one-shot、ready/overrun状態、物理値変換 |
 | `S25FL127S` | JEDEC/typed status、範囲検査、page分割write、read、block/chip erase |
@@ -168,7 +179,8 @@ esp_err_t initializeDataReady()
 
 esp_err_t measureWhenReady(ICM42688::Data &data)
 {
-    const esp_err_t result = imu42688.waitDataReady(100);
+    const esp_err_t result =
+        imu42688.waitDataReady(avi::Timeout::milliseconds(100));
     if (result != ESP_OK) {
         return result;
     }
@@ -176,13 +188,15 @@ esp_err_t measureWhenReady(ICM42688::Data &data)
 }
 ```
 
-ISRはsemaphore通知だけを行います。SPI通信、動的確保、ログ、blocking処理はISR内で行わず、暗黙のbackground taskも生成しません。
+ISRはstatic semaphore通知だけを行います。INT GPIO設定時の`available()`と`waitDataReady()`はSPI pollingを行わず、`available()`は通知を消費せず、`waitDataReady()`だけが消費します。SPI通信、動的確保、ログ、blocking処理はISR内で行わず、暗黙のbackground taskも生成しません。
+
+ICM42688は加速度・ジャイロごとに12.5 Hzから32 kHzまでのLow Noise ODRを指定でき、ジャイロrangeは±2000、1000、500、250、125、62.5、31.25、15.625 dpsを選べます。ICM20602は`AccelDlpf`と`GyroDlpf`を別々に設定し、それぞれ`ACCEL_CONFIG2`と`CONFIG`へ反映します。
 
 CANの対応bitrateは`kbps25`、`kbps50`、`kbps100`、`kbps125`、`kbps250`、`kbps500`、`kbps800`、`mbps1`です。11bit standard frameのbyte/buffer送信には`write(identifier, ...)`、extended/RTRには`Frame` APIを使います。Classic CANのため8 byte超過は拒否します。`read(Frame&)`の既定timeoutは0 msです。
 
 ICM20948はbank切替を伴うため、同一instanceを複数taskから同時に呼び出さないでください。他のdeviceも、同一instanceの`read()`/`write()`と`end()`/再設定は呼出し側でserializeしてください。異なるdevice instance間のSPI transactionは`SPICREATE`がserializeします。
 
-S25FL127Sの`write()`はpage境界を内部処理しますが、自動eraseはしません。NOR Flashで0から1へ戻す領域は、先にaligned 64 KiB `eraseBlock()`または`eraseChip()`で消去してください。FL-Sの4 KiB parameter sectorは配置が構成依存のため、誤消去を避けて汎用`eraseSector()` APIを設けていません。
+S25FL127Sの`write()`はpage境界を内部処理しますが、自動eraseはしません。NOR Flashで0から1へ戻す領域は、先に`eraseBlock()`または`eraseChip()`で消去してください。`begin()`はSR2の`D8h_O`を読み、D8h block erase単位を64 KiBまたは256 KiBとして自動検出します。現在値は`blockSize()`で取得できます。FL-Sの4 KiB parameter sectorは配置が構成依存のため、誤消去を避けて汎用`eraseSector()` APIを設けていません。
 
 ## エラーと所有権
 
@@ -211,6 +225,11 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 
 - `CAN_CREATE`、`CANCREATE_lib.h`、旧互換mode、`setPin()`、`sendChar()`、`sendData()`、`sendLine()`、`readLine()`、`sendPacket()`を削除しました。
 - `CANCREATE::Config::bitrate`と簡易`begin()`は任意整数から`Bitrate` enumへ変更し、`read(Frame&)`の既定timeoutを0 msへ変更しました。
+- 公開timeout引数を`uint32_t`から暗黙整数変換できない`avi::Timeout`へ変更し、利用者待機の既定値を`noWait()`へ統一しました。
+- no-waitで未完了の場合は`ESP_ERR_TIMEOUT`ではなく`ESP_ERR_NOT_FINISHED`を返します。
+- ICM20602の`Dlpf`を`AccelDlpf`と`GyroDlpf`へ分離しました。
+- ICM42688の共通`Odr`を`AccelOdr`と`GyroOdr`へ分離し、range/ODRを拡張しました。
+- S25FL127Sの固定`kBlockSize`を削除し、実機設定を返す`blockSize()`へ変更しました。
 - `SPICREATE::SPICreate`と、利用側が触れていた`addDevice()`等の内部APIを削除しました。
 - 曖昧な公開型`ICM`、`Flash`、`LPS`を廃止し、device名と同じclass名へ統一しました。互換aliasはありません。
 - Tier 1の戻り値、`Config`、`Data`、`Status`を`esp_err_t`中心のAPIへ変更しました。
