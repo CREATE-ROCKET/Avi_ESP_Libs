@@ -554,7 +554,20 @@ esp_err_t ICM20948::getStatus(Status &status) {
   return ESP_OK;
 }
 
-esp_err_t ICM20948::get(Data &data) {
+esp_err_t ICM20948::available(bool &ready) {
+  Status status{};
+  const esp_err_t result = getStatus(status);
+  if (result == ESP_OK)
+    ready = status.data_ready;
+  return result;
+}
+
+bool ICM20948::available() {
+  bool ready{};
+  return available(ready) == ESP_OK && ready;
+}
+
+esp_err_t ICM20948::readRaw(RawData &data) {
   if (!initialized_ || spi_ == nullptr || device_ == nullptr)
     return ESP_ERR_INVALID_STATE;
 
@@ -581,21 +594,49 @@ esp_err_t ICM20948::get(Data &data) {
                         sizeof(magnetic));
     if (result != ESP_OK)
       return result;
-    if ((magnetic[8] & kMagnetometerOverflow) != 0)
+    if ((magnetic[0] & kMagnetometerDataReady) != 0 &&
+        (magnetic[8] & kMagnetometerOverflow) != 0)
       return ESP_ERR_INVALID_RESPONSE;
   }
 
-  Data next{};
+  RawData next{};
   for (std::size_t i = 0; i < next.acceleration.size(); ++i)
     next.acceleration[i] = signedBigEndian(&raw[i * 2]);
   for (std::size_t i = 0; i < next.angular_velocity.size(); ++i)
     next.angular_velocity[i] = signedBigEndian(&raw[6 + i * 2]);
   next.temperature = signedBigEndian(&raw[12]);
-  if (config_.magnetometer_odr != MagnetometerOdr::off) {
+  if (config_.magnetometer_odr != MagnetometerOdr::off &&
+      (magnetic[0] & kMagnetometerDataReady) != 0) {
     for (std::size_t i = 0; i < next.magnetic.size(); ++i)
       next.magnetic[i] = signedLittleEndian(&magnetic[1 + i * 2]);
+    next.magnetic_valid = true;
   }
 
+  data = next;
+  return ESP_OK;
+}
+
+esp_err_t ICM20948::read(Data &data) {
+  RawData raw{};
+  const esp_err_t result = readRaw(raw);
+  if (result != ESP_OK)
+    return result;
+
+  static constexpr float kAccelSensitivity[] = {16384.0F, 8192.0F, 4096.0F,
+                                                 2048.0F};
+  static constexpr float kGyroSensitivity[] = {131.0F, 65.5F, 32.8F, 16.4F};
+  const auto accel_index = static_cast<uint8_t>(config_.accel_range);
+  const auto gyro_index = static_cast<uint8_t>(config_.gyro_range);
+  Data next{};
+  for (std::size_t i = 0; i < raw.acceleration.size(); ++i) {
+    next.acceleration_g[i] =
+        raw.acceleration[i] / kAccelSensitivity[accel_index];
+    next.angular_velocity_dps[i] =
+        raw.angular_velocity[i] / kGyroSensitivity[gyro_index];
+    next.magnetic_ut[i] = raw.magnetic[i] * 0.15F;
+  }
+  next.temperature_celsius = raw.temperature / 333.87F + 21.0F;
+  next.magnetic_valid = raw.magnetic_valid;
   data = next;
   return ESP_OK;
 }

@@ -42,11 +42,20 @@ public:
     uint32_t operation_timeout_ms{300};
   };
 
-  struct Data {
+  struct RawData {
     std::array<int16_t, 3> acceleration{};
     std::array<int16_t, 3> angular_velocity{};
     int16_t temperature{};
     std::array<int16_t, 3> magnetic{};
+    bool magnetic_valid{false};
+  };
+
+  struct Data {
+    std::array<float, 3> acceleration_g{};
+    std::array<float, 3> angular_velocity_dps{};
+    float temperature_celsius{};
+    std::array<float, 3> magnetic_ut{};
+    bool magnetic_valid{false};
   };
 
   struct Status {
@@ -72,7 +81,10 @@ public:
   [[nodiscard]] esp_err_t end();
   [[nodiscard]] esp_err_t whoAmI(uint8_t &value);
   [[nodiscard]] esp_err_t getStatus(Status &status);
-  [[nodiscard]] esp_err_t get(Data &data);
+  [[nodiscard]] esp_err_t available(bool &ready);
+  [[nodiscard]] bool available();
+  [[nodiscard]] esp_err_t readRaw(RawData &data);
+  [[nodiscard]] esp_err_t read(Data &data);
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:

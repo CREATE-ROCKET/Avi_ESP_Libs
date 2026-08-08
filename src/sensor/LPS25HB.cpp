@@ -163,7 +163,20 @@ esp_err_t LPS25HB::getStatus(Status &status) {
   return ESP_OK;
 }
 
-esp_err_t LPS25HB::get(Data &data) {
+esp_err_t LPS25HB::available(bool &ready) {
+  Status status{};
+  const esp_err_t result = getStatus(status);
+  if (result == ESP_OK)
+    ready = status.pressure_ready && status.temperature_ready;
+  return result;
+}
+
+bool LPS25HB::available() {
+  bool ready{};
+  return available(ready) == ESP_OK && ready;
+}
+
+esp_err_t LPS25HB::readRaw(RawData &data) {
   if (!initialized_)
     return ESP_ERR_INVALID_STATE;
 
@@ -219,12 +232,22 @@ esp_err_t LPS25HB::get(Data &data) {
     temperature_value -= 0x00010000;
   const int16_t temperature_raw = static_cast<int16_t>(temperature_value);
 
+  RawData next{};
+  next.pressure = pressure_raw;
+  next.temperature = temperature_raw;
+  data = next;
+  return ESP_OK;
+}
+
+esp_err_t LPS25HB::read(Data &data) {
+  RawData raw{};
+  const esp_err_t result = readRaw(raw);
+  if (result != ESP_OK)
+    return result;
   Data next{};
-  next.pressure_raw = pressure_raw;
-  next.pressure_pa = static_cast<float>(pressure_raw) * 100.0F / 4096.0F;
-  next.temperature_raw = temperature_raw;
+  next.pressure_pa = static_cast<float>(raw.pressure) * 100.0F / 4096.0F;
   next.temperature_celsius =
-      42.5F + static_cast<float>(temperature_raw) / 480.0F;
+      42.5F + static_cast<float>(raw.temperature) / 480.0F;
   data = next;
   return ESP_OK;
 }

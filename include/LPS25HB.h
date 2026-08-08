@@ -28,10 +28,13 @@ public:
     uint32_t one_shot_timeout_ms{100};
   };
 
+  struct RawData {
+    int32_t pressure{0};
+    int16_t temperature{0};
+  };
+
   struct Data {
-    int32_t pressure_raw{0};
     float pressure_pa{0.0F};
-    int16_t temperature_raw{0};
     float temperature_celsius{0.0F};
   };
 
@@ -56,7 +59,10 @@ public:
   [[nodiscard]] esp_err_t end();
   [[nodiscard]] esp_err_t whoAmI(uint8_t &value);
   [[nodiscard]] esp_err_t getStatus(Status &status);
-  [[nodiscard]] esp_err_t get(Data &data);
+  [[nodiscard]] esp_err_t available(bool &ready);
+  [[nodiscard]] bool available();
+  [[nodiscard]] esp_err_t readRaw(RawData &data);
+  [[nodiscard]] esp_err_t read(Data &data);
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:

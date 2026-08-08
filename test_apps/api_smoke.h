@@ -72,24 +72,30 @@ inline void aviApiSmoke() {
   ICM20948 icm20948;
   ICM20948::Config icm20948_config{};
   ICM20948::Data icm20948_data{};
+  ICM20948::RawData icm20948_raw{};
   ICM20948::Status icm20948_status{};
   (void)icm20948.begin(spi, -1, icm20948_config);
   (void)icm20948.begin(spi, -1);
   (void)icm20948.whoAmI(identity);
   (void)icm20948.getStatus(icm20948_status);
-  (void)icm20948.get(icm20948_data);
+  (void)icm20948.available();
+  (void)icm20948.readRaw(icm20948_raw);
+  (void)icm20948.read(icm20948_data);
   (void)icm20948.initialized();
   (void)icm20948.end();
 
   LPS25HB pressure;
   LPS25HB::Config pressure_config{};
   LPS25HB::Data pressure_data{};
+  LPS25HB::RawData pressure_raw{};
   LPS25HB::Status pressure_status{};
   (void)pressure.begin(spi, -1, pressure_config);
   (void)pressure.begin(spi, -1);
   (void)pressure.whoAmI(identity);
   (void)pressure.getStatus(pressure_status);
-  (void)pressure.get(pressure_data);
+  (void)pressure.available();
+  (void)pressure.readRaw(pressure_raw);
+  (void)pressure.read(pressure_data);
   (void)pressure.initialized();
   (void)pressure.end();
 
