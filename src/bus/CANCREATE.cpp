@@ -1,9 +1,9 @@
 #include "CANCREATE.h"
 
-#include <climits>
 #include <cstring>
 #include <new>
 
+#include "../compatibility/timeout_internal.h"
 #include "avi_esp_libs/compatibility.h"
 #include "esp_idf_version.h"
 #include "freertos/FreeRTOS.h"
@@ -34,18 +34,6 @@ bool validIdentifier(uint32_t identifier, bool extended) {
   return identifier <= (extended ? kExtendedIdMask : kStandardIdMask);
 }
 
-bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
-  if (timeout_ms > INT_MAX)
-    return false;
-  uint64_t value = (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
-  if (timeout_ms != 0 && value == 0)
-    value = 1;
-  if (value >= portMAX_DELAY)
-    return false;
-  ticks = static_cast<TickType_t>(value);
-  return true;
-}
-
 bool validConfig(const CANCREATE::Config &config) {
   if (!GPIO_IS_VALID_OUTPUT_GPIO(config.tx) || !GPIO_IS_VALID_GPIO(config.rx) ||
       !validBitrate(config.bitrate) || config.rx_queue_depth == 0)
@@ -59,7 +47,7 @@ bool validConfig(const CANCREATE::Config &config) {
           validIdentifier(config.filter.mask, config.filter.extended));
 }
 
-} // 名前なし名前空間
+} // namespace
 
 #if ESP_IDF_VERSION_MAJOR >= 6
 
@@ -173,7 +161,7 @@ CANCREATE::State stateFrom(twai_error_state_t state, bool recovering) {
   return CANCREATE::State::running;
 }
 
-} // 名前なし名前空間
+} // namespace
 
 #else
 
@@ -261,7 +249,7 @@ CANCREATE::State stateFrom(twai_state_t state) {
   }
 }
 
-} // 名前なし名前空間
+} // namespace
 
 #endif
 
@@ -406,18 +394,20 @@ esp_err_t CANCREATE::end() {
 #endif
 }
 
-esp_err_t CANCREATE::write(const Frame &frame, uint32_t timeout_ms) {
+esp_err_t CANCREATE::write(const Frame &frame, avi::Timeout timeout) {
   if (!initialized_ || backend_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   TickType_t timeout_ticks{};
-  if (!timeoutToTicks(timeout_ms, timeout_ticks) || frame.data_length > 8 ||
+  if (frame.data_length > 8)
+    return ESP_ERR_INVALID_SIZE;
+  if (avi::internal::timeoutToTicks(timeout, timeout_ticks) != ESP_OK ||
       !validIdentifier(frame.identifier, frame.extended))
     return ESP_ERR_INVALID_ARG;
 
 #if ESP_IDF_VERSION_MAJOR >= 6
   auto *backend = static_cast<Backend *>(backend_);
   if (xSemaphoreTake(backend->tx_available, timeout_ticks) != pdTRUE)
-    return ESP_ERR_TIMEOUT;
+    return timeout.isNoWait() ? ESP_ERR_NOT_FINISHED : ESP_ERR_TIMEOUT;
   backend->tx_frame = {};
   backend->tx_frame.header.id = frame.identifier;
   backend->tx_frame.header.dlc = frame.data_length;
@@ -426,11 +416,17 @@ esp_err_t CANCREATE::write(const Frame &frame, uint32_t timeout_ms) {
   std::memcpy(backend->tx_data, frame.data, frame.data_length);
   backend->tx_frame.buffer = backend->tx_data;
   backend->tx_frame.buffer_len = frame.data_length;
-  const esp_err_t result = twai_node_transmit(backend->node, &backend->tx_frame,
-                                              static_cast<int>(timeout_ms));
+  int timeout_ms{};
+  if (avi::internal::timeoutToIntMilliseconds(timeout, timeout_ms) != ESP_OK) {
+    (void)xSemaphoreGive(backend->tx_available);
+    return ESP_ERR_INVALID_ARG;
+  }
+  const esp_err_t result =
+      twai_node_transmit(backend->node, &backend->tx_frame, timeout_ms);
   if (result != ESP_OK)
     (void)xSemaphoreGive(backend->tx_available);
-  return result;
+  return timeout.isNoWait() && result == ESP_ERR_TIMEOUT ? ESP_ERR_NOT_FINISHED
+                                                         : result;
 #else
   twai_message_t message{};
   message.identifier = frame.identifier;
@@ -438,17 +434,19 @@ esp_err_t CANCREATE::write(const Frame &frame, uint32_t timeout_ms) {
   message.extd = frame.extended;
   message.rtr = frame.remote;
   std::memcpy(message.data, frame.data, frame.data_length);
-  return twai_transmit(&message, timeout_ticks);
+  const esp_err_t result = twai_transmit(&message, timeout_ticks);
+  return timeout.isNoWait() && result == ESP_ERR_TIMEOUT ? ESP_ERR_NOT_FINISHED
+                                                         : result;
 #endif
 }
 
 esp_err_t CANCREATE::write(uint32_t identifier, uint8_t value,
-                           uint32_t timeout_ms) {
-  return write(identifier, &value, 1, timeout_ms);
+                           avi::Timeout timeout) {
+  return write(identifier, &value, 1, timeout);
 }
 
 esp_err_t CANCREATE::write(uint32_t identifier, const uint8_t *data,
-                           std::size_t length, uint32_t timeout_ms) {
+                           std::size_t length, avi::Timeout timeout) {
   if ((data == nullptr && length != 0) || length > 8 ||
       !validIdentifier(identifier, false))
     return length > 8 ? ESP_ERR_INVALID_SIZE : ESP_ERR_INVALID_ARG;
@@ -457,22 +455,22 @@ esp_err_t CANCREATE::write(uint32_t identifier, const uint8_t *data,
   frame.data_length = static_cast<uint8_t>(length);
   if (length != 0)
     std::memcpy(frame.data, data, length);
-  return write(frame, timeout_ms);
+  return write(frame, timeout);
 }
 
 esp_err_t CANCREATE::writeText(uint32_t identifier, std::string_view text,
-                               uint32_t timeout_ms) {
+                               avi::Timeout timeout) {
   if (text.size() > 8)
     return ESP_ERR_INVALID_SIZE;
   return write(identifier, reinterpret_cast<const uint8_t *>(text.data()),
-               text.size(), timeout_ms);
+               text.size(), timeout);
 }
 
-esp_err_t CANCREATE::read(Frame &frame, uint32_t timeout_ms) {
+esp_err_t CANCREATE::read(Frame &frame, avi::Timeout timeout) {
   if (!initialized_ || backend_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   TickType_t timeout_ticks{};
-  if (!timeoutToTicks(timeout_ms, timeout_ticks))
+  if (avi::internal::timeoutToTicks(timeout, timeout_ticks) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
 
   Frame next{};
@@ -480,7 +478,7 @@ esp_err_t CANCREATE::read(Frame &frame, uint32_t timeout_ms) {
   RawFrame raw{};
   auto *backend = static_cast<Backend *>(backend_);
   if (xQueueReceive(backend->rx_queue, &raw, timeout_ticks) != pdTRUE)
-    return ESP_ERR_TIMEOUT;
+    return timeout.isNoWait() ? ESP_ERR_NOT_FINISHED : ESP_ERR_TIMEOUT;
   if (raw.header.dlc > sizeof(next.data) ||
       !validIdentifier(raw.header.id, raw.header.ide))
     return ESP_ERR_INVALID_SIZE;
@@ -497,17 +495,23 @@ esp_err_t CANCREATE::read(Frame &frame, uint32_t timeout_ms) {
   for (;;) {
     const esp_err_t result = twai_receive(&message, remaining_ticks);
     if (result != ESP_OK)
-      return result;
+      return timeout.isNoWait() && result == ESP_ERR_TIMEOUT
+                 ? ESP_ERR_NOT_FINISHED
+                 : result;
     if (message.data_length_code > sizeof(next.data) ||
         !validIdentifier(message.identifier, message.extd))
       return ESP_ERR_INVALID_SIZE;
     if (filterAccepts(backend->filter, message))
       break;
 
-    const TickType_t elapsed = xTaskGetTickCount() - started_at;
-    if (elapsed >= timeout_ticks)
-      return ESP_ERR_TIMEOUT;
-    remaining_ticks = timeout_ticks - elapsed;
+    if (timeout.isNoWait())
+      return ESP_ERR_NOT_FINISHED;
+    if (!timeout.isForever()) {
+      const TickType_t elapsed = xTaskGetTickCount() - started_at;
+      if (elapsed >= timeout_ticks)
+        return ESP_ERR_TIMEOUT;
+      remaining_ticks = timeout_ticks - elapsed;
+    }
   }
   next.identifier = message.identifier;
   next.data_length = message.data_length_code;
@@ -578,11 +582,11 @@ esp_err_t CANCREATE::getStatus(Status &status) const {
   return ESP_OK;
 }
 
-esp_err_t CANCREATE::recover(uint32_t timeout_ms) {
+esp_err_t CANCREATE::recover(avi::Timeout timeout) {
   if (!initialized_ || backend_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   TickType_t ignored{};
-  if (!timeoutToTicks(timeout_ms, ignored))
+  if (avi::internal::timeoutToTicks(timeout, ignored) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
 
 #if ESP_IDF_VERSION_MAJOR >= 6
@@ -622,7 +626,9 @@ esp_err_t CANCREATE::recover(uint32_t timeout_ms) {
   }
 #endif
 
-  const int64_t deadline = avi_micros() + int64_t{timeout_ms} * 1000;
+  avi::internal::Deadline deadline{};
+  if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
   do {
 #if ESP_IDF_VERSION_MAJOR >= 6
     twai_node_status_t info{};
@@ -647,9 +653,9 @@ esp_err_t CANCREATE::recover(uint32_t timeout_ms) {
       return result;
     }
 #endif
-    if (timeout_ms == 0)
-      break;
+    if (timeout.isNoWait())
+      return ESP_ERR_NOT_FINISHED;
     avi_delay_ms(1);
-  } while (avi_micros() < deadline);
+  } while (!avi::internal::expired(deadline));
   return ESP_ERR_TIMEOUT;
 }

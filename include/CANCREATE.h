@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <string_view>
 
+#include "avi_esp_libs/timeout.h"
 #include "driver/gpio.h"
 #include "esp_err.h"
 
@@ -68,29 +69,34 @@ public:
   [[nodiscard]] esp_err_t begin(gpio_num_t tx, gpio_num_t rx,
                                 Bitrate bitrate = Bitrate::kbps500);
   [[nodiscard]] esp_err_t end();
-  [[nodiscard]] esp_err_t write(const Frame &frame, uint32_t timeout_ms = 100);
+  [[nodiscard]] esp_err_t write(const Frame &frame,
+                                avi::Timeout timeout = avi::Timeout::noWait());
   [[nodiscard]] esp_err_t write(uint32_t identifier, uint8_t value,
-                                uint32_t timeout_ms = 100);
+                                avi::Timeout timeout = avi::Timeout::noWait());
   [[nodiscard]] esp_err_t write(uint32_t identifier, const uint8_t *data,
-                                std::size_t length, uint32_t timeout_ms = 100);
+                                std::size_t length,
+                                avi::Timeout timeout = avi::Timeout::noWait());
   template <std::size_t N>
   [[nodiscard]] esp_err_t write(uint32_t identifier, const uint8_t (&data)[N],
-                                uint32_t timeout_ms = 100) {
-    return write(identifier, data, N, timeout_ms);
+                                avi::Timeout timeout = avi::Timeout::noWait()) {
+    return write(identifier, data, N, timeout);
   }
   template <std::size_t N>
   [[nodiscard]] esp_err_t write(uint32_t identifier,
                                 const std::array<uint8_t, N> &data,
-                                uint32_t timeout_ms = 100) {
-    return write(identifier, data.data(), data.size(), timeout_ms);
+                                avi::Timeout timeout = avi::Timeout::noWait()) {
+    return write(identifier, data.data(), data.size(), timeout);
   }
-  [[nodiscard]] esp_err_t writeText(uint32_t identifier, std::string_view text,
-                                    uint32_t timeout_ms = 100);
-  [[nodiscard]] esp_err_t read(Frame &frame, uint32_t timeout_ms = 0);
+  [[nodiscard]] esp_err_t
+  writeText(uint32_t identifier, std::string_view text,
+            avi::Timeout timeout = avi::Timeout::noWait());
+  [[nodiscard]] esp_err_t read(Frame &frame,
+                               avi::Timeout timeout = avi::Timeout::noWait());
   [[nodiscard]] std::size_t available() const;
   [[nodiscard]] esp_err_t available(std::size_t &count) const;
   [[nodiscard]] esp_err_t getStatus(Status &status) const;
-  [[nodiscard]] esp_err_t recover(uint32_t timeout_ms = 1000);
+  [[nodiscard]] esp_err_t
+  recover(avi::Timeout timeout = avi::Timeout::noWait());
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
