@@ -61,7 +61,7 @@ Tier 1は今回、設定、初期化確認、測定または通信、状態取�
 | Tier 1 | 主な機能 |
 | --- | --- |
 | `SPICREATE` | SPI busの所有、最大8 deviceの共有、有限timeout、初期化・終了状態の検査 |
-| `CANCREATE` | Classic TWAI frame、標準/拡張ID filter、3 mode、状態取得、bus-off復旧 |
+| `CANCREATE` | Classic TWAI frame、標準/拡張ID filter、起動時diagnostic、bus-off復旧 |
 | `AS5047D` | 14-bit角度、補償/未補償値、parity/ERRFL、磁界diagnostic |
 | `ICM42688` | 全加速度/角速度range、accel/gyro別ODR、filter、INT GPIO、Data Ready待機 |
 | `ICM20602` | 加速度/角速度range、sample divider、accel/gyro別DLPF、Data Ready状態 |
@@ -78,6 +78,18 @@ Tier 1もCIでは実機へ接続しないため、実デバイスでの電気的
 AS5047DはSPI mode 1、最大10 MHzで動作し、14-bit角度をdegree/radianへ変換します。`AngleSource`で動的角度誤差補償済み`ANGLECOM`と未補償`ANGLEUNC`を選択できます。全responseのeven parityとEFを検査し、EF時はread-to-clearの`ERRFL`からPARERR、INVCOMM、FRERRを`lastErrorFlags()`へ保存します。
 
 `getStatus()`はDIAAGC/MAGからMAGL、MAGH、COF、offset compensation完了、AGC、magnitudeを返します。磁界警告は通信errorへ変換しません。永久変更を伴うOTP programmingには対応していません。
+
+### ICM self-test
+
+`ICM42688`、`ICM20602`、`ICM20948`の`selfTest()`はMEMSのself-test stimulusを有効化し、baselineとstimulated sampleをfactory trimと比較します。ICM20948はAK09916もself-test modeで検査します。`ESP_OK`は手順が正常に完了した意味であり、個体の合否は`SelfTestResult::passed`で確認します。終了時は元のConfigを復元し、`restored`で結果を示します。
+
+self-test中は通常測定できません。同一instanceの`read()`、`waitDataReady()`、`end()`や別taskからの操作は、呼出し側で停止・serializeしてください。
+
+### CAN diagnostic
+
+standard ID `0x000`～`0x3FF`はapplication用、`0x400`～`0x7FF`はCANCREATE diagnostic予約領域、`0x7FF`は`test()`用です。extended IDは予約規則の対象外です。
+
+`test()`は現在のbitrate/GPIOでnormal single-shot送信のACKを確認し、失敗時だけno-ack/self-receptionを試します。`success`、`no_peer_response`、`controller_failure`を`TestResult`で返し、元Configへ復元します。起動時専用で、test中の通常trafficは保持されない可能性があります。複数nodeから同時に実行しないでください。
 
 ## ディレクトリ構成
 
@@ -250,6 +262,7 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 
 - `CAN_CREATE`、`CANCREATE_lib.h`、旧互換mode、`setPin()`、`sendChar()`、`sendData()`、`sendLine()`、`readLine()`、`sendPacket()`を削除しました。
 - `CANCREATE::Config::bitrate`と簡易`begin()`は任意整数から`Bitrate` enumへ変更し、`read(Frame&)`の既定timeoutを0 msへ変更しました。
+- standard CAN ID `0x400`～`0x7FF`をdiagnostic予約領域とし、applicationの`read()`/`write()`から除外しました。
 - 公開timeout引数を`uint32_t`から暗黙整数変換できない`avi::Timeout`へ変更し、利用者待機の既定値を`noWait()`へ統一しました。
 - no-waitで未完了の場合は`ESP_ERR_TIMEOUT`ではなく`ESP_ERR_NOT_FINISHED`を返します。
 - ICM20602の`Dlpf`を`AccelDlpf`と`GyroDlpf`へ分離しました。
