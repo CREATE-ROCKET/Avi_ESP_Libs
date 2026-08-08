@@ -112,6 +112,8 @@ private:
                                                uint8_t *value,
                                                avi::Timeout timeout);
   [[nodiscard]] esp_err_t configureMagnetometer(MagnetometerOdr odr);
+  [[nodiscard]] esp_err_t configureMagnetometer(MagnetometerOdr odr,
+                                                avi::Timeout timeout);
   [[nodiscard]] esp_err_t shutdownHardware(bool stop_magnetometer);
 
   // 利用中はSPIバスが本オブジェクトより長く生存する必要がある。

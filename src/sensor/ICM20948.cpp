@@ -148,6 +148,19 @@ void rememberFirst(esp_err_t result, esp_err_t &first_error) {
     first_error = result;
 }
 
+esp_err_t remainingTimeout(const avi::internal::Deadline &deadline,
+                           avi::Timeout &remaining) {
+  const int64_t now = avi_micros();
+  if (now >= deadline.microseconds)
+    return ESP_ERR_TIMEOUT;
+  const uint64_t milliseconds =
+      static_cast<uint64_t>(deadline.microseconds - now) / 1000U;
+  if (milliseconds == 0)
+    return ESP_ERR_TIMEOUT;
+  remaining = avi::Timeout::milliseconds(milliseconds);
+  return ESP_OK;
+}
+
 int16_t signedBigEndian(const uint8_t *data) {
   int32_t value = static_cast<int32_t>((uint16_t{data[0]} << 8) | data[1]);
   if ((value & 0x8000) != 0)
@@ -167,7 +180,7 @@ float factoryTrim(uint8_t code) {
   return code == 0 ? 0.0F : 2620.0F * std::pow(1.01F, code - 1);
 }
 
-bool factoryCodesValid(const uint8_t (&codes)[3]) {
+constexpr bool factoryCodesValid(const uint8_t (&codes)[3]) {
   return codes[0] != 0 && codes[1] != 0 && codes[2] != 0;
 }
 
@@ -182,7 +195,7 @@ constexpr bool gyroOtpPass(float measured, float trim) {
 bool accelSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
   if (!otp_valid)
     return false;
-  const float measured = std::fabs(static_cast<float>(response));
+  const float measured = static_cast<float>(response);
   const float trim = factoryTrim(code);
   return accelOtpPass(measured, trim);
 }
@@ -190,15 +203,19 @@ bool accelSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
 bool gyroSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
   if (!otp_valid)
     return false;
-  const float measured = std::fabs(static_cast<float>(response));
+  const float measured = static_cast<float>(response);
   return gyroOtpPass(measured, factoryTrim(code));
 }
 
 static_assert(accelOtpPass(500.0F, 1000.0F));
 static_assert(accelOtpPass(1500.0F, 1000.0F));
 static_assert(!accelOtpPass(1501.0F, 1000.0F));
+static_assert(!accelOtpPass(-1000.0F, 1000.0F));
 static_assert(gyroOtpPass(2000.0F, 1000.0F));
 static_assert(!gyroOtpPass(499.0F, 1000.0F));
+static_assert(!gyroOtpPass(-1000.0F, 1000.0F));
+constexpr uint8_t kMissingFactoryCode[3]{1, 0, 1};
+static_assert(!factoryCodesValid(kMissingFactoryCode));
 
 } // namespace
 
@@ -286,8 +303,26 @@ esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
 }
 
 esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
+  return configureMagnetometer(odr, config_.operation_timeout);
+}
+
+esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr,
+                                          avi::Timeout timeout) {
   if (odr == MagnetometerOdr::off || !validMagnetometerOdr(odr))
     return ESP_ERR_INVALID_ARG;
+  avi::internal::Deadline deadline{};
+  if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK ||
+      deadline.forever)
+    return ESP_ERR_INVALID_ARG;
+
+  const auto transfer = [this, &deadline](uint8_t address, bool read,
+                                          uint8_t *value) {
+    avi::Timeout remaining = avi::Timeout::noWait();
+    const esp_err_t result = remainingTimeout(deadline, remaining);
+    return result == ESP_OK
+               ? magnetometerTransfer(address, read, value, remaining)
+               : result;
+  };
 
   const auto finish = [this](esp_err_t result) {
     const esp_err_t restore = selectBank(kBank0);
@@ -325,36 +360,33 @@ esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
     return result;
 
   uint8_t value = 0x01;
-  result = magnetometerTransfer(kMagnetometerControl3, false, &value,
-                                config_.operation_timeout);
+  result = transfer(kMagnetometerControl3, false, &value);
   if (result != ESP_OK)
     return result;
   avi_delay_ms(1);
+  if (avi::internal::expired(deadline))
+    return ESP_ERR_TIMEOUT;
 
   value = 0;
-  result = magnetometerTransfer(kMagnetometerWhoAmI1, true, &value,
-                                config_.operation_timeout);
+  result = transfer(kMagnetometerWhoAmI1, true, &value);
   if (result != ESP_OK)
     return result;
   if (value != kExpectedMagnetometerWhoAmI1)
     return ESP_ERR_INVALID_RESPONSE;
 
-  result = magnetometerTransfer(kMagnetometerWhoAmI2, true, &value,
-                                config_.operation_timeout);
+  result = transfer(kMagnetometerWhoAmI2, true, &value);
   if (result != ESP_OK)
     return result;
   if (value != kExpectedMagnetometerWhoAmI2)
     return ESP_ERR_INVALID_RESPONSE;
 
   value = static_cast<uint8_t>(odr);
-  result = magnetometerTransfer(kMagnetometerControl2, false, &value,
-                                config_.operation_timeout);
+  result = transfer(kMagnetometerControl2, false, &value);
   if (result != ESP_OK)
     return result;
 
   value = 0;
-  result = magnetometerTransfer(kMagnetometerControl2, true, &value,
-                                config_.operation_timeout);
+  result = transfer(kMagnetometerControl2, true, &value);
   if (result != ESP_OK)
     return result;
   if (value != static_cast<uint8_t>(odr))
@@ -378,7 +410,16 @@ esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
   if (result != ESP_OK)
     return result;
 
-  avi_delay_ms(magnetometerStartupDelayMs(odr));
+  const uint32_t startup_delay_ms = magnetometerStartupDelayMs(odr);
+  avi::Timeout remaining = avi::Timeout::noWait();
+  result = remainingTimeout(deadline, remaining);
+  uint64_t remaining_ms{};
+  if (result != ESP_OK || !remaining.millisecondsValue(remaining_ms) ||
+      remaining_ms < startup_delay_ms)
+    return ESP_ERR_TIMEOUT;
+  avi_delay_ms(startup_delay_ms);
+  if (avi::internal::expired(deadline))
+    return ESP_ERR_TIMEOUT;
   uint8_t master_status = 0;
   result = spi_->readRegister(device_, kRead | kI2cMasterStatus, master_status);
   if (result != ESP_OK)
@@ -831,19 +872,14 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
     }
   }
 
-  const auto remainingTimeout = [&deadline](avi::Timeout &remaining) {
-    const int64_t now = avi_micros();
-    if (now >= deadline.microseconds)
-      return ESP_ERR_TIMEOUT;
-    const uint64_t microseconds =
-        static_cast<uint64_t>(deadline.microseconds - now);
-    remaining = avi::Timeout::milliseconds((microseconds + 999U) / 1000U);
-    return ESP_OK;
-  };
-
   const bool magnetometer_touched = operation == ESP_OK;
-  if (operation == ESP_OK && saved.magnetometer_odr == MagnetometerOdr::off)
-    operation = configureMagnetometer(MagnetometerOdr::hz100);
+  if (operation == ESP_OK && saved.magnetometer_odr == MagnetometerOdr::off) {
+    avi::Timeout configure_timeout = avi::Timeout::noWait();
+    operation = remainingTimeout(deadline, configure_timeout);
+    if (operation == ESP_OK)
+      operation =
+          configureMagnetometer(MagnetometerOdr::hz100, configure_timeout);
+  }
   if (operation == ESP_OK && avi::internal::expired(deadline))
     operation = ESP_ERR_TIMEOUT;
   if (operation == ESP_OK) {
@@ -856,14 +892,14 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
   uint8_t magnetometer_mode = 0;
   avi::Timeout remaining = avi::Timeout::milliseconds(1);
   if (operation == ESP_OK)
-    operation = remainingTimeout(remaining);
+    operation = ::remainingTimeout(deadline, remaining);
   if (operation == ESP_OK)
     operation = magnetometerTransfer(kMagnetometerControl2, false,
                                      &magnetometer_mode, remaining);
   if (operation == ESP_OK) {
     avi_delay_ms(1);
     magnetometer_mode = 0x10;
-    operation = remainingTimeout(remaining);
+    operation = ::remainingTimeout(deadline, remaining);
   }
   if (operation == ESP_OK) {
     operation = magnetometerTransfer(kMagnetometerControl2, false,
@@ -871,7 +907,7 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
   }
   uint8_t magnetometer_status{};
   while (operation == ESP_OK && !avi::internal::expired(deadline)) {
-    operation = remainingTimeout(remaining);
+    operation = ::remainingTimeout(deadline, remaining);
     if (operation != ESP_OK)
       break;
     operation = magnetometerTransfer(kMagnetometerStatus1, true,
@@ -886,7 +922,7 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
     operation = ESP_ERR_TIMEOUT;
   uint8_t magnetic[6]{};
   for (std::size_t i = 0; i < 6 && operation == ESP_OK; ++i) {
-    operation = remainingTimeout(remaining);
+    operation = ::remainingTimeout(deadline, remaining);
     if (operation != ESP_OK)
       break;
     operation =
@@ -895,7 +931,7 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
   }
   uint8_t magnetometer_status2{};
   if (operation == ESP_OK)
-    operation = remainingTimeout(remaining);
+    operation = ::remainingTimeout(deadline, remaining);
   if (operation == ESP_OK)
     operation = magnetometerTransfer(kMagnetometerStatus2, true,
                                      &magnetometer_status2, remaining);
@@ -951,7 +987,8 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
         magnetometer_restore =
             spi_->writeRegister(device_, kUserControl, kI2cInterfaceDisable);
     } else {
-      magnetometer_restore = configureMagnetometer(saved.magnetometer_odr);
+      magnetometer_restore = configureMagnetometer(saved.magnetometer_odr,
+                                                   saved.operation_timeout);
     }
     rememberRestore(magnetometer_restore);
   }
