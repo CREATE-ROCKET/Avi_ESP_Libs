@@ -37,11 +37,29 @@ constexpr uint16_t encodeRelative(int32_t steps) {
   const uint16_t magnitude = static_cast<uint16_t>(steps < 0 ? -steps : steps);
   return static_cast<uint16_t>(magnitude | (steps < 0 ? 0x8000 : 0));
 }
+constexpr int16_t decodeSignedMagnitude15(uint16_t raw) {
+  const int16_t magnitude = static_cast<int16_t>(raw & 0x7FFF);
+  return (raw & 0x8000) != 0 ? static_cast<int16_t>(-magnitude) : magnitude;
+}
+constexpr int16_t decodeSignedMagnitude10(uint16_t raw) {
+  const int16_t magnitude = static_cast<int16_t>(raw & ~uint16_t{0x0400});
+  return (raw & 0x0400) != 0 ? static_cast<int16_t>(-magnitude) : magnitude;
+}
 constexpr float degreesPerStep(uint8_t resolution) {
   return 360.0F / 4096.0F * resolution;
 }
 constexpr float torquePercent(uint16_t raw) { return raw / 10.0F; }
 constexpr float absolute(float value) { return value < 0 ? -value : value; }
+constexpr bool validTorquePercent(float value) {
+  return value == value && value >= 0.0F && value <= 100.0F;
+}
+constexpr bool validTorqueRaw(uint16_t value) { return value <= 1000; }
+constexpr uint16_t torqueRawFromPercent(float value) {
+  return static_cast<uint16_t>(value * 10.0F + 0.5F);
+}
+constexpr uint16_t stallTimeRaw(uint16_t milliseconds) {
+  return static_cast<uint16_t>((milliseconds + 5) / 10);
+}
 static_assert(absolute(degreesPerStep(1) - 0.087890625F) < 0.000001F);
 static_assert(absolute(4096 * degreesPerStep(1) - 360.0F) < 0.001F);
 static_assert(absolute(2048 * degreesPerStep(1) - 180.0F) < 0.001F);
@@ -57,6 +75,36 @@ static_assert(1000 / 100 == 10);
 static_assert(absolute(100 * 0.0065F - 0.65F) < 0.00001F);
 static_assert(absolute(74 * 0.1F - 7.4F) < 0.00001F);
 static_assert(200 * 10 == 2000);
+static_assert(decodeSignedMagnitude15(0x0000) == 0);
+static_assert(decodeSignedMagnitude15(0x0064) == 100);
+static_assert(decodeSignedMagnitude15(0x8064) == -100);
+static_assert(decodeSignedMagnitude15(0x7FFF) == 32767);
+static_assert(decodeSignedMagnitude10(0x0000) == 0);
+static_assert(decodeSignedMagnitude10(0x0064) == 100);
+static_assert(decodeSignedMagnitude10(0x0464) == -100);
+static_assert(absolute(decodeSignedMagnitude15(0x0064) * 0.0065F - 0.65F) <
+              0.00001F);
+static_assert(absolute(decodeSignedMagnitude15(0x8064) * 0.0065F + 0.65F) <
+              0.00001F);
+static_assert(absolute(decodeSignedMagnitude15(0x0064) * degreesPerStep(1) -
+                       8.7890625F) < 0.00001F);
+static_assert(absolute(decodeSignedMagnitude15(0x8064) * degreesPerStep(1) +
+                       8.7890625F) < 0.00001F);
+static_assert(validTorquePercent(0.0F));
+static_assert(validTorqueRaw(0));
+static_assert(validTorqueRaw(1000));
+static_assert(!validTorqueRaw(1001));
+static_assert(torqueRawFromPercent(50.0F) == 500);
+static_assert(torqueRawFromPercent(100.0F) == 1000);
+static_assert(validTorquePercent(100.0F));
+static_assert(!validTorquePercent(-1.0F));
+static_assert(!validTorquePercent(101.0F));
+static_assert(!validTorquePercent(std::numeric_limits<float>::quiet_NaN()));
+static_assert(!validTorquePercent(std::numeric_limits<float>::infinity()));
+static_assert(stallTimeRaw(0) == 0);
+static_assert(stallTimeRaw(4) == 0);
+static_assert(stallTimeRaw(5) == 1);
+static_assert(stallTimeRaw(2540) == 254);
 
 bool validMode(STS3215::OperatingMode mode) {
   return static_cast<uint8_t>(mode) <= 3;
@@ -68,13 +116,13 @@ bool validPersistence(STS3215::Persistence persistence) {
 } // namespace
 
 STS3215::TorqueLimit STS3215::TorqueLimit::raw(uint16_t value) {
-  return TorqueLimit(value);
+  return TorqueLimit(validTorqueRaw(value) ? value : 0, validTorqueRaw(value));
 }
 
 STS3215::TorqueLimit STS3215::TorqueLimit::percent(float value) {
-  if (!std::isfinite(value) || value < 0.0F || value > 100.0F)
-    return TorqueLimit(1001);
-  return TorqueLimit(static_cast<uint16_t>(std::lround(value * 10.0F)));
+  if (!validTorquePercent(value))
+    return TorqueLimit(0, false);
+  return TorqueLimit(torqueRawFromPercent(value), true);
 }
 
 float STS3215::gearRatio() const {
@@ -94,17 +142,29 @@ float STS3215::degreesPerStep() const {
 }
 
 esp_err_t STS3215::readBytes(uint8_t address, uint8_t *data,
-                             std::size_t length) const {
+                             std::size_t length) {
   if (!initialized_ || bus_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  return bus_->read(id_, address, data, length);
+  uint8_t device_error{};
+  const esp_err_t result =
+      bus_->read(id_, address, data, length, &device_error);
+  if (result == ESP_OK)
+    last_device_error_ = device_error;
+  return result;
 }
 
 esp_err_t STS3215::writeBytes(uint8_t address, const uint8_t *data,
-                              std::size_t length) const {
+                              std::size_t length) {
   if (!initialized_ || bus_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  return bus_->write(id_, address, data, length, response_status_level_ == 1);
+  if (response_status_level_ == 0)
+    return bus_->write(id_, address, data, length, false);
+  uint8_t device_error{};
+  const esp_err_t result =
+      bus_->write(id_, address, data, length, true, &device_error);
+  if (result == ESP_OK)
+    last_device_error_ = device_error;
+  return result;
 }
 
 esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id, Model model) {
@@ -112,7 +172,8 @@ esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id, Model model) {
     return ESP_ERR_INVALID_STATE;
   if (!bus.initialized() || id > 253 || static_cast<uint8_t>(model) > 2)
     return ESP_ERR_INVALID_ARG;
-  esp_err_t result = bus.ping(id);
+  uint8_t device_error{};
+  esp_err_t result = bus.ping(id, &device_error);
   uint8_t response_level{};
   uint8_t resolution{};
   uint8_t mode{};
@@ -120,17 +181,20 @@ esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id, Model model) {
   uint8_t minimum[2]{};
   uint8_t maximum[2]{};
   if (result == ESP_OK)
-    result = bus.read(id, kResponseStatusLevel, &response_level, 1);
+    result =
+        bus.read(id, kResponseStatusLevel, &response_level, 1, &device_error);
   if (result == ESP_OK)
-    result = bus.read(id, kAngularResolution, &resolution, 1);
+    result = bus.read(id, kAngularResolution, &resolution, 1, &device_error);
   if (result == ESP_OK)
-    result = bus.read(id, kOperatingMode, &mode, 1);
+    result = bus.read(id, kOperatingMode, &mode, 1, &device_error);
   if (result == ESP_OK)
-    result = bus.read(id, kPhase, &phase, 1);
+    result = bus.read(id, kPhase, &phase, 1, &device_error);
   if (result == ESP_OK)
-    result = bus.read(id, kMinimumPosition, minimum, sizeof(minimum));
+    result =
+        bus.read(id, kMinimumPosition, minimum, sizeof(minimum), &device_error);
   if (result == ESP_OK)
-    result = bus.read(id, kMaximumPosition, maximum, sizeof(maximum));
+    result =
+        bus.read(id, kMaximumPosition, maximum, sizeof(maximum), &device_error);
   if (result != ESP_OK)
     return result;
   if (response_level > 1 || resolution == 0 || resolution > 3 || mode > 3)
@@ -144,6 +208,7 @@ esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id, Model model) {
   phase_ = phase;
   minimum_position_ = littleEndian(minimum);
   maximum_position_ = littleEndian(maximum);
+  last_device_error_ = device_error;
   initialized_ = true;
   return ESP_OK;
 }
@@ -184,6 +249,8 @@ esp_err_t STS3215::writeEpRom(uint8_t address, const uint8_t *data,
   }
   if (operation == ESP_OK)
     operation = writeBytes(address, data, length);
+  // 対象registerの書込みに失敗してもlock flagは元へ戻す。
+  // 対象register自体はrollbackせず、復元失敗を優先して返す。
   esp_err_t restore = ESP_OK;
   if (lock_changed)
     restore = writeBytes(kLock, &saved_lock, 1);
@@ -262,7 +329,7 @@ esp_err_t STS3215::disableTorque() {
 }
 
 esp_err_t STS3215::setTorqueLimit(TorqueLimit limit) {
-  if (limit.rawValue() > 1000)
+  if (!limit.valid())
     return ESP_ERR_INVALID_ARG;
   uint8_t raw[2]{};
   putLittleEndian(limit.rawValue(), raw);
@@ -282,7 +349,7 @@ esp_err_t STS3215::readTorqueLimit(TorqueLimit &limit) {
 }
 
 esp_err_t STS3215::holdCurrentPosition(const HoldConfig &config) {
-  if (!initialized_ || config.torque_limit.rawValue() > 1000)
+  if (!initialized_ || !config.torque_limit.valid())
     return ESP_ERR_INVALID_ARG;
   esp_err_t result = ESP_OK;
   if (operating_mode_ == OperatingMode::position) {
@@ -309,7 +376,7 @@ esp_err_t STS3215::encodeMotion(float degrees, const Motion &motion,
   if (!std::isfinite(degrees) || !std::isfinite(motion.speed_deg_s) ||
       !std::isfinite(motion.acceleration_deg_s2) || motion.speed_deg_s <= 0 ||
       motion.acceleration_deg_s2 < 0 ||
-      (motion.torque_limit && motion.torque_limit->rawValue() > 1000))
+      (motion.torque_limit && !motion.torque_limit->valid()))
     return ESP_ERR_INVALID_ARG;
   const double step_size = degreesPerStep();
   const long steps = std::lround(degrees / step_size);
@@ -372,23 +439,21 @@ esp_err_t STS3215::moveRelativeDegrees(float degrees, const Motion &motion) {
 
 esp_err_t STS3215::configureStallProtection(const StallProtection &config,
                                             Persistence persistence) {
-  uint64_t milliseconds{};
-  const bool valid_time = config.trigger_time.isNoWait() ||
-                          (config.trigger_time.isFinite() &&
-                           config.trigger_time.millisecondsValue(milliseconds));
   if (!std::isfinite(config.trigger_torque_percent) ||
       !std::isfinite(config.protected_torque_percent) ||
       config.trigger_torque_percent < 0 ||
       config.trigger_torque_percent > 100 ||
       config.protected_torque_percent < 0 ||
-      config.protected_torque_percent > 100 || !valid_time ||
-      milliseconds > 2540)
+      config.protected_torque_percent > 100 || config.trigger_time_ms > 2540)
     return ESP_ERR_INVALID_ARG;
   const uint8_t trigger =
       static_cast<uint8_t>(std::lround(config.trigger_torque_percent));
   const uint8_t protected_torque =
       static_cast<uint8_t>(std::lround(config.protected_torque_percent));
-  const uint8_t time = static_cast<uint8_t>((milliseconds + 5) / 10);
+  const uint16_t time_value = stallTimeRaw(config.trigger_time_ms);
+  if (time_value > 254)
+    return ESP_ERR_INVALID_ARG;
+  const uint8_t time = static_cast<uint8_t>(time_value);
   esp_err_t result =
       writeEpRom(kProtectionTorque, &protected_torque, 1, persistence);
   if (result == ESP_OK)
@@ -444,16 +509,15 @@ esp_err_t STS3215::read(Data &data) {
   const esp_err_t result = readRaw(raw);
   if (result != ESP_OK)
     return result;
-  const uint16_t speed_magnitude = raw.speed & 0x7FFF;
-  const float speed_sign = (raw.speed & 0x8000) != 0 ? -1.0F : 1.0F;
   const float unit = (phase_ & kSpeedUnitBit) != 0 ? 1.0F : 50.0F;
   Data next{};
-  next.position_deg = raw.position * degreesPerStep();
-  next.speed_deg_s = speed_sign * speed_magnitude * unit * degreesPerStep();
-  next.load_raw = raw.load;
+  next.position_deg = decodeSignedMagnitude15(raw.position) * degreesPerStep();
+  next.speed_deg_s =
+      decodeSignedMagnitude15(raw.speed) * unit * degreesPerStep();
+  next.load_raw = decodeSignedMagnitude10(raw.load);
   next.voltage_v = raw.voltage * 0.1F;
   next.temperature_celsius = raw.temperature;
-  next.current_a = raw.current * 0.0065F;
+  next.current_a = decodeSignedMagnitude15(raw.current) * 0.0065F;
   next.moving = raw.moving;
   next.status = decodeStatus(raw.status);
   data = next;
@@ -468,6 +532,8 @@ esp_err_t STS3215::readRegister(Register address, uint8_t *data,
 esp_err_t STS3215::writeRegister(Register address, const uint8_t *data,
                                  std::size_t length, Persistence persistence) {
   const uint8_t raw_address = static_cast<uint8_t>(address);
+  if (address == Register::id || address == Register::baud_rate)
+    return ESP_ERR_NOT_SUPPORTED;
   if (raw_address < kTorqueSwitch)
     return writeEpRom(raw_address, data, length, persistence);
   return writeBytes(raw_address, data, length);

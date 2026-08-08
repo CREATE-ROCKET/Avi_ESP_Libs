@@ -24,12 +24,14 @@ public:
   public:
     [[nodiscard]] static TorqueLimit raw(uint16_t value);
     [[nodiscard]] static TorqueLimit percent(float value);
+    [[nodiscard]] bool valid() const { return valid_; }
     [[nodiscard]] uint16_t rawValue() const { return value_; }
     [[nodiscard]] float percentValue() const { return value_ / 10.0F; }
 
   private:
-    explicit TorqueLimit(uint16_t value) : value_(value) {}
+    TorqueLimit(uint16_t value, bool valid) : value_(value), valid_(valid) {}
     uint16_t value_{};
+    bool valid_{true};
   };
 
   struct HoldConfig {
@@ -43,7 +45,7 @@ public:
   struct StallProtection {
     bool enabled{};
     float trigger_torque_percent{};
-    avi::Timeout trigger_time{avi::Timeout::milliseconds(0)};
+    uint16_t trigger_time_ms{};
     float protected_torque_percent{};
   };
   struct Status {
@@ -68,7 +70,7 @@ public:
   struct Data {
     float position_deg{};
     float speed_deg_s{};
-    uint16_t load_raw{};
+    int16_t load_raw{};
     float voltage_v{};
     float temperature_celsius{};
     float current_a{};
@@ -108,6 +110,7 @@ public:
   [[nodiscard]] esp_err_t begin(STSCREATE &bus, uint8_t id, Model model);
   [[nodiscard]] esp_err_t end();
   [[nodiscard]] bool initialized() const { return initialized_; }
+  [[nodiscard]] uint8_t lastDeviceError() const { return last_device_error_; }
   [[nodiscard]] float gearRatio() const;
   [[nodiscard]] float degreesPerStep() const;
   [[nodiscard]] esp_err_t getOperatingMode(OperatingMode &mode) const;
@@ -144,9 +147,9 @@ public:
 
 private:
   [[nodiscard]] esp_err_t readBytes(uint8_t address, uint8_t *data,
-                                    std::size_t length) const;
+                                    std::size_t length);
   [[nodiscard]] esp_err_t writeBytes(uint8_t address, const uint8_t *data,
-                                     std::size_t length) const;
+                                     std::size_t length);
   [[nodiscard]] esp_err_t writeEpRom(uint8_t address, const uint8_t *data,
                                      std::size_t length,
                                      Persistence persistence);
@@ -166,5 +169,6 @@ private:
   uint8_t phase_{};
   uint16_t minimum_position_{};
   uint16_t maximum_position_{4095};
+  uint8_t last_device_error_{};
   bool initialized_{false};
 };
