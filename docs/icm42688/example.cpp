@@ -26,10 +26,12 @@ void setup() {
 }
 
 void loop() {
-  if (!ready || imu.waitDataReady(avi::Timeout::milliseconds(100)) != ESP_OK) {
+  if (!ready || !imu.available() ||
+      imu.waitDataReady(avi::Timeout::noWait()) != ESP_OK) {
     return;
   }
 
+  // waitDataReady()だけが通知を消費し、read()は現在値だけを読み取る。
   ICM42688::Data data;
   if (imu.read(data) != ESP_OK) {
     return;

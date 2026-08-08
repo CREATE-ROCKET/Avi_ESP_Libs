@@ -188,7 +188,23 @@ esp_err_t measureWhenReady(ICM42688::Data &data)
 }
 ```
 
-ISRはstatic semaphore通知だけを行います。INT GPIO設定時の`available()`と`waitDataReady()`はSPI pollingを行わず、`available()`は通知を消費せず、`waitDataReady()`だけが消費します。SPI通信、動的確保、ログ、blocking処理はISR内で行わず、暗黙のbackground taskも生成しません。
+ISRはstatic semaphore通知だけを行います。INT GPIO設定時の`available()`と`waitDataReady()`はSPI pollingを行わず、`available()`は通知を消費せず、`waitDataReady()`だけが消費します。`read()`と`readRaw()`は通知状態を変更せず、現在のregisterをsnapshotとして読みます。SPI通信、動的確保、ログ、blocking処理はISR内で行わず、暗黙のbackground taskも生成しません。
+
+同期して読む場合は、次のどちらかを一貫して使用してください。
+
+```cpp
+if (imu42688.available() &&
+    imu42688.waitDataReady(avi::Timeout::noWait()) == ESP_OK) {
+    imu42688.read(data);
+}
+
+imu42688.waitDataReady(avi::Timeout::forever());
+imu42688.read(data);
+```
+
+`read()`または`readRaw()`を直接呼ぶ使い方は非同期snapshot readです。直接readと`waitDataReady()`を混在させた場合、通知とsampleの対応は保証しません。
+
+加速度またはジャイロのODRが4 kHz以上でINT GPIOを使う場合、driverはdatasheetの要件に従い`INT_CONFIG1.INT_TPULSE_DURATION`と`INT_TDEASSERT_DISABLE`を自動設定します。4 kHz未満ではこれらを解除します。`INT_ASYNC_RESET`は全ODRで解除します。
 
 ICM42688は加速度・ジャイロごとに12.5 Hzから32 kHzまでのLow Noise ODRを指定でき、ジャイロrangeは±2000、1000、500、250、125、62.5、31.25、15.625 dpsを選べます。ICM20602は`AccelDlpf`と`GyroDlpf`を別々に設定し、それぞれ`ACCEL_CONFIG2`と`CONFIG`へ反映します。
 
