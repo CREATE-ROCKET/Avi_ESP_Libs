@@ -1,4 +1,5 @@
 set(AVI_ESP_LIBS_SRCS
+    "src/actuator/STS3215.cpp"
     "src/bus/CANCREATE.cpp"
     "src/bus/I2CCREATE.cpp"
     "src/bus/SPICREATE.cpp"
