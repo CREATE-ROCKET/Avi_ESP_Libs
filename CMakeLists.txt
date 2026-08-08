@@ -11,6 +11,7 @@ set(AVI_ESP_LIBS_SRCS
     "src/sensor/ICM20948.cpp"
     "src/sensor/ICM42688.cpp"
     "src/sensor/LPS25HB.cpp"
+    "src/sensor/SSCDRRN005PD2A5.cpp"
     "src/storage/S25FL127S.cpp"
     "src/storage/S25FL512S.cpp")
 set(AVI_ESP_LIBS_REQUIRES driver esp_timer freertos heap)
