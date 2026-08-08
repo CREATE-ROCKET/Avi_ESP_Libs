@@ -1,9 +1,9 @@
 #include "ICM42688.h"
 
+#include "../compatibility/timeout_internal.h"
 #include "avi_esp_libs/compatibility.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
-#include <climits>
 
 namespace {
 
@@ -21,18 +21,6 @@ constexpr uint8_t kIntSource0 = 0x65;
 constexpr uint8_t kWhoAmI = 0x75;
 constexpr uint8_t kExpectedWhoAmI = 0x47;
 constexpr uint32_t kMaximumSpiFrequency = 24000000;
-
-bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
-  if (timeout_ms > INT_MAX)
-    return false;
-  uint64_t value = (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
-  if (timeout_ms != 0 && value == 0)
-    value = 1;
-  if (value >= portMAX_DELAY)
-    return false;
-  ticks = static_cast<TickType_t>(value);
-  return true;
-}
 
 bool accelBits(ICM42688::AccelRange range, uint8_t &bits) {
   switch (range) {
@@ -69,29 +57,56 @@ bool gyroBits(ICM42688::GyroRange range, uint8_t &bits) {
   case ICM42688::GyroRange::dps125:
     bits = 4U << 5;
     return true;
+  case ICM42688::GyroRange::dps62_5:
+    bits = 5U << 5;
+    return true;
+  case ICM42688::GyroRange::dps31_25:
+    bits = 6U << 5;
+    return true;
+  case ICM42688::GyroRange::dps15_625:
+    bits = 7U << 5;
+    return true;
   }
   return false;
 }
 
-bool odrBits(ICM42688::Odr odr, uint8_t &bits) {
+template <typename Odr> bool odrBits(Odr odr, uint8_t &bits) {
   switch (odr) {
-  case ICM42688::Odr::hz25:
-    bits = 0x0A;
+  case Odr::hz32000:
+    bits = 0x01;
     return true;
-  case ICM42688::Odr::hz50:
-    bits = 0x09;
+  case Odr::hz16000:
+    bits = 0x02;
     return true;
-  case ICM42688::Odr::hz100:
-    bits = 0x08;
+  case Odr::hz8000:
+    bits = 0x03;
     return true;
-  case ICM42688::Odr::hz200:
+  case Odr::hz4000:
+    bits = 0x04;
+    return true;
+  case Odr::hz2000:
+    bits = 0x05;
+    return true;
+  case Odr::hz1000:
+    bits = 0x06;
+    return true;
+  case Odr::hz200:
     bits = 0x07;
     return true;
-  case ICM42688::Odr::hz500:
-    bits = 0x0F;
+  case Odr::hz100:
+    bits = 0x08;
     return true;
-  case ICM42688::Odr::hz1000:
-    bits = 0x06;
+  case Odr::hz50:
+    bits = 0x09;
+    return true;
+  case Odr::hz25:
+    bits = 0x0A;
+    return true;
+  case Odr::hz12_5:
+    bits = 0x0B;
+    return true;
+  case Odr::hz500:
+    bits = 0x0F;
     return true;
   }
   return false;
@@ -154,6 +169,12 @@ float gyroSensitivity(ICM42688::GyroRange range) {
   switch (range) {
   case ICM42688::GyroRange::dps125:
     return 262.0F;
+  case ICM42688::GyroRange::dps62_5:
+    return 524.3F;
+  case ICM42688::GyroRange::dps31_25:
+    return 1048.6F;
+  case ICM42688::GyroRange::dps15_625:
+    return 2097.2F;
   case ICM42688::GyroRange::dps250:
     return 131.0F;
   case ICM42688::GyroRange::dps500:
@@ -166,7 +187,7 @@ float gyroSensitivity(ICM42688::GyroRange range) {
   return 1.0F;
 }
 
-} // 名前なし名前空間
+} // namespace
 
 void ICM42688::dataReadyIsr(void *context) {
   // SAFETY: contextはgpio_isr_handler_remove()が成功するまで生存する
@@ -196,14 +217,16 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
 
   uint8_t accel_range{};
   uint8_t gyro_range{};
-  uint8_t odr{};
+  uint8_t accel_odr{};
+  uint8_t gyro_odr{};
   uint8_t filter{};
   if (config.frequency_hz == 0 || config.frequency_hz > kMaximumSpiFrequency ||
       (config.int_gpio != GPIO_NUM_NC &&
        !GPIO_IS_VALID_GPIO(config.int_gpio)) ||
       !accelBits(config.accel_range, accel_range) ||
-      !gyroBits(config.gyro_range, gyro_range) || !odrBits(config.odr, odr) ||
-      !filterBits(config.filter, filter))
+      !gyroBits(config.gyro_range, gyro_range) ||
+      !odrBits(config.accel_odr, accel_odr) ||
+      !odrBits(config.gyro_odr, gyro_odr) || !filterBits(config.filter, filter))
     return ESP_ERR_INVALID_ARG;
 
   esp_err_t result =
@@ -223,10 +246,10 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
     result = ESP_ERR_INVALID_RESPONSE;
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kGyroConfig,
-                                 static_cast<uint8_t>(gyro_range | odr));
+                                 static_cast<uint8_t>(gyro_range | gyro_odr));
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kAccelConfig,
-                                 static_cast<uint8_t>(accel_range | odr));
+                                 static_cast<uint8_t>(accel_range | accel_odr));
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kGyroAccelFilter,
                                  static_cast<uint8_t>((filter << 4) | filter));
@@ -336,14 +359,17 @@ esp_err_t ICM42688::getStatus(Status &status) {
       spi_->readRegister(device_, kIntStatus | 0x80, value);
   if (result == ESP_OK) {
     status.data_ready = (value & 0x08) != 0;
-    if (status.data_ready && interrupt_.signal != nullptr) {
-      (void)xSemaphoreTake(interrupt_.signal, 0);
-    }
   }
   return result;
 }
 
 esp_err_t ICM42688::available(bool &ready) {
+  if (!initialized_ || spi_ == nullptr)
+    return ESP_ERR_INVALID_STATE;
+  if (interrupt_.signal != nullptr) {
+    ready = uxSemaphoreGetCount(interrupt_.signal) != 0;
+    return ESP_OK;
+  }
   Status status{};
   const esp_err_t result = getStatus(status);
   if (result == ESP_OK)
@@ -356,38 +382,41 @@ bool ICM42688::available() {
   return available(ready) == ESP_OK && ready;
 }
 
-esp_err_t ICM42688::waitDataReady(uint32_t timeout_ms) {
+esp_err_t ICM42688::waitDataReady(avi::Timeout timeout) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   TickType_t ticks{};
-  if (!timeoutToTicks(timeout_ms, ticks))
+  if (avi::internal::timeoutToTicks(timeout, ticks) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
 
-  Status status{};
-  esp_err_t result = getStatus(status);
-  if (result != ESP_OK || status.data_ready)
-    return result;
-
   if (interrupt_.signal != nullptr) {
-    return xSemaphoreTake(interrupt_.signal, ticks) == pdTRUE ? ESP_OK
-                                                              : ESP_ERR_TIMEOUT;
+    if (xSemaphoreTake(interrupt_.signal, ticks) == pdTRUE)
+      return ESP_OK;
+    return timeout.isNoWait() ? ESP_ERR_NOT_FINISHED : ESP_ERR_TIMEOUT;
   }
 
-  const int64_t deadline = avi_micros() + int64_t{timeout_ms} * 1000;
+  avi::internal::Deadline deadline{};
+  if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
+  Status status{};
   do {
-    if (timeout_ms == 0)
-      break;
-    avi_delay_ms(1);
-    result = getStatus(status);
+    const esp_err_t result = getStatus(status);
     if (result != ESP_OK || status.data_ready)
       return result;
-  } while (avi_micros() < deadline);
+    if (timeout.isNoWait())
+      return ESP_ERR_NOT_FINISHED;
+    avi_delay_ms(1);
+  } while (!avi::internal::expired(deadline));
   return ESP_ERR_TIMEOUT;
 }
 
 esp_err_t ICM42688::readRaw(RawData &data) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
+  // 直接readする場合は、それ以前のサンプル通知だけを先に消す。
+  // この後にISRが通知した新しいサンプルはセマフォへ残る。
+  if (interrupt_.signal != nullptr)
+    (void)xSemaphoreTake(interrupt_.signal, 0);
   uint8_t raw[14]{};
   const esp_err_t result =
       spi_->read(device_, kTemperatureData | 0x80, raw, sizeof(raw));

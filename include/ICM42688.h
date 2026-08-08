@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "SPICREATE.h"
+#include "avi_esp_libs/timeout.h"
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -11,8 +12,44 @@
 class ICM42688 {
 public:
   enum class AccelRange : uint8_t { g2, g4, g8, g16 };
-  enum class GyroRange : uint8_t { dps125, dps250, dps500, dps1000, dps2000 };
-  enum class Odr : uint8_t { hz25, hz50, hz100, hz200, hz500, hz1000 };
+  enum class GyroRange : uint8_t {
+    dps15_625,
+    dps31_25,
+    dps62_5,
+    dps125,
+    dps250,
+    dps500,
+    dps1000,
+    dps2000
+  };
+  enum class AccelOdr : uint8_t {
+    hz12_5,
+    hz25,
+    hz50,
+    hz100,
+    hz200,
+    hz500,
+    hz1000,
+    hz2000,
+    hz4000,
+    hz8000,
+    hz16000,
+    hz32000
+  };
+  enum class GyroOdr : uint8_t {
+    hz12_5,
+    hz25,
+    hz50,
+    hz100,
+    hz200,
+    hz500,
+    hz1000,
+    hz2000,
+    hz4000,
+    hz8000,
+    hz16000,
+    hz32000
+  };
   enum class Filter : uint8_t {
     odr_div2,
     odr_div4,
@@ -28,7 +65,8 @@ public:
     uint32_t frequency_hz{8000000};
     AccelRange accel_range{AccelRange::g16};
     GyroRange gyro_range{GyroRange::dps2000};
-    Odr odr{Odr::hz1000};
+    AccelOdr accel_odr{AccelOdr::hz1000};
+    GyroOdr gyro_odr{GyroOdr::hz1000};
     Filter filter{Filter::odr_div4};
     gpio_num_t int_gpio{GPIO_NUM_NC};
   };
@@ -65,7 +103,8 @@ public:
   [[nodiscard]] esp_err_t getStatus(Status &status);
   [[nodiscard]] esp_err_t available(bool &ready);
   [[nodiscard]] bool available();
-  [[nodiscard]] esp_err_t waitDataReady(uint32_t timeout_ms = 100);
+  [[nodiscard]] esp_err_t
+  waitDataReady(avi::Timeout timeout = avi::Timeout::noWait());
   [[nodiscard]] esp_err_t readRaw(RawData &data);
   [[nodiscard]] esp_err_t read(Data &data);
   [[nodiscard]] bool initialized() const { return initialized_; }

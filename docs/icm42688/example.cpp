@@ -13,7 +13,8 @@ void setup() {
   ICM42688::Config config;
   config.accel_range = ICM42688::AccelRange::g8;
   config.gyro_range = ICM42688::GyroRange::dps1000;
-  config.odr = ICM42688::Odr::hz200;
+  config.accel_odr = ICM42688::AccelOdr::hz200;
+  config.gyro_odr = ICM42688::GyroOdr::hz200;
   config.filter = ICM42688::Filter::odr_div4;
   config.int_gpio = GPIO_NUM_4;
 
@@ -25,7 +26,7 @@ void setup() {
 }
 
 void loop() {
-  if (!ready || imu.waitDataReady(100) != ESP_OK) {
+  if (!ready || imu.waitDataReady(avi::Timeout::milliseconds(100)) != ESP_OK) {
     return;
   }
 
