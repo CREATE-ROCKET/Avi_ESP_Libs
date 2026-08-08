@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "avi_esp_libs/timeout.h"
 #include "driver/spi_master.h"
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
@@ -25,7 +26,7 @@ public:
     int miso{13};
     int mosi{11};
     std::size_t max_transfer_size{SPI_MAX_DMA_LEN};
-    uint32_t transaction_timeout_ms{1000};
+    avi::Timeout transaction_timeout{avi::Timeout::noWait()};
   };
 
   SPICREATE() = default;
@@ -80,7 +81,7 @@ private:
 
   static constexpr std::size_t kMaxDevices = 8;
   spi_host_device_t host_{SPI2_HOST};
-  uint32_t transaction_timeout_ms_{1000};
+  avi::Timeout transaction_timeout_{avi::Timeout::noWait()};
   SemaphoreHandle_t bus_lock_{nullptr};
   bool initialized_{false};
   std::array<Device, kMaxDevices> devices_{};

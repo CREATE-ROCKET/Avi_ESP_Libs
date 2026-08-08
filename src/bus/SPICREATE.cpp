@@ -1,27 +1,11 @@
 #include "SPICREATE.h"
 
-#include <algorithm>
-#include <climits>
-
 #include "driver/gpio.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <algorithm>
 
-namespace {
-
-bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
-  if (timeout_ms > INT_MAX)
-    return false;
-  uint64_t value = (uint64_t{timeout_ms} * configTICK_RATE_HZ + 999U) / 1000U;
-  if (timeout_ms != 0 && value == 0)
-    value = 1;
-  if (value >= portMAX_DELAY)
-    return false;
-  ticks = static_cast<TickType_t>(value);
-  return true;
-}
-
-} // 名前なし名前空間
+#include "../compatibility/timeout_internal.h"
 
 class SPICREATE::LockGuard {
 public:
@@ -53,7 +37,7 @@ esp_err_t SPICREATE::begin(const Config &bus) {
       bus.max_transfer_size == 0 || bus.max_transfer_size > INT_MAX)
     return ESP_ERR_INVALID_ARG;
   TickType_t ignored{};
-  if (!timeoutToTicks(bus.transaction_timeout_ms, ignored))
+  if (avi::internal::timeoutToTicks(bus.transaction_timeout, ignored) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
   spi_bus_config_t config{};
   config.sclk_io_num = bus.sck;
@@ -72,7 +56,7 @@ esp_err_t SPICREATE::begin(const Config &bus) {
     return result;
   }
   host_ = bus.host;
-  transaction_timeout_ms_ = bus.transaction_timeout_ms;
+  transaction_timeout_ = bus.transaction_timeout;
   bus_lock_ = lock;
   initialized_ = true;
   devices_.fill(nullptr);
@@ -107,11 +91,13 @@ bool SPICREATE::owns(Device device) const {
 esp_err_t SPICREATE::takeBusLock() {
   auto lock = bus_lock_;
   TickType_t timeout_ticks{};
-  if (lock == nullptr ||
-      !timeoutToTicks(transaction_timeout_ms_, timeout_ticks))
+  if (lock == nullptr || avi::internal::timeoutToTicks(transaction_timeout_,
+                                                       timeout_ticks) != ESP_OK)
     return ESP_ERR_INVALID_STATE;
-  return xSemaphoreTake(lock, timeout_ticks) == pdTRUE ? ESP_OK
-                                                       : ESP_ERR_TIMEOUT;
+  if (xSemaphoreTake(lock, timeout_ticks) == pdTRUE)
+    return ESP_OK;
+  return transaction_timeout_.isNoWait() ? ESP_ERR_NOT_FINISHED
+                                         : ESP_ERR_TIMEOUT;
 }
 
 void SPICREATE::giveBusLock() { (void)xSemaphoreGive(bus_lock_); }

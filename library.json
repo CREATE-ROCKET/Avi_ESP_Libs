@@ -4,6 +4,6 @@
   "description": "ESP32-S3 bus and device drivers for Arduino and ESP-IDF",
   "frameworks": ["arduino", "espidf"],
   "platforms": ["espressif32"],
-  "headers": ["SPICREATE.h", "CANCREATE.h", "ICM42688.h", "ICM20948.h", "ICM20602.h", "H3LIS331.h", "LPS25HB.h", "S25FL127S.h", "S25FL512S.h", "NEC920.h"],
+  "headers": ["SPICREATE.h", "CANCREATE.h", "ICM42688.h", "ICM20948.h", "ICM20602.h", "H3LIS331.h", "LPS25HB.h", "S25FL127S.h", "S25FL512S.h", "NEC920.h", "avi_esp_libs/timeout.h"],
   "build": { "includeDir": "include", "srcDir": "src" }
 }
