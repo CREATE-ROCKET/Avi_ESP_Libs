@@ -9,7 +9,7 @@ class ICM20602 {
 public:
   enum class AccelRange : uint8_t { g2, g4, g8, g16 };
   enum class GyroRange : uint8_t { dps250, dps500, dps1000, dps2000 };
-  enum class Dlpf : uint8_t {
+  enum class GyroDlpf : uint8_t {
     hz250,
     hz176,
     hz92,
@@ -19,12 +19,23 @@ public:
     hz5,
     hz3281
   };
+  enum class AccelDlpf : uint8_t {
+    hz1046,
+    hz218,
+    hz99,
+    hz44_8,
+    hz21_2,
+    hz10_2,
+    hz5_1,
+    hz420
+  };
 
   struct Config {
     uint32_t frequency_hz{8000000};
     AccelRange accel_range{AccelRange::g16};
     GyroRange gyro_range{GyroRange::dps2000};
-    Dlpf dlpf{Dlpf::hz92};
+    AccelDlpf accel_dlpf{AccelDlpf::hz99};
+    GyroDlpf gyro_dlpf{GyroDlpf::hz92};
     uint8_t sample_rate_divider{0};
   };
 

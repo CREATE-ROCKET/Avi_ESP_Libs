@@ -8,6 +8,7 @@ constexpr uint8_t kSampleRateDivider = 0x19;
 constexpr uint8_t kConfig = 0x1A;
 constexpr uint8_t kGyroConfig = 0x1B;
 constexpr uint8_t kAccelConfig = 0x1C;
+constexpr uint8_t kAccelConfig2 = 0x1D;
 constexpr uint8_t kIntStatus = 0x3A;
 constexpr uint8_t kAccelData = 0x3B;
 constexpr uint8_t kUserControl = 0x6A;
@@ -56,30 +57,60 @@ bool gyroBits(ICM20602::GyroRange range, uint8_t &bits) {
   return false;
 }
 
-bool dlpfBits(ICM20602::Dlpf dlpf, uint8_t &bits) {
+bool gyroDlpfBits(ICM20602::GyroDlpf dlpf, uint8_t &bits) {
   switch (dlpf) {
-  case ICM20602::Dlpf::hz250:
+  case ICM20602::GyroDlpf::hz250:
     bits = 0;
     return true;
-  case ICM20602::Dlpf::hz176:
+  case ICM20602::GyroDlpf::hz176:
     bits = 1;
     return true;
-  case ICM20602::Dlpf::hz92:
+  case ICM20602::GyroDlpf::hz92:
     bits = 2;
     return true;
-  case ICM20602::Dlpf::hz41:
+  case ICM20602::GyroDlpf::hz41:
     bits = 3;
     return true;
-  case ICM20602::Dlpf::hz20:
+  case ICM20602::GyroDlpf::hz20:
     bits = 4;
     return true;
-  case ICM20602::Dlpf::hz10:
+  case ICM20602::GyroDlpf::hz10:
     bits = 5;
     return true;
-  case ICM20602::Dlpf::hz5:
+  case ICM20602::GyroDlpf::hz5:
     bits = 6;
     return true;
-  case ICM20602::Dlpf::hz3281:
+  case ICM20602::GyroDlpf::hz3281:
+    bits = 7;
+    return true;
+  }
+  return false;
+}
+
+bool accelDlpfBits(ICM20602::AccelDlpf dlpf, uint8_t &bits) {
+  switch (dlpf) {
+  case ICM20602::AccelDlpf::hz1046:
+    bits = 0x08;
+    return true;
+  case ICM20602::AccelDlpf::hz218:
+    bits = 0;
+    return true;
+  case ICM20602::AccelDlpf::hz99:
+    bits = 2;
+    return true;
+  case ICM20602::AccelDlpf::hz44_8:
+    bits = 3;
+    return true;
+  case ICM20602::AccelDlpf::hz21_2:
+    bits = 4;
+    return true;
+  case ICM20602::AccelDlpf::hz10_2:
+    bits = 5;
+    return true;
+  case ICM20602::AccelDlpf::hz5_1:
+    bits = 6;
+    return true;
+  case ICM20602::AccelDlpf::hz420:
     bits = 7;
     return true;
   }
@@ -114,7 +145,7 @@ float gyroSensitivity(ICM20602::GyroRange range) {
   return 1.0F;
 }
 
-} // 名前なし名前空間
+} // namespace
 
 ICM20602::~ICM20602() {
   if (device_ != nullptr)
@@ -134,10 +165,13 @@ esp_err_t ICM20602::begin(SPICREATE &spi, int chip_select,
     return ESP_ERR_INVALID_STATE;
   uint8_t accel{};
   uint8_t gyro{};
-  uint8_t dlpf{};
+  uint8_t accel_dlpf{};
+  uint8_t gyro_dlpf{};
   if (config.frequency_hz == 0 || config.frequency_hz > kMaximumSpiFrequency ||
       !accelBits(config.accel_range, accel) ||
-      !gyroBits(config.gyro_range, gyro) || !dlpfBits(config.dlpf, dlpf))
+      !gyroBits(config.gyro_range, gyro) ||
+      !accelDlpfBits(config.accel_dlpf, accel_dlpf) ||
+      !gyroDlpfBits(config.gyro_dlpf, gyro_dlpf))
     return ESP_ERR_INVALID_ARG;
 
   esp_err_t result =
@@ -158,7 +192,7 @@ esp_err_t ICM20602::begin(SPICREATE &spi, int chip_select,
   if (result == ESP_OK && identity != kExpectedWhoAmI)
     result = ESP_ERR_INVALID_RESPONSE;
   if (result == ESP_OK)
-    result = spi_->writeRegister(device_, kConfig, dlpf);
+    result = spi_->writeRegister(device_, kConfig, gyro_dlpf);
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kSampleRateDivider,
                                  config.sample_rate_divider);
@@ -166,6 +200,8 @@ esp_err_t ICM20602::begin(SPICREATE &spi, int chip_select,
     result = spi_->writeRegister(device_, kGyroConfig, gyro);
   if (result == ESP_OK)
     result = spi_->writeRegister(device_, kAccelConfig, accel);
+  if (result == ESP_OK)
+    result = spi_->writeRegister(device_, kAccelConfig2, accel_dlpf);
   if (result != ESP_OK) {
     const esp_err_t cleanup_result = end();
     return cleanup_result == ESP_OK ? result : cleanup_result;
