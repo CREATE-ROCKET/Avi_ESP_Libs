@@ -225,6 +225,7 @@ inline void aviApiSmoke() {
       STSCREATE::Baudrate::bps57600,   STSCREATE::Baudrate::bps38400};
   (void)sts_baudrates;
   uint8_t sts_data[8]{};
+  uint8_t sts_error{};
   uint8_t sts_ids[]{1, 2};
   (void)sts.begin(sts_config);
   (void)sts.ping(1);
@@ -235,20 +236,29 @@ inline void aviApiSmoke() {
   (void)sts.syncRead(0x38, 2, sts_ids, 2, sts_data, 4);
   (void)sts.syncWrite(0x2A, 2, sts_ids, 2, sts_data, 4);
   (void)sts.recovery(1);
+  (void)sts.recovery(1, &sts_error);
+  (void)sts.recovery(1, nullptr, false);
   (void)sts.resetState(1);
+  (void)sts.resetState(1, &sts_error);
+  (void)sts.resetState(1, nullptr, false);
 
   STS3215 servo;
   STS3215::RawData servo_raw{};
   STS3215::Data servo_data{};
   STS3215::Status servo_status{};
   STS3215::Motion motion{1.0F, 1.0F, STS3215::TorqueLimit::percent(50.0F)};
-  STS3215::StallProtection stall{true, 50.0F, avi::Timeout::milliseconds(100),
-                                 20.0F};
+  STS3215::StallProtection stall{true, 50.0F, 100, 20.0F};
   STS3215::TorqueLimit torque = STS3215::TorqueLimit::raw(500);
+  STS3215::TorqueLimit invalid_raw = STS3215::TorqueLimit::raw(1001);
+  STS3215::TorqueLimit invalid_percent = STS3215::TorqueLimit::percent(-1.0F);
   (void)STS3215::Model::c001_1_345;
   (void)STS3215::Model::c044_1_191;
   (void)STS3215::Model::c046_1_147;
   (void)servo.begin(sts, 1, STS3215::Model::c001_1_345);
+  (void)servo.lastDeviceError();
+  (void)torque.valid();
+  (void)invalid_raw.valid();
+  (void)invalid_percent.valid();
   (void)servo.verifyOperatingMode(STS3215::OperatingMode::step);
   (void)servo.holdCurrentPosition({torque});
   (void)servo.moveAbsoluteDegrees(10.0F, motion);
@@ -262,6 +272,11 @@ inline void aviApiSmoke() {
   (void)servo.readRaw(servo_raw);
   (void)servo.read(servo_data);
   (void)servo.getStatus(servo_status);
+  (void)servo.readRegister(STS3215::Register::id, sts_data, 1);
+  (void)servo.writeRegister(STS3215::Register::id, sts_data, 1,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::baud_rate, sts_data, 1,
+                            STS3215::Persistence::volatile_only);
   (void)servo.end();
   (void)sts.end();
 

@@ -102,11 +102,15 @@ LPS25HBは同じclassをSPIまたはI2C address `0x5C`/`0x5D`で開始できま�
 
 `STSCREATE`は磁気エンコーダ版STS protocolのlittle-endian packet層です。PING、READ、WRITE、REG WRITE、ACTION、SYNC READ/WRITE、RECOVERY、状態resetを提供します。broadcast PINGは衝突を避けるため拒否します。direction pin指定時はUART shift registerの送信完了後、delayを挟まずRXへ切り替えます。
 
+`esp_err_t`はUART transportとpacket framingの成否を表し、responseの`ERROR` byteはservoが報告する別の状態です。したがって`ESP_OK`かつ`device_error != 0`は正常なprotocol transactionです。`STS3215`はresponseを受信したtransactionの値を`lastDeviceError()`へ保存し、fault中でも`getStatus()`やtelemetryを取得できます。responseを待たないWRITEでは保存値を変更しません。
+
 `STS3215::begin()`はPINGと設定cacheだけを行い、torque、target、operating mode、EPROMを変更しないためservoは動きません。`holdCurrentPosition()`はposition modeでは現在位置をtargetへ設定し、step modeではrelative target 0を設定してからruntime torqueとtorque ONを適用します。Torque Switchのcalibration値128は使用しません。`disableTorque()`後は機械的条件が許せば手で回せ、再度`holdCurrentPosition()`するとその現在位置を保持します。
 
 `moveRelativeDegrees()`はcurrent positionのread+加算ではなく、step mode nativeのBIT15方向 + 15-bit magnitudeを使います。speedはPhase BIT2に応じて1または50 steps/s単位、accelerationは100 steps/s²単位へ変換します。movementごとの`Motion::torque_limit`、SRAM runtime torque、EPROM stall protectionは別の設定です。
 
-EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずbest-effortで元へ戻します。複数servo instanceは同じSTSCREATEを共有できますが、同一STS3215 instanceの設定、movement、telemetryは呼出し側でserializeしてください。
+telemetryのposition、speed、currentはBIT15、loadはBIT10を符号とするsign-magnitudeです。`Data`ではposition/speed/currentを符号付き物理値へ変換し、loadは符号付きraw値を返します。`TorqueLimit::raw()`/`percent()`は範囲外、NaN、無限値に対して`valid()==false`となり、受付APIは`ESP_ERR_INVALID_ARG`を返します。stall protectionの`trigger_time_ms`は0～2540 msをnearest 10 msへ量子化するservo設定値で、待機を表す`avi::Timeout`ではありません。
+
+EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずbest-effortで元へ戻します。IDとbaudrateは書込み直後に通信条件が変わるため、generic `writeRegister()`では`ESP_ERR_NOT_SUPPORTED`として意図的に禁止します。複数servo instanceは同じSTSCREATEを共有できますが、同一STS3215 instanceの設定、movement、telemetry、`lastDeviceError()`の利用は呼出し側でserializeしてください。
 
 ### AS5047D
 
@@ -301,6 +305,9 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 ## 破壊的変更
 
 この版は旧`main`および旧バージョン番号付きdirectoryとの後方互換性がありません。
+
+- `STS3215::Data::load_raw`を`uint16_t`からsign-magnitude復号済みの`int16_t`へ変更しました。
+- `STS3215::StallProtection::trigger_time`を`avi::Timeout`から`uint16_t trigger_time_ms`へ変更しました。
 
 - `CAN_CREATE`、`CANCREATE_lib.h`、旧互換mode、`setPin()`、`sendChar()`、`sendData()`、`sendLine()`、`readLine()`、`sendPacket()`を削除しました。
 - `CANCREATE::Config::bitrate`と簡易`begin()`は任意整数から`Bitrate` enumへ変更し、`read(Frame&)`の既定timeoutを0 msへ変更しました。

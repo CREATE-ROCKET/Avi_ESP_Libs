@@ -26,6 +26,13 @@ esp_err_t moveAndRelease() {
   motion.torque_limit = STS3215::TorqueLimit::percent(50.0F);
   if (result == ESP_OK)
     result = servo.moveRelativeDegrees(130.0F, motion);
+  STS3215::Status status{};
+  if (result == ESP_OK)
+    result = servo.getStatus(status); // fault中でも状態を取得できる。
+  if (result == ESP_OK) {
+    const uint8_t response_error = servo.lastDeviceError();
+    (void)response_error; // transport成功とservoのERROR byteは別に扱う。
+  }
   if (result == ESP_OK)
     result = servo.disableTorque(); // 手で回せる状態にする。
   if (result == ESP_OK) {
