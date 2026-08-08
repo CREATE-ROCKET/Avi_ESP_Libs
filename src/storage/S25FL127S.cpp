@@ -1,5 +1,6 @@
 #include "S25FL127S.h"
 
+#include "../compatibility/timeout_internal.h"
 #include "avi_esp_libs/compatibility.h"
 #include <algorithm>
 
@@ -12,15 +13,22 @@ constexpr uint8_t kErase = 0x60;
 constexpr uint8_t kEraseBlock = 0xD8;
 constexpr uint8_t kProgram = 0x02;
 constexpr uint8_t kStatus = 0x05;
+constexpr uint8_t kStatus2 = 0x07;
 constexpr uint8_t kClearStatus = 0x30;
 constexpr uint8_t kErrorMask = 0x60;
 constexpr uint8_t kProtectionMask = 0x1C;
 constexpr uint32_t kMaximumReadFrequencyHz = 50000000;
 
-int64_t deadlineAfter(uint32_t timeout_ms) {
-  return avi_micros() + static_cast<int64_t>(timeout_ms) * 1000;
+esp_err_t finiteDeadline(avi::Timeout timeout, int64_t &deadline_us) {
+  if (!timeout.isFinite())
+    return ESP_ERR_INVALID_ARG;
+  avi::internal::Deadline deadline{};
+  const esp_err_t result = avi::internal::makeDeadline(timeout, deadline);
+  if (result == ESP_OK)
+    deadline_us = deadline.microseconds;
+  return result;
 }
-} // 名前なし名前空間
+} // namespace
 
 S25FL127S::~S25FL127S() {
   if (device_ != nullptr)
@@ -29,14 +37,18 @@ S25FL127S::~S25FL127S() {
 
 esp_err_t S25FL127S::begin(SPICREATE &spi, int chip_select,
                            uint32_t frequency_hz) {
-  return begin(spi, chip_select, Config{frequency_hz, 1000});
+  return begin(spi, chip_select,
+               Config{frequency_hz, avi::Timeout::milliseconds(1000)});
 }
 
 esp_err_t S25FL127S::begin(SPICREATE &spi, int chip_select,
                            const Config &config) {
   if (spi_ != nullptr || device_ != nullptr)
     return ESP_ERR_INVALID_STATE;
-  if (config.frequency_hz == 0 || config.frequency_hz > kMaximumReadFrequencyHz)
+  int64_t deadline_us{};
+  if (config.frequency_hz == 0 ||
+      config.frequency_hz > kMaximumReadFrequencyHz ||
+      finiteDeadline(config.ready_timeout, deadline_us) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
 
   esp_err_t result =
@@ -45,8 +57,6 @@ esp_err_t S25FL127S::begin(SPICREATE &spi, int chip_select,
     return result;
 
   spi_ = &spi;
-  ready_timeout_ms_ = config.ready_timeout_ms;
-
   const auto fail = [this](esp_err_t cause) {
     const esp_err_t cleanup = spi_->removeDevice(device_);
     if (cleanup == ESP_OK)
@@ -54,7 +64,7 @@ esp_err_t S25FL127S::begin(SPICREATE &spi, int chip_select,
     return cleanup == ESP_OK ? cause : cleanup;
   };
 
-  result = waitReadyUntil(deadlineAfter(ready_timeout_ms_));
+  result = waitReadyUntil(deadline_us);
   if (result != ESP_OK)
     return fail(result);
 
@@ -65,6 +75,13 @@ esp_err_t S25FL127S::begin(SPICREATE &spi, int chip_select,
   if (id != kExpectedJedecId)
     return fail(ESP_ERR_INVALID_RESPONSE);
 
+  uint8_t status2{};
+  result = spi_->readRegister(device_, kStatus2, status2);
+  if (result != ESP_OK)
+    return fail(result);
+  // SR2[7] (D8h_O): 0は64 KiB、1は256 KiBのD8h消去単位。
+  block_size_ = (status2 & 0x80U) != 0 ? 256U * 1024U : 64U * 1024U;
+
   return ESP_OK;
 }
 
@@ -72,8 +89,11 @@ esp_err_t S25FL127S::end() {
   if (!initialized())
     return ESP_ERR_INVALID_STATE;
   const esp_err_t result = spi_->removeDevice(device_);
-  if (result == ESP_OK)
+  if (result == ESP_OK) {
     spi_ = nullptr;
+    device_ = nullptr;
+    block_size_ = 0;
+  }
   return result;
 }
 
@@ -146,10 +166,12 @@ esp_err_t S25FL127S::writeEnable() {
   return (status & 0x02U) != 0 ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
 }
 
-esp_err_t S25FL127S::eraseChip(uint32_t timeout_ms) {
+esp_err_t S25FL127S::eraseChip(avi::Timeout timeout) {
   if (!initialized())
     return ESP_ERR_INVALID_STATE;
-  const int64_t deadline_us = deadlineAfter(timeout_ms);
+  int64_t deadline_us{};
+  if (finiteDeadline(timeout, deadline_us) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
   esp_err_t result = waitReadyUntil(deadline_us);
   if (result != ESP_OK)
     return result;
@@ -170,12 +192,14 @@ esp_err_t S25FL127S::eraseChip(uint32_t timeout_ms) {
 
 esp_err_t S25FL127S::eraseAddressed(uint8_t command, uint32_t address,
                                     std::size_t alignment,
-                                    uint32_t timeout_ms) {
+                                    avi::Timeout timeout) {
   if (!initialized())
     return ESP_ERR_INVALID_STATE;
   if (address >= kCapacity || address % alignment != 0)
     return ESP_ERR_INVALID_ARG;
-  const int64_t deadline_us = deadlineAfter(timeout_ms);
+  int64_t deadline_us{};
+  if (finiteDeadline(timeout, deadline_us) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
   esp_err_t result = waitReadyUntil(deadline_us);
   if (result != ESP_OK)
     return result;
@@ -198,12 +222,14 @@ esp_err_t S25FL127S::eraseAddressed(uint8_t command, uint32_t address,
   return result == ESP_OK ? waitReadyUntil(deadline_us) : result;
 }
 
-esp_err_t S25FL127S::eraseBlock(uint32_t address, uint32_t timeout_ms) {
-  return eraseAddressed(kEraseBlock, address, kBlockSize, timeout_ms);
+esp_err_t S25FL127S::eraseBlock(uint32_t address, avi::Timeout timeout) {
+  if (block_size_ == 0)
+    return ESP_ERR_INVALID_STATE;
+  return eraseAddressed(kEraseBlock, address, block_size_, timeout);
 }
 
 esp_err_t S25FL127S::write(uint32_t address, const uint8_t *data,
-                           std::size_t length, uint32_t timeout_ms) {
+                           std::size_t length, avi::Timeout timeout) {
   if (!initialized())
     return ESP_ERR_INVALID_STATE;
   if (data == nullptr || length == 0 || address >= kCapacity ||
@@ -211,7 +237,9 @@ esp_err_t S25FL127S::write(uint32_t address, const uint8_t *data,
     return ESP_ERR_INVALID_ARG;
 
   // 全ページで同じ期限を共有し、ページ数に応じてタイムアウトを延長しない。
-  const int64_t deadline_us = deadlineAfter(timeout_ms);
+  int64_t deadline_us{};
+  if (finiteDeadline(timeout, deadline_us) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
   esp_err_t result = waitReadyUntil(deadline_us);
   if (result != ESP_OK)
     return result;
@@ -287,6 +315,6 @@ esp_err_t S25FL127S::readByte(uint32_t address, uint8_t &value) {
 }
 
 esp_err_t S25FL127S::writeByte(uint32_t address, uint8_t value,
-                               uint32_t timeout_ms) {
-  return write(address, &value, 1, timeout_ms);
+                               avi::Timeout timeout) {
+  return write(address, &value, 1, timeout);
 }
