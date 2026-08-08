@@ -136,7 +136,16 @@ inline void aviApiSmoke() {
   H3LIS331 h3lis331;
   S25FL512S flash512;
   NEC920 radio;
+  NEC920::Packet radio_packet{};
+  std::array<uint8_t, 4> radio_destination{};
+  bool radio_accepted{};
+  uint8_t radio_data[]{0x73};
+  (void)radio.send(NEC920::MessageId::no_resend, 1, radio_destination,
+                   radio_data, 0);
+  (void)radio.setRfConfig(1, 1, 1, 1, 1, 0);
+  (void)radio.receive(radio_packet, 0);
+  (void)radio.checkCommandResult(radio_packet, 1, radio_accepted);
+  (void)radio.available();
   (void)h3lis331;
   (void)flash512;
-  (void)radio;
 }
