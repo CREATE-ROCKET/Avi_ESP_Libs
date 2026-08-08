@@ -1,5 +1,6 @@
 #include "LPS25HB.h"
 
+#include "../compatibility/timeout_internal.h"
 #include "avi_esp_libs/compatibility.h"
 
 namespace {
@@ -28,6 +29,7 @@ constexpr uint32_t kMaximumSpiFrequencyHz = 10000000;
 constexpr int64_t kResetTimeoutUs = 100000;
 
 bool validConfig(const LPS25HB::Config &config) {
+  uint64_t timeout_ms{};
   const auto odr = static_cast<uint8_t>(config.odr);
   const auto pressure = static_cast<uint8_t>(config.pressure_average);
   const auto temperature = static_cast<uint8_t>(config.temperature_average);
@@ -35,9 +37,11 @@ bool validConfig(const LPS25HB::Config &config) {
          config.frequency_hz <= kMaximumSpiFrequencyHz && odr <= 4 &&
          pressure <= 3 && temperature <= 3 &&
          (config.odr != LPS25HB::Odr::one_shot ||
-          config.one_shot_timeout_ms > 0);
+          (config.one_shot_timeout.isFinite() &&
+           config.one_shot_timeout.millisecondsValue(timeout_ms) &&
+           timeout_ms > 0));
 }
-} // 名前なし名前空間
+} // namespace
 
 LPS25HB::~LPS25HB() {
   if (device_ != nullptr)
@@ -186,8 +190,10 @@ esp_err_t LPS25HB::readRaw(RawData &data) {
     if (result != ESP_OK)
       return result;
 
-    const int64_t deadline =
-        avi_micros() + int64_t{config_.one_shot_timeout_ms} * 1000;
+    avi::internal::Deadline deadline{};
+    result = avi::internal::makeDeadline(config_.one_shot_timeout, deadline);
+    if (result != ESP_OK)
+      return ESP_ERR_INVALID_ARG;
     while (true) {
       uint8_t control2 = 0;
       result = spi_->readRegister(device_, kRead | kControl2, control2);
@@ -201,7 +207,7 @@ esp_err_t LPS25HB::readRaw(RawData &data) {
       if ((control2 & kOneShot) == 0 && status.pressure_ready &&
           status.temperature_ready)
         break;
-      if (avi_micros() >= deadline)
+      if (avi::internal::expired(deadline))
         return ESP_ERR_TIMEOUT;
       avi_delay_ms(1);
     }

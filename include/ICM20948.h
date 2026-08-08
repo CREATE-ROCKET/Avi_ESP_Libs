@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "SPICREATE.h"
+#include "avi_esp_libs/timeout.h"
 
 class ICM20948 {
 public:
@@ -39,7 +40,7 @@ public:
     Dlpf accel_dlpf{Dlpf::level3};
     Dlpf gyro_dlpf{Dlpf::level3};
     MagnetometerOdr magnetometer_odr{MagnetometerOdr::hz100};
-    uint32_t operation_timeout_ms{300};
+    avi::Timeout operation_timeout{avi::Timeout::milliseconds(300)};
   };
 
   struct RawData {
@@ -91,7 +92,7 @@ private:
   [[nodiscard]] esp_err_t selectBank(uint8_t bank);
   [[nodiscard]] esp_err_t magnetometerTransfer(uint8_t address, bool read,
                                                uint8_t *value,
-                                               uint32_t timeout_ms);
+                                               avi::Timeout timeout);
   [[nodiscard]] esp_err_t configureMagnetometer(MagnetometerOdr odr);
   [[nodiscard]] esp_err_t shutdownHardware(bool stop_magnetometer);
 

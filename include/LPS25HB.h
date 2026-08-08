@@ -3,6 +3,7 @@
 #include <cstdint>
 
 #include "SPICREATE.h"
+#include "avi_esp_libs/timeout.h"
 
 class LPS25HB {
 public:
@@ -25,7 +26,7 @@ public:
     Odr odr{Odr::hz25};
     PressureAverage pressure_average{PressureAverage::samples512};
     TemperatureAverage temperature_average{TemperatureAverage::samples64};
-    uint32_t one_shot_timeout_ms{100};
+    avi::Timeout one_shot_timeout{avi::Timeout::milliseconds(100)};
   };
 
   struct RawData {

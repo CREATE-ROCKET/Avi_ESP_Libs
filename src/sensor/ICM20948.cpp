@@ -1,5 +1,6 @@
 #include "ICM20948.h"
 
+#include "../compatibility/timeout_internal.h"
 #include "avi_esp_libs/compatibility.h"
 
 namespace {
@@ -94,6 +95,7 @@ bool validMagnetometerOdr(ICM20948::MagnetometerOdr odr) {
 }
 
 bool validConfig(const ICM20948::Config &config) {
+  uint64_t timeout_ms{};
   return config.frequency_hz > 0 &&
          config.frequency_hz <= kMaximumSpiFrequencyHz &&
          static_cast<uint8_t>(config.accel_range) <= 3 &&
@@ -101,7 +103,9 @@ bool validConfig(const ICM20948::Config &config) {
          config.accel_sample_rate_divider <= kMaximumAccelSampleRateDivider &&
          validDlpf(config.accel_dlpf) && validDlpf(config.gyro_dlpf) &&
          validMagnetometerOdr(config.magnetometer_odr) &&
-         config.operation_timeout_ms > 0;
+         config.operation_timeout.isFinite() &&
+         config.operation_timeout.millisecondsValue(timeout_ms) &&
+         timeout_ms > 0;
 }
 
 uint8_t sensorConfig(uint8_t range, ICM20948::Dlpf dlpf) {
@@ -148,7 +152,7 @@ int16_t signedLittleEndian(const uint8_t *data) {
   return static_cast<int16_t>(value);
 }
 
-} // 名前なし名前空間
+} // namespace
 
 ICM20948::~ICM20948() {
   if (device_ != nullptr)
@@ -164,10 +168,10 @@ esp_err_t ICM20948::selectBank(uint8_t bank) {
 }
 
 esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
-                                         uint8_t *value, uint32_t timeout_ms) {
+                                         uint8_t *value, avi::Timeout timeout) {
   if (spi_ == nullptr || device_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  if (value == nullptr || timeout_ms == 0)
+  if (value == nullptr || !timeout.isFinite())
     return ESP_ERR_INVALID_ARG;
 
   const auto finish = [this](esp_err_t result) {
@@ -204,9 +208,11 @@ esp_err_t ICM20948::magnetometerTransfer(uint8_t address, bool read,
   if (result != ESP_OK)
     return result;
 
-  const int64_t deadline_us = avi_micros() + int64_t{timeout_ms} * 1000;
+  avi::internal::Deadline deadline{};
+  if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
   bool transfer_complete = false;
-  while (avi_micros() < deadline_us) {
+  while (!avi::internal::expired(deadline)) {
     uint8_t status = 0;
     result = spi_->readRegister(device_, kRead | kI2cMasterStatus, status);
     if (result != ESP_OK)
@@ -272,21 +278,21 @@ esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
 
   uint8_t value = 0x01;
   result = magnetometerTransfer(kMagnetometerControl3, false, &value,
-                                config_.operation_timeout_ms);
+                                config_.operation_timeout);
   if (result != ESP_OK)
     return result;
   avi_delay_ms(1);
 
   value = 0;
   result = magnetometerTransfer(kMagnetometerWhoAmI1, true, &value,
-                                config_.operation_timeout_ms);
+                                config_.operation_timeout);
   if (result != ESP_OK)
     return result;
   if (value != kExpectedMagnetometerWhoAmI1)
     return ESP_ERR_INVALID_RESPONSE;
 
   result = magnetometerTransfer(kMagnetometerWhoAmI2, true, &value,
-                                config_.operation_timeout_ms);
+                                config_.operation_timeout);
   if (result != ESP_OK)
     return result;
   if (value != kExpectedMagnetometerWhoAmI2)
@@ -294,13 +300,13 @@ esp_err_t ICM20948::configureMagnetometer(MagnetometerOdr odr) {
 
   value = static_cast<uint8_t>(odr);
   result = magnetometerTransfer(kMagnetometerControl2, false, &value,
-                                config_.operation_timeout_ms);
+                                config_.operation_timeout);
   if (result != ESP_OK)
     return result;
 
   value = 0;
   result = magnetometerTransfer(kMagnetometerControl2, true, &value,
-                                config_.operation_timeout_ms);
+                                config_.operation_timeout);
   if (result != ESP_OK)
     return result;
   if (value != static_cast<uint8_t>(odr))
@@ -347,8 +353,7 @@ esp_err_t ICM20948::shutdownHardware(bool stop_magnetometer) {
   if (stop_magnetometer) {
     uint8_t power_down = static_cast<uint8_t>(MagnetometerOdr::off);
     rememberFirst(magnetometerTransfer(kMagnetometerControl2, false,
-                                       &power_down,
-                                       config_.operation_timeout_ms),
+                                       &power_down, config_.operation_timeout),
                   first_error);
   }
 
@@ -420,10 +425,13 @@ esp_err_t ICM20948::begin(SPICREATE &spi, int chip_select,
     return fail(result);
 
   avi_delay_ms(1);
-  const int64_t reset_deadline =
-      avi_micros() + int64_t{config.operation_timeout_ms} * 1000;
+  avi::internal::Deadline reset_deadline{};
+  result =
+      avi::internal::makeDeadline(config.operation_timeout, reset_deadline);
+  if (result != ESP_OK)
+    return fail(result);
   bool reset_complete = false;
-  while (avi_micros() < reset_deadline) {
+  while (!avi::internal::expired(reset_deadline)) {
     uint8_t power_management = 0;
     result = spi_->readRegister(device_, kRead | kPowerManagement1,
                                 power_management);
