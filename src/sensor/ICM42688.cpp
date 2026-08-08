@@ -35,8 +35,21 @@ constexpr uint8_t kIntTpulseDuration = 0x40;
 constexpr uint8_t kIntTdeassertDisable = 0x20;
 constexpr uint8_t kIntAsyncReset = 0x10;
 constexpr std::size_t kSelfTestSamples = 200;
-constexpr uint8_t kGyroSelfTestAxes = 0x38;
-constexpr uint8_t kAccelSelfTestAxesAndRegulator = 0x47;
+constexpr uint8_t kSelfTestRegulatorEnable = 0x40;
+constexpr uint8_t kAccelSelfTestZ = 0x20;
+constexpr uint8_t kAccelSelfTestY = 0x10;
+constexpr uint8_t kAccelSelfTestX = 0x08;
+constexpr uint8_t kGyroSelfTestZ = 0x04;
+constexpr uint8_t kGyroSelfTestY = 0x02;
+constexpr uint8_t kGyroSelfTestX = 0x01;
+constexpr uint8_t kGyroSelfTestAxes =
+    kGyroSelfTestX | kGyroSelfTestY | kGyroSelfTestZ;
+constexpr uint8_t kAccelSelfTestAxesAndRegulator =
+    kSelfTestRegulatorEnable | kAccelSelfTestX | kAccelSelfTestY |
+    kAccelSelfTestZ;
+
+static_assert(kGyroSelfTestAxes == 0x07);
+static_assert(kAccelSelfTestAxesAndRegulator == 0x78);
 
 bool accelBits(ICM42688::AccelRange range, uint8_t &bits) {
   switch (range) {
@@ -252,12 +265,12 @@ constexpr bool accelOtpPass(float measured, float trim) {
 }
 
 constexpr bool gyroOtpPass(float measured, float trim) {
-  return measured > trim * 0.5F;
+  return measured > trim * 0.5F && measured < trim * 1.5F;
 }
 
 constexpr bool accelFallbackPass(float measured) {
-  return measured >= 225.0F * 16384.0F / 1000.0F &&
-         measured <= 675.0F * 16384.0F / 1000.0F;
+  return measured >= 50.0F * 16384.0F / 1000.0F &&
+         measured <= 1200.0F * 16384.0F / 1000.0F;
 }
 
 constexpr bool gyroFallbackPass(float measured) {
@@ -267,6 +280,8 @@ constexpr bool gyroFallbackPass(float measured) {
 constexpr bool gyroOffsetPass(float baseline) {
   return baseline <= 20.0F * 131.0F;
 }
+
+constexpr float magnitude(float value) { return value < 0.0F ? -value : value; }
 
 bool accelSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
   const float measured = std::fabs(static_cast<float>(response));
@@ -289,10 +304,12 @@ bool gyroSelfTestAxis(int32_t response, int32_t baseline, uint8_t code,
 static_assert(!accelOtpPass(499.0F, 1000.0F));
 static_assert(accelOtpPass(1000.0F, 1000.0F));
 static_assert(!accelOtpPass(1501.0F, 1000.0F));
-static_assert(gyroOtpPass(2000.0F, 1000.0F));
+static_assert(gyroOtpPass(1000.0F, 1000.0F));
 static_assert(!gyroOtpPass(500.0F, 1000.0F));
-static_assert(accelFallbackPass(225.0F * 16384.0F / 1000.0F));
-static_assert(accelFallbackPass(675.0F * 16384.0F / 1000.0F));
+static_assert(!gyroOtpPass(1500.0F, 1000.0F));
+static_assert(magnitude(-1000.0F) == 1000.0F);
+static_assert(accelFallbackPass(50.0F * 16384.0F / 1000.0F));
+static_assert(accelFallbackPass(1200.0F * 16384.0F / 1000.0F));
 static_assert(gyroFallbackPass(60.0F * 131.0F));
 static_assert(gyroOffsetPass(20.0F * 131.0F));
 static_assert(!gyroOffsetPass(20.0F * 131.0F + 1.0F));
