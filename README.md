@@ -1,6 +1,6 @@
 # Avi_ESP_Libs
 
-ESP32向けのSPI、TWAI/CAN、センサ、Flash、UARTドライバを、リポジトリ全体で1つのC++17ライブラリとして提供します。PlatformIOでは1つのlibrary、ESP-IDFでは1つのcomponentとして利用できます。CIのtargetはESP32-S3です。
+ESP32向けのSPI、I2C、STS servo、TWAI/CAN、センサ、Flash、UARTドライバを、リポジトリ全体で1つのC++17ライブラリとして提供します。PlatformIOでは1つのlibrary、ESP-IDFでは1つのcomponentとして利用できます。CIのtargetはESP32-S3です。
 
 ## 対応環境と固定バージョン
 
@@ -39,6 +39,19 @@ if (can.available()) {
     CANCREATE::Frame frame;
     can.read(frame);
 }
+
+I2CCREATE i2c;
+SSCDRRN005PD2A5 differential_pressure;
+i2c.begin(I2C_NUM_0, 8, 9, 400000);
+differential_pressure.begin(i2c);
+
+STSCREATE sts_bus;
+STS3215 servo;
+STSCREATE::Config sts_config;
+sts_config.tx = GPIO_NUM_17;
+sts_config.rx = GPIO_NUM_18;
+sts_bus.begin(sts_config);
+servo.begin(sts_bus, 1, STS3215::Model::c001_1_345); // 動作は開始しない
 ```
 
 Tier 1 sensorは `begin()`、`available()`、`read()`、`end()` が基本です。`read()`は単位付きの物理値、`readRaw()`はdevice registerの符号付き整数を返します。
@@ -61,17 +74,39 @@ Tier 1は今回、設定、初期化確認、測定または通信、状態取�
 | Tier 1 | 主な機能 |
 | --- | --- |
 | `SPICREATE` | SPI busの所有、最大8 deviceの共有、有限timeout、初期化・終了状態の検査 |
+| `I2CCREATE` | I2C bus共有、Repeated START、IDF 4.4 legacy/IDF 6 new driver、lock/operation timeout |
+| `STSCREATE` | Feetech STS packet、half-duplex方向制御、checksum、同期read/write |
 | `CANCREATE` | Classic TWAI frame、標準/拡張ID filter、起動時diagnostic、bus-off復旧 |
 | `AS5047D` | 14-bit角度、補償/未補償値、parity/ERRFL、磁界diagnostic |
 | `ICM42688` | 全加速度/角速度range、accel/gyro別ODR、filter、INT GPIO、Data Ready待機 |
 | `ICM20602` | 加速度/角速度range、sample divider、accel/gyro別DLPF、Data Ready状態 |
 | `ICM20948` | 加速度/角速度range、sample divider、DLPF、AK09916 ODR、9軸測定 |
-| `LPS25HB` | ODR、圧力/温度average、one-shot、ready/overrun状態、物理値変換 |
+| `LPS25HB` | SPI/I2C transport、ODR、圧力/温度average、one-shot、ready/overrun状態、物理値変換 |
+| `SSCDRRN005PD2A5` | ±5 psi differential pressure、14-bit圧力、11-bit温度、SSC status |
+| `STS3215` | position/step movement、現在位置保持、runtime torque、stall protection、telemetry |
 | `S25FL127S` | JEDEC/typed status、範囲検査、page分割write、read、block/chip erase |
 
 Tier 2は`H3LIS331`、`S25FL512S`、`NEC920`です。ESP32-S3実機では未検証であり、各公開ヘッダは`#pragma message("TODO: ... Tier 2 ...")`を表示します。NEC920はraw UARTに加えて、固定長packet送受信、RF設定、command応答判定を保持します。
 
 Tier 1もCIでは実機へ接続しないため、実デバイスでの電気的・機能的検証は別途必要です。
+
+今回追加したI2CCREATE、LPS25HB I2C、SSCDRRN005PD2A5、STSCREATE、STS3215はTier 1 APIとして設計・build検証済みですが、ESP32-S3実機では未検証です。
+
+### I2C transport
+
+`I2CCREATE`はbus clockを共有し、device driverからのtransaction全体をmutexでserializeします。`lock_timeout`は`noWait()`、有限時間、`forever()`に対応し、`operation_timeout`はbus故障を検出する有限deadlineです。register readはIDF 4.4の`i2c_master_write_read_device()`またはIDF 6の`i2c_master_transmit_receive()`を使い、writeとreadの間へSTOPを入れません。
+
+LPS25HBは同じclassをSPIまたはI2C address `0x5C`/`0x5D`で開始できます。I2C transportではreset、one-shotを含めて`CTRL_REG2.I2C_DISABLE`を設定しません。SSCDRRN005PD2A5は4-byte packetから14-bit圧力と11-bit温度を取得し、normal以外のstatusを`RawData`へ残します。物理値readではstaleを`ESP_ERR_NOT_FINISHED`、command modeを`ESP_ERR_INVALID_STATE`、diagnostic faultを`ESP_ERR_INVALID_RESPONSE`として返します。
+
+### STS3215
+
+`STSCREATE`は磁気エンコーダ版STS protocolのlittle-endian packet層です。PING、READ、WRITE、REG WRITE、ACTION、SYNC READ/WRITE、RECOVERY、状態resetを提供します。broadcast PINGは衝突を避けるため拒否します。direction pin指定時はUART shift registerの送信完了後、delayを挟まずRXへ切り替えます。
+
+`STS3215::begin()`はPINGと設定cacheだけを行い、torque、target、operating mode、EPROMを変更しないためservoは動きません。`holdCurrentPosition()`はposition modeでは現在位置をtargetへ設定し、step modeではrelative target 0を設定してからruntime torqueとtorque ONを適用します。Torque Switchのcalibration値128は使用しません。`disableTorque()`後は機械的条件が許せば手で回せ、再度`holdCurrentPosition()`するとその現在位置を保持します。
+
+`moveRelativeDegrees()`はcurrent positionのread+加算ではなく、step mode nativeのBIT15方向 + 15-bit magnitudeを使います。speedはPhase BIT2に応じて1または50 steps/s単位、accelerationは100 steps/s²単位へ変換します。movementごとの`Motion::torque_limit`、SRAM runtime torque、EPROM stall protectionは別の設定です。
+
+EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずbest-effortで元へ戻します。複数servo instanceは同じSTSCREATEを共有できますが、同一STS3215 instanceの設定、movement、telemetryは呼出し側でserializeしてください。
 
 ### AS5047D
 
@@ -249,6 +284,7 @@ S25FL127Sの`write()`はpage境界を内部処理しますが、自動eraseは�
 - 二重初期化、未初期化利用、無効GPIO、`nullptr`、範囲外、timeout、部分初期化失敗、二重解放を検査します。
 - driverが作成したESP-IDF handleだけを解放します。
 - `SPICREATE`を利用するdeviceより先に破棄しないでください。
+- `I2CCREATE`/`STSCREATE`も接続deviceより先に破棄しないでください。
 
 ## CI
 
@@ -279,6 +315,7 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 - Tier 1の戻り値、`Config`、`Data`、`Status`を`esp_err_t`中心のAPIへ変更しました。
 - Tier 1 sensorの`get()`を廃止し、raw整数の`readRaw()`と物理値の`read()`へ分離しました。
 - S25FL127Sの曖昧な`erase()`を`eraseChip()`へ変更しました。
+- LPS25HBのmeasurement `Config`からSPI `frequency_hz`を削除し、`SpiConfig`へ分離しました。I2C begin overloadを追加しています。
 - MCP2562FDおよび67系専用libraryを削除しました。
 
 移行時は各公開ヘッダの宣言を基準に呼出し側を更新してください。
