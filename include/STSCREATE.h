@@ -78,9 +78,11 @@ public:
   [[nodiscard]] esp_err_t syncWrite(uint8_t address, uint8_t length,
                                     const uint8_t *ids, std::size_t id_count,
                                     const uint8_t *data, std::size_t data_size);
-  [[nodiscard]] esp_err_t recovery(uint8_t id, uint8_t *device_error = nullptr);
+  [[nodiscard]] esp_err_t recovery(uint8_t id, uint8_t *device_error = nullptr,
+                                   bool wait_response = true);
   [[nodiscard]] esp_err_t resetState(uint8_t id,
-                                     uint8_t *device_error = nullptr);
+                                     uint8_t *device_error = nullptr,
+                                     bool wait_response = true);
 
 private:
   class LockGuard;
@@ -89,7 +91,7 @@ private:
   transaction(uint8_t id, Instruction instruction, const uint8_t *parameters,
               std::size_t parameter_count, bool wait_response,
               uint8_t *response_data, std::size_t response_length,
-              uint8_t *device_error);
+              uint8_t *device_error, bool allow_broadcast);
   [[nodiscard]] esp_err_t sendPacket(uint8_t id, Instruction instruction,
                                      const uint8_t *parameters,
                                      std::size_t parameter_count);

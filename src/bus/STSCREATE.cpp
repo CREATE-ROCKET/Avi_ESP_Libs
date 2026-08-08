@@ -37,6 +37,14 @@ constexpr uint8_t checksum(uint8_t id, uint8_t length, uint8_t instruction,
 }
 
 template <std::size_t N>
+constexpr bool validResponse(const std::array<uint8_t, N> &bytes) {
+  if (N < 6 || bytes[0] != kHeader || bytes[1] != kHeader || bytes[3] != N - 4)
+    return false;
+  return checksum(bytes[2], bytes[3], bytes[4], bytes.data() + 5, N - 6) ==
+         bytes[N - 1];
+}
+
+template <std::size_t N>
 constexpr std::array<uint8_t, N + 6>
 packet(uint8_t id, uint8_t instruction,
        const std::array<uint8_t, N> &parameters) {
@@ -77,6 +85,12 @@ static_assert(equal(packet(0xFE, 0x82,
                            std::array<uint8_t, 4>{0x38, 0x08, 0x01, 0x02}),
                     std::array<uint8_t, 10>{0xFF, 0xFF, 0xFE, 0x06, 0x82, 0x38,
                                             0x08, 0x01, 0x02, 0x36}));
+static_assert(validResponse(std::array<uint8_t, 6>{0xFF, 0xFF, 0x01, 0x02, 0x00,
+                                                   0xFC}));
+static_assert(validResponse(std::array<uint8_t, 6>{0xFF, 0xFF, 0x01, 0x02, 0x20,
+                                                   0xDC}));
+static_assert(!validResponse(std::array<uint8_t, 6>{0xFF, 0xFF, 0x01, 0x02,
+                                                    0x20, 0xDD}));
 
 bool validBaudrate(STSCREATE::Baudrate baudrate) {
   switch (baudrate) {
@@ -284,8 +298,6 @@ esp_err_t STSCREATE::receivePacket(uint8_t expected_id, uint8_t *data,
     return ESP_ERR_INVALID_RESPONSE;
   if (device_error != nullptr)
     *device_error = error;
-  if (error != 0 && device_error == nullptr)
-    return ESP_ERR_INVALID_RESPONSE;
   if (expected_length != 0)
     std::copy_n(payload.begin(), expected_length, data);
   return ESP_OK;
@@ -296,10 +308,10 @@ esp_err_t STSCREATE::transaction(uint8_t id, Instruction instruction,
                                  std::size_t parameter_count,
                                  bool wait_response, uint8_t *response_data,
                                  std::size_t response_length,
-                                 uint8_t *device_error) {
+                                 uint8_t *device_error, bool allow_broadcast) {
   if (!initialized_)
     return ESP_ERR_INVALID_STATE;
-  if (!validId(id, !wait_response))
+  if (!validId(id, allow_broadcast))
     return ESP_ERR_INVALID_ARG;
   LockGuard lock(*this);
   if (lock.result() != ESP_OK)
@@ -315,7 +327,7 @@ esp_err_t STSCREATE::ping(uint8_t id, uint8_t *device_error) {
   if (id == kBroadcastId)
     return ESP_ERR_INVALID_ARG;
   return transaction(id, Instruction::ping, nullptr, 0, true, nullptr, 0,
-                     device_error);
+                     device_error, false);
 }
 
 esp_err_t STSCREATE::read(uint8_t id, uint8_t address, uint8_t *data,
@@ -324,7 +336,7 @@ esp_err_t STSCREATE::read(uint8_t id, uint8_t address, uint8_t *data,
     return ESP_ERR_INVALID_SIZE;
   const uint8_t parameters[]{address, static_cast<uint8_t>(length)};
   return transaction(id, Instruction::read, parameters, sizeof(parameters),
-                     true, data, length, device_error);
+                     true, data, length, device_error, false);
 }
 
 esp_err_t STSCREATE::write(uint8_t id, uint8_t address, const uint8_t *data,
@@ -336,7 +348,7 @@ esp_err_t STSCREATE::write(uint8_t id, uint8_t address, const uint8_t *data,
   parameters[0] = address;
   std::copy_n(data, length, parameters.begin() + 1);
   return transaction(id, Instruction::write, parameters.data(), length + 1,
-                     wait_response, nullptr, 0, device_error);
+                     wait_response, nullptr, 0, device_error, false);
 }
 
 esp_err_t STSCREATE::regWrite(uint8_t id, uint8_t address, const uint8_t *data,
@@ -348,13 +360,13 @@ esp_err_t STSCREATE::regWrite(uint8_t id, uint8_t address, const uint8_t *data,
   parameters[0] = address;
   std::copy_n(data, length, parameters.begin() + 1);
   return transaction(id, Instruction::reg_write, parameters.data(), length + 1,
-                     wait_response, nullptr, 0, device_error);
+                     wait_response, nullptr, 0, device_error, false);
 }
 
 esp_err_t STSCREATE::action(uint8_t id, bool wait_response,
                             uint8_t *device_error) {
   return transaction(id, Instruction::action, nullptr, 0, wait_response,
-                     nullptr, 0, device_error);
+                     nullptr, 0, device_error, true);
 }
 
 esp_err_t STSCREATE::syncRead(uint8_t address, uint8_t length,
@@ -400,15 +412,17 @@ esp_err_t STSCREATE::syncWrite(uint8_t address, uint8_t length,
     cursor += length;
   }
   return transaction(kBroadcastId, Instruction::sync_write, parameters.data(),
-                     cursor, false, nullptr, 0, nullptr);
+                     cursor, false, nullptr, 0, nullptr, true);
 }
 
-esp_err_t STSCREATE::recovery(uint8_t id, uint8_t *device_error) {
-  return transaction(id, Instruction::recovery, nullptr, 0, true, nullptr, 0,
-                     device_error);
+esp_err_t STSCREATE::recovery(uint8_t id, uint8_t *device_error,
+                              bool wait_response) {
+  return transaction(id, Instruction::recovery, nullptr, 0, wait_response,
+                     nullptr, 0, device_error, false);
 }
 
-esp_err_t STSCREATE::resetState(uint8_t id, uint8_t *device_error) {
-  return transaction(id, Instruction::reset, nullptr, 0, true, nullptr, 0,
-                     device_error);
+esp_err_t STSCREATE::resetState(uint8_t id, uint8_t *device_error,
+                                bool wait_response) {
+  return transaction(id, Instruction::reset, nullptr, 0, wait_response, nullptr,
+                     0, device_error, false);
 }
