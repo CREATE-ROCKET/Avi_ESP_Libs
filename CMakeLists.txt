@@ -2,6 +2,7 @@ set(AVI_ESP_LIBS_SRCS
     "src/bus/CANCREATE.cpp"
     "src/bus/I2CCREATE.cpp"
     "src/bus/SPICREATE.cpp"
+    "src/bus/STSCREATE.cpp"
     "src/compatibility/time.cpp"
     "src/compatibility/version.cpp"
     "src/radio/NEC920.cpp"
