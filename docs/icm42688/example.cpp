@@ -30,9 +30,9 @@ void loop() {
   }
 
   ICM42688::Data data;
-  if (imu.get(data) != ESP_OK) {
+  if (imu.read(data) != ESP_OK) {
     return;
   }
 
-  // ここでdata.acceleration、data.angular_velocity、data.temperatureを利用する。
+  // acceleration_g、angular_velocity_dps、temperature_celsiusを利用する。
 }

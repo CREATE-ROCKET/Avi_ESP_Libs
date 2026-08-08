@@ -14,6 +14,33 @@ ESP32向けのSPI、TWAI/CAN、センサ、Flash、UARTドライバを、リポ�
 
 PlatformIOの2環境と純ESP-IDF stable/latestをsmoke buildします。ESP-IDF `latest`だけは将来の非互換を検出する目的で意図的に固定していません。
 
+## 初心者向けAPI
+
+同じSPI busへ複数deviceを登録しても、利用側がESP-IDF handleを管理する必要はありません。
+
+```cpp
+SPICREATE spi;
+ICM42688 imu;
+LPS25HB pressure;
+S25FL127S flash;
+
+spi.begin(SPI2_HOST, 12, 13, 11);
+imu.begin(spi, 10);
+pressure.begin(spi, 9);
+flash.begin(spi, 8);
+
+CANCREATE can;
+can.begin(GPIO_NUM_18, GPIO_NUM_17, CANCREATE::Bitrate::kbps500);
+can.write(0x100, uint8_t{'s'});
+
+if (can.available()) {
+    CANCREATE::Frame frame;
+    can.read(frame);
+}
+```
+
+Tier 1 sensorは `begin()`、`available()`、`read()`、`end()` が基本です。`read()`は単位付きの物理値、`readRaw()`はdevice registerの符号付き整数を返します。
+
 ## ドライバの区分
 
 Tier 1は今回、設定、初期化確認、測定または通信、状態取得、有限timeout、終了処理を重点整備した対象です。
@@ -23,11 +50,12 @@ Tier 1は今回、設定、初期化確認、測定または通信、状態取�
 | `SPICREATE` | SPI busの所有、最大8 deviceの共有、有限timeout、初期化・終了状態の検査 |
 | `CANCREATE` | Classic TWAI frame、標準/拡張ID filter、3 mode、状態取得、bus-off復旧 |
 | `ICM42688` | 加速度/角速度range、ODR、filter、INT GPIO、Data Ready待機 |
+| `ICM20602` | 加速度/角速度range、sample divider、DLPF、Data Ready状態 |
 | `ICM20948` | 加速度/角速度range、sample divider、DLPF、AK09916 ODR、9軸測定 |
 | `LPS25HB` | ODR、圧力/温度average、one-shot、ready/overrun状態、物理値変換 |
-| `S25FL127S` | JEDEC/status取得、範囲検査、page分割write、read、bulk erase |
+| `S25FL127S` | JEDEC/typed status、範囲検査、page分割write、read、block/chip erase |
 
-Tier 2は`H3LIS331`、`ICM20602`、`S25FL512S`、`NEC920`です。大規模な挙動変更は行わず、3環境でのコンパイル・リンクだけを維持しています。ESP32-S3実機では未検証であり、各公開ヘッダは`#pragma message("TODO: ... Tier 2 ...")`を表示します。
+Tier 2は`H3LIS331`、`S25FL512S`、`NEC920`です。ESP32-S3実機では未検証であり、各公開ヘッダは`#pragma message("TODO: ... Tier 2 ...")`を表示します。NEC920はraw UARTに加えて、固定長packet送受信、RF設定、command応答判定を保持します。
 
 Tier 1もCIでは実機へ接続しないため、実デバイスでの電気的・機能的検証は別途必要です。
 
@@ -44,7 +72,7 @@ Tier 1もCIでは実機へ接続しないため、実デバイスでの電気的
 │   ├── radio/
 │   ├── sensor/
 │   └── storage/
-├── docs/                        # 文書と旧生成済みDoxygen HTML
+├── docs/                        # 現行APIの文書とexample
 ├── test_apps/                   # 3環境のsmoke project
 ├── CMakeLists.txt               # ESP-IDF component登録
 ├── idf_component.yml
@@ -52,7 +80,7 @@ Tier 1もCIでは実機へ接続しないため、実デバイスでの電気的
 └── library.properties           # Arduino library metadata
 ```
 
-`legacy/`へ残す現行候補はありません。MCP2562FD、LogBoard67、Log67Timer、Log67SerialはESP32-S3向けpackageから削除済みです。`docs/cancreate/legacy-html/`は旧APIの生成済みDoxygen資料であり、build対象ではありません。
+`legacy/`へ残す現行候補はありません。MCP2562FD、LogBoard67、Log67Timer、Log67SerialはESP32-S3向けpackageから削除済みです。
 
 ## PlatformIOから使う
 
@@ -112,11 +140,19 @@ esp_err_t initialize()
 
 esp_err_t measure(ICM20948::Data &data)
 {
-    return imu.get(data);
+    return imu.read(data);
 }
 ```
 
-既定値でよければ`imu.begin(spi, 10)`だけで開始できます。基本形は全driverで「オブジェクト生成 → `begin()` → `get()`/`read()`/`write()` → `end()`」です。deviceを先に`end()`し、その後に共有する`SPICREATE`を`end()`してください。
+既定値でよければ`imu.begin(spi, 10)`だけで開始できます。詳細設定は各classの`Config`を変更して`begin(spi, cs, config)`へ渡します。deviceを先に`end()`し、その後に共有する`SPICREATE`を`end()`してください。
+
+sensorの物理値fieldは次の単位です。
+
+- `acceleration_g`: g
+- `angular_velocity_dps`: degree/second
+- `temperature_celsius`: degree Celsius
+- `magnetic_ut`: microtesla
+- `pressure_pa`: pascal
 
 ICM42688のData Ready割込みは次のように利用します。
 
@@ -136,11 +172,17 @@ esp_err_t measureWhenReady(ICM42688::Data &data)
     if (result != ESP_OK) {
         return result;
     }
-    return imu42688.get(data);
+    return imu42688.read(data);
 }
 ```
 
 ISRはsemaphore通知だけを行います。SPI通信、動的確保、ログ、blocking処理はISR内で行わず、暗黙のbackground taskも生成しません。
+
+CANの対応bitrateは`kbps25`、`kbps50`、`kbps100`、`kbps125`、`kbps250`、`kbps500`、`kbps800`、`mbps1`です。11bit standard frameのbyte/buffer送信には`write(identifier, ...)`、extended/RTRには`Frame` APIを使います。Classic CANのため8 byte超過は拒否します。`read(Frame&)`の既定timeoutは0 msです。
+
+ICM20948はbank切替を伴うため、同一instanceを複数taskから同時に呼び出さないでください。他のdeviceも、同一instanceの`read()`/`write()`と`end()`/再設定は呼出し側でserializeしてください。異なるdevice instance間のSPI transactionは`SPICREATE`がserializeします。
+
+S25FL127Sの`write()`はpage境界を内部処理しますが、自動eraseはしません。NOR Flashで0から1へ戻す領域は、先にaligned 64 KiB `eraseBlock()`または`eraseChip()`で消去してください。FL-Sの4 KiB parameter sectorは配置が構成依存のため、誤消去を避けて汎用`eraseSector()` APIを設けていません。
 
 ## エラーと所有権
 
@@ -168,9 +210,12 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 この版は旧`main`および旧バージョン番号付きdirectoryとの後方互換性がありません。
 
 - `CAN_CREATE`、`CANCREATE_lib.h`、旧互換mode、`setPin()`、`sendChar()`、`sendData()`、`sendLine()`、`readLine()`、`sendPacket()`を削除しました。
+- `CANCREATE::Config::bitrate`と簡易`begin()`は任意整数から`Bitrate` enumへ変更し、`read(Frame&)`の既定timeoutを0 msへ変更しました。
 - `SPICREATE::SPICreate`と、利用側が触れていた`addDevice()`等の内部APIを削除しました。
 - 曖昧な公開型`ICM`、`Flash`、`LPS`を廃止し、device名と同じclass名へ統一しました。互換aliasはありません。
 - Tier 1の戻り値、`Config`、`Data`、`Status`を`esp_err_t`中心のAPIへ変更しました。
+- Tier 1 sensorの`get()`を廃止し、raw整数の`readRaw()`と物理値の`read()`へ分離しました。
+- S25FL127Sの曖昧な`erase()`を`eraseChip()`へ変更しました。
 - MCP2562FDおよび67系専用libraryを削除しました。
 
 移行時は各公開ヘッダの宣言を基準に呼出し側を更新してください。

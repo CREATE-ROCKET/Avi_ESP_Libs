@@ -1,42 +1,40 @@
 # CANCREATE
 
-ESP32のClassic TWAI/CAN controllerを、ArduinoとESP-IDFから同じAPIで利用するTier 1 driverです。CAN FDには対応しません。
+ESP32のClassic TWAI/CAN controllerをArduinoとESP-IDFから同じAPIで使うTier 1 driverです。CAN FDには対応しません。
 
 ```cpp
-#include <CANCREATE.h>
-
 CANCREATE can;
 
 esp_err_t initializeCan()
 {
-    CANCREATE::Config config;
-    config.tx = GPIO_NUM_18;
-    config.rx = GPIO_NUM_17;
-    config.bitrate = 500000;
-
-    config.filter.enabled = true;
-    config.filter.identifier = 0x120;
-    config.filter.mask = 0x7F0;
-
-    return can.begin(config);
+    return can.begin(GPIO_NUM_18, GPIO_NUM_17,
+                     CANCREATE::Bitrate::kbps500);
 }
 
 esp_err_t sendCan()
 {
-    CANCREATE::Frame frame;
-    frame.identifier = 0x123;
-    frame.data_length = 2;
-    frame.data[0] = 0xCA;
-    frame.data[1] = 0xFE;
-    return can.write(frame, 100);
+    const uint8_t command[]{0x73, 0x01};
+    return can.write(0x100, command);
 }
 
-esp_err_t receiveCan(CANCREATE::Frame &frame)
+esp_err_t pollCan(CANCREATE::Frame &frame)
 {
-    return can.read(frame, 100);
+    return can.available() ? can.read(frame) : ESP_ERR_NOT_FINISHED;
 }
 ```
 
-`Config::mode`でnormal、no-ack、listen-onlyを選択できます。`getStatus()`はqueue数、error counter、bus stateを返し、bus-off後は`recover()`で有限時間の復旧を要求できます。
+`write(identifier, ...)`は11bit standard frame専用です。8 byte超過や0x7FFを超えるIDは拒否します。extended frame、RTR、DLCを指定する場合は`Frame`を使います。
 
-`CAN_CREATE`、constructorによる旧互換mode、`setPin()`、文字列送受信helperは削除済みです。複数byteは`Frame::data`と`data_length`を直接指定してください。旧生成済みDoxygen HTMLは`legacy-html/`に保存していますが、現行APIの資料ではありません。
+```cpp
+CANCREATE::Frame frame;
+frame.identifier = 0x18FF50E5;
+frame.extended = true;
+frame.data_length = 2;
+frame.data[0] = 0xCA;
+frame.data[1] = 0xFE;
+can.write(frame, 100);
+```
+
+詳細設定では`Config`へ`Bitrate`、normal/no-ack/listen-only mode、標準/拡張ID filter、RX queue depthを指定できます。bitrateは`kbps25`、`kbps50`、`kbps100`、`kbps125`、`kbps250`、`kbps500`、`kbps800`、`mbps1`です。
+
+`available(std::size_t&)`、`getStatus()`、`recover()`はエラーを区別する詳細APIです。引数なし`available()`はエラー時に0を返す便利版です。`read(Frame&)`の既定timeoutは非blockingの0 msです。
