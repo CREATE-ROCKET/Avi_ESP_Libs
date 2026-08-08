@@ -122,7 +122,7 @@ public:
   [[nodiscard]] esp_err_t read(Data &data);
   [[nodiscard]] esp_err_t
   selfTest(SelfTestResult &result,
-           avi::Timeout timeout = avi::Timeout::milliseconds(1000));
+           avi::Timeout timeout = avi::Timeout::milliseconds(2500));
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
