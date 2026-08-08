@@ -3,10 +3,13 @@
 #include "../compatibility/timeout_internal.h"
 #include "avi_esp_libs/compatibility.h"
 
+#include <cmath>
+
 namespace {
 
 constexpr uint8_t kRead = 0x80;
 constexpr uint8_t kBank0 = 0x00;
+constexpr uint8_t kBank1 = 0x10;
 constexpr uint8_t kBank2 = 0x20;
 constexpr uint8_t kBank3 = 0x30;
 
@@ -26,6 +29,10 @@ constexpr uint8_t kGyroConfig = 0x01;
 constexpr uint8_t kAccelSampleRateDividerHigh = 0x10;
 constexpr uint8_t kAccelSampleRateDividerLow = 0x11;
 constexpr uint8_t kAccelConfig = 0x14;
+constexpr uint8_t kGyroSelfTestEnable = 0x02;
+constexpr uint8_t kAccelSelfTestEnable = 0x15;
+constexpr uint8_t kGyroSelfTestData = 0x02;
+constexpr uint8_t kAccelSelfTestData = 0x0E;
 
 constexpr uint8_t kI2cMasterControl = 0x01;
 constexpr uint8_t kI2cSlave0Address = 0x03;
@@ -54,6 +61,8 @@ constexpr uint8_t kMagnetometerAddress = 0x0C;
 constexpr uint8_t kMagnetometerWhoAmI1 = 0x00;
 constexpr uint8_t kMagnetometerWhoAmI2 = 0x01;
 constexpr uint8_t kMagnetometerStatus1 = 0x10;
+constexpr uint8_t kMagnetometerData = 0x11;
+constexpr uint8_t kMagnetometerStatus2 = 0x18;
 constexpr uint8_t kMagnetometerControl2 = 0x31;
 constexpr uint8_t kMagnetometerControl3 = 0x32;
 constexpr uint8_t kExpectedMagnetometerWhoAmI1 = 0x48;
@@ -65,6 +74,7 @@ constexpr uint8_t kMagnetometerOverflow = 0x08;
 constexpr uint32_t kMaximumSpiFrequencyHz = 7000000;
 constexpr uint16_t kMaximumAccelSampleRateDivider = 4095;
 constexpr uint32_t kGyroscopeStartupDelayMs = 35;
+constexpr std::size_t kSelfTestSamples = 200;
 
 bool validDlpf(ICM20948::Dlpf dlpf) {
   switch (dlpf) {
@@ -152,6 +162,18 @@ int16_t signedLittleEndian(const uint8_t *data) {
   return static_cast<int16_t>(value);
 }
 
+float factoryTrim(uint8_t code) {
+  return code == 0 ? 0.0F : 2620.0F * std::pow(1.01F, code - 1);
+}
+
+bool selfTestAxis(int32_t response, uint8_t code, float absolute_min,
+                  float absolute_max) {
+  const float measured = std::fabs(static_cast<float>(response));
+  const float trim = factoryTrim(code);
+  return trim > 0.0F ? measured >= trim * 0.5F && measured <= trim * 1.5F
+                     : measured >= absolute_min && measured <= absolute_max;
+}
+
 } // namespace
 
 ICM20948::~ICM20948() {
@@ -162,7 +184,7 @@ ICM20948::~ICM20948() {
 esp_err_t ICM20948::selectBank(uint8_t bank) {
   if (spi_ == nullptr || device_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  if (bank != kBank0 && bank != kBank2 && bank != kBank3)
+  if (bank != kBank0 && bank != kBank1 && bank != kBank2 && bank != kBank3)
     return ESP_ERR_INVALID_ARG;
   return spi_->writeRegister(device_, kRegisterBankSelect, bank);
 }
@@ -647,4 +669,213 @@ esp_err_t ICM20948::read(Data &data) {
   next.magnetic_valid = raw.magnetic_valid;
   data = next;
   return ESP_OK;
+}
+
+esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
+  if (!initialized_ || spi_ == nullptr || device_ == nullptr)
+    return ESP_ERR_INVALID_STATE;
+  uint64_t timeout_ms{};
+  if (!timeout.isFinite() || !timeout.millisecondsValue(timeout_ms) ||
+      timeout_ms == 0)
+    return ESP_ERR_INVALID_ARG;
+  avi::internal::Deadline deadline{};
+  if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
+
+  SelfTestResult next{};
+  const Config saved = config_;
+  uint8_t saved_registers[7]{};
+  uint8_t gyro_codes[3]{};
+  uint8_t accel_codes[3]{};
+  esp_err_t operation = selectBank(kBank2);
+  constexpr uint8_t register_addresses[]{
+      kGyroSampleRateDivider,     kGyroConfig,
+      kGyroSelfTestEnable,        kAccelSampleRateDividerHigh,
+      kAccelSampleRateDividerLow, kAccelConfig,
+      kAccelSelfTestEnable};
+  for (std::size_t i = 0; i < 7 && operation == ESP_OK; ++i)
+    operation = spi_->readRegister(
+        device_, static_cast<uint8_t>(register_addresses[i] | kRead),
+        saved_registers[i]);
+  const bool registers_saved = operation == ESP_OK;
+  if (operation == ESP_OK)
+    operation = selectBank(kBank1);
+  for (std::size_t i = 0; i < 3 && operation == ESP_OK; ++i)
+    operation = spi_->readRegister(
+        device_, static_cast<uint8_t>(kGyroSelfTestData + i) | kRead,
+        gyro_codes[i]);
+  for (std::size_t i = 0; i < 3 && operation == ESP_OK; ++i)
+    operation = spi_->readRegister(
+        device_, static_cast<uint8_t>(kAccelSelfTestData + i) | kRead,
+        accel_codes[i]);
+  const esp_err_t initial_bank_restore = selectBank(kBank0);
+  if (operation == ESP_OK)
+    operation = initial_bank_restore;
+
+  const auto collect = [this, &deadline](std::array<int32_t, 3> &accel,
+                                         std::array<int32_t, 3> &gyro) {
+    std::array<int64_t, 3> accel_sum{};
+    std::array<int64_t, 3> gyro_sum{};
+    for (std::size_t sample = 0; sample < kSelfTestSamples; ++sample) {
+      if (avi::internal::expired(deadline))
+        return ESP_ERR_TIMEOUT;
+      uint8_t raw[14]{};
+      esp_err_t error = selectBank(kBank0);
+      if (error == ESP_OK)
+        error = spi_->read(device_, kRead | kAccelOutput, raw, sizeof(raw));
+      if (error != ESP_OK)
+        return error;
+      for (std::size_t axis = 0; axis < 3; ++axis) {
+        accel_sum[axis] += signedBigEndian(&raw[axis * 2]);
+        gyro_sum[axis] += signedBigEndian(&raw[6 + axis * 2]);
+      }
+      avi_delay_ms(1);
+    }
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      accel[axis] = static_cast<int32_t>(accel_sum[axis] / kSelfTestSamples);
+      gyro[axis] = static_cast<int32_t>(gyro_sum[axis] / kSelfTestSamples);
+    }
+    return ESP_OK;
+  };
+
+  if (operation == ESP_OK)
+    operation = selectBank(kBank2);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kGyroSampleRateDivider, 0);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kGyroConfig,
+                                    sensorConfig(0, Dlpf::level2));
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kGyroSelfTestEnable, 0);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kAccelSampleRateDividerHigh, 0);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kAccelSampleRateDividerLow, 0);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kAccelConfig,
+                                    sensorConfig(0, Dlpf::level2));
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kAccelSelfTestEnable, 0);
+  if (operation == ESP_OK)
+    operation = selectBank(kBank0);
+  if (operation == ESP_OK) {
+    avi_delay_ms(20);
+    operation = collect(next.accel_baseline, next.gyro_baseline);
+  }
+  if (operation == ESP_OK)
+    operation = selectBank(kBank2);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kGyroSelfTestEnable, 0x38);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kAccelSelfTestEnable, 0x38);
+  if (operation == ESP_OK)
+    operation = selectBank(kBank0);
+  if (operation == ESP_OK) {
+    avi_delay_ms(20);
+    operation = collect(next.accel_stimulated, next.gyro_stimulated);
+  }
+
+  for (std::size_t axis = 0; axis < 3; ++axis) {
+    next.accel_response[axis] =
+        next.accel_stimulated[axis] - next.accel_baseline[axis];
+    next.gyro_response[axis] =
+        next.gyro_stimulated[axis] - next.gyro_baseline[axis];
+    next.accel_passed[axis] =
+        selfTestAxis(next.accel_response[axis], accel_codes[axis],
+                     225.0F * 16384.0F / 1000.0F, 675.0F * 16384.0F / 1000.0F);
+    next.gyro_passed[axis] =
+        selfTestAxis(next.gyro_response[axis], gyro_codes[axis], 60.0F * 131.0F,
+                     250.0F * 131.0F);
+  }
+
+  const bool magnetometer_touched = operation == ESP_OK;
+  if (operation == ESP_OK && saved.magnetometer_odr == MagnetometerOdr::off)
+    operation = configureMagnetometer(MagnetometerOdr::hz100);
+  if (operation == ESP_OK) {
+    operation = selectBank(kBank3);
+    if (operation == ESP_OK)
+      operation = spi_->writeRegister(device_, kI2cSlave0Control, 0);
+    if (operation == ESP_OK)
+      operation = selectBank(kBank0);
+  }
+  uint8_t magnetometer_mode = 0;
+  if (operation == ESP_OK)
+    operation = magnetometerTransfer(kMagnetometerControl2, false,
+                                     &magnetometer_mode, timeout);
+  if (operation == ESP_OK) {
+    avi_delay_ms(1);
+    magnetometer_mode = 0x10;
+    operation = magnetometerTransfer(kMagnetometerControl2, false,
+                                     &magnetometer_mode, timeout);
+  }
+  uint8_t magnetometer_status{};
+  while (operation == ESP_OK && !avi::internal::expired(deadline)) {
+    operation = magnetometerTransfer(kMagnetometerStatus1, true,
+                                     &magnetometer_status, timeout);
+    if (operation != ESP_OK ||
+        (magnetometer_status & kMagnetometerDataReady) != 0)
+      break;
+    avi_delay_ms(1);
+  }
+  if (operation == ESP_OK &&
+      (magnetometer_status & kMagnetometerDataReady) == 0)
+    operation = ESP_ERR_TIMEOUT;
+  uint8_t magnetic[6]{};
+  for (std::size_t i = 0; i < 6 && operation == ESP_OK; ++i)
+    operation =
+        magnetometerTransfer(static_cast<uint8_t>(kMagnetometerData + i), true,
+                             &magnetic[i], timeout);
+  uint8_t magnetometer_status2{};
+  if (operation == ESP_OK)
+    operation = magnetometerTransfer(kMagnetometerStatus2, true,
+                                     &magnetometer_status2, timeout);
+  if (operation == ESP_OK &&
+      (magnetometer_status2 & kMagnetometerOverflow) != 0)
+    operation = ESP_ERR_INVALID_RESPONSE;
+  if (operation == ESP_OK) {
+    for (std::size_t axis = 0; axis < 3; ++axis)
+      next.magnetometer_response[axis] =
+          signedLittleEndian(&magnetic[axis * 2]);
+    next.magnetometer_passed = {next.magnetometer_response[0] >= -200 &&
+                                    next.magnetometer_response[0] <= 200,
+                                next.magnetometer_response[1] >= -200 &&
+                                    next.magnetometer_response[1] <= 200,
+                                next.magnetometer_response[2] >= -1000 &&
+                                    next.magnetometer_response[2] <= -200};
+  }
+  next.passed = next.accel_passed[0] && next.accel_passed[1] &&
+                next.accel_passed[2] && next.gyro_passed[0] &&
+                next.gyro_passed[1] && next.gyro_passed[2] &&
+                next.magnetometer_passed[0] && next.magnetometer_passed[1] &&
+                next.magnetometer_passed[2];
+
+  esp_err_t restore = initial_bank_restore;
+  if (registers_saved && restore == ESP_OK)
+    restore = selectBank(kBank2);
+  for (std::size_t i = 0; i < 7 && registers_saved && restore == ESP_OK; ++i)
+    restore =
+        spi_->writeRegister(device_, register_addresses[i], saved_registers[i]);
+  if (restore == ESP_OK)
+    restore = selectBank(kBank0);
+  if (restore == ESP_OK && magnetometer_touched) {
+    if (saved.magnetometer_odr == MagnetometerOdr::off) {
+      uint8_t off = 0;
+      restore =
+          magnetometerTransfer(kMagnetometerControl2, false, &off, timeout);
+      if (restore == ESP_OK)
+        restore = selectBank(kBank3);
+      if (restore == ESP_OK)
+        restore = spi_->writeRegister(device_, kI2cSlave0Control, 0);
+      if (restore == ESP_OK)
+        restore = selectBank(kBank0);
+      if (restore == ESP_OK)
+        restore =
+            spi_->writeRegister(device_, kUserControl, kI2cInterfaceDisable);
+    } else {
+      restore = configureMagnetometer(saved.magnetometer_odr);
+    }
+  }
+  next.restored = restore == ESP_OK;
+  result = next;
+  return restore != ESP_OK ? restore : operation;
 }

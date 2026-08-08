@@ -68,6 +68,21 @@ public:
     bool auxiliary_i2c_error{false};
   };
 
+  struct SelfTestResult {
+    bool passed{false};
+    bool restored{false};
+    std::array<bool, 3> accel_passed{};
+    std::array<bool, 3> gyro_passed{};
+    std::array<bool, 3> magnetometer_passed{};
+    std::array<int32_t, 3> accel_baseline{};
+    std::array<int32_t, 3> accel_stimulated{};
+    std::array<int32_t, 3> accel_response{};
+    std::array<int32_t, 3> gyro_baseline{};
+    std::array<int32_t, 3> gyro_stimulated{};
+    std::array<int32_t, 3> gyro_response{};
+    std::array<int16_t, 3> magnetometer_response{};
+  };
+
   ICM20948() = default;
   ~ICM20948();
   ICM20948(const ICM20948 &) = delete;
@@ -86,6 +101,9 @@ public:
   [[nodiscard]] bool available();
   [[nodiscard]] esp_err_t readRaw(RawData &data);
   [[nodiscard]] esp_err_t read(Data &data);
+  [[nodiscard]] esp_err_t
+  selfTest(SelfTestResult &result,
+           avi::Timeout timeout = avi::Timeout::milliseconds(1500));
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:

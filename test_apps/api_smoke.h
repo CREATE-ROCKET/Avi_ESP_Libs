@@ -149,6 +149,7 @@ inline void aviApiSmoke() {
   ICM20948::Data icm20948_data{};
   ICM20948::RawData icm20948_raw{};
   ICM20948::Status icm20948_status{};
+  ICM20948::SelfTestResult icm20948_self_test{};
   icm20948_config.operation_timeout = avi::Timeout::milliseconds(300);
   (void)icm20948.begin(spi, -1, icm20948_config);
   (void)icm20948.begin(spi, -1);
@@ -157,6 +158,7 @@ inline void aviApiSmoke() {
   (void)icm20948.available();
   (void)icm20948.readRaw(icm20948_raw);
   (void)icm20948.read(icm20948_data);
+  (void)icm20948.selfTest(icm20948_self_test, avi::Timeout::milliseconds(1500));
   (void)icm20948.initialized();
   (void)icm20948.end();
 
