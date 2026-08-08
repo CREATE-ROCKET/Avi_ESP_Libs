@@ -1,5 +1,7 @@
 #include "AS5047D.h"
 
+#include "avi_esp_libs/compatibility.h"
+
 namespace {
 constexpr uint16_t kErrorFlags = 0x0001;
 constexpr uint16_t kDiagnostics = 0x3FFC;
@@ -12,6 +14,14 @@ constexpr uint16_t kDataMask = 0x3FFF;
 constexpr uint32_t kMaximumFrequencyHz = 10000000;
 constexpr float kDegreesPerCount = 360.0F / 16384.0F;
 constexpr float kRadiansPerCount = 6.28318530717958647692F / 16384.0F;
+
+void waitChipSelectHigh() {
+  // esp_timer_get_time()の1 us分解能を使い、2 usだけbusy-waitする。
+  // 350 ns要件に余裕があり、各frame間だけの有限待機なのでtaskを長時間塞がない。
+  const int64_t started_at = avi_micros();
+  while (avi_micros() - started_at < 2) {
+  }
+}
 
 constexpr bool hasOddParity(uint16_t value) {
   bool odd = false;
@@ -53,12 +63,14 @@ esp_err_t AS5047D::begin(SPICREATE &spi, int chip_select,
       static_cast<uint8_t>(config.angle_source) > 1)
     return ESP_ERR_INVALID_ARG;
 
-  // 10 MHz時でもCSn high最小350 nsを満たす4 clockを確保する。
   esp_err_t result =
-      spi.addDevice({chip_select, config.frequency_hz, 1, 1, 4}, device_);
+      spi.addDevice({chip_select, config.frequency_hz, 1, 1}, device_);
   if (result != ESP_OK)
     return result;
   spi_ = &spi;
+
+  // 電源投入直後でも最初の有効角度が得られるまで有限時間待つ。
+  avi_delay_ms(10);
 
   uint16_t angle{};
   result = readRegister(config.angle_source == AngleSource::compensated
@@ -98,6 +110,7 @@ esp_err_t AS5047D::transferFrame(uint16_t tx, uint16_t &rx) {
   transaction.tx_buffer = tx_bytes;
   transaction.rx_buffer = rx_bytes;
   const esp_err_t result = spi_->pollingTransmit(device_, transaction);
+  waitChipSelectHigh();
   if (result != ESP_OK)
     return result;
   const uint16_t next = static_cast<uint16_t>(
