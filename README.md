@@ -20,11 +20,13 @@ PlatformIOの2環境と純ESP-IDF stable/latestをsmoke buildします。ESP-IDF
 
 ```cpp
 SPICREATE spi;
+AS5047D encoder;
 ICM42688 imu;
 LPS25HB pressure;
 S25FL127S flash;
 
 spi.begin(SPI2_HOST, 12, 13, 11);
+encoder.begin(spi, 7);
 imu.begin(spi, 10);
 pressure.begin(spi, 9);
 flash.begin(spi, 8);
@@ -60,6 +62,7 @@ Tier 1は今回、設定、初期化確認、測定または通信、状態取�
 | --- | --- |
 | `SPICREATE` | SPI busの所有、最大8 deviceの共有、有限timeout、初期化・終了状態の検査 |
 | `CANCREATE` | Classic TWAI frame、標準/拡張ID filter、3 mode、状態取得、bus-off復旧 |
+| `AS5047D` | 14-bit角度、補償/未補償値、parity/ERRFL、磁界diagnostic |
 | `ICM42688` | 全加速度/角速度range、accel/gyro別ODR、filter、INT GPIO、Data Ready待機 |
 | `ICM20602` | 加速度/角速度range、sample divider、accel/gyro別DLPF、Data Ready状態 |
 | `ICM20948` | 加速度/角速度range、sample divider、DLPF、AK09916 ODR、9軸測定 |
@@ -69,6 +72,12 @@ Tier 1は今回、設定、初期化確認、測定または通信、状態取�
 Tier 2は`H3LIS331`、`S25FL512S`、`NEC920`です。ESP32-S3実機では未検証であり、各公開ヘッダは`#pragma message("TODO: ... Tier 2 ...")`を表示します。NEC920はraw UARTに加えて、固定長packet送受信、RF設定、command応答判定を保持します。
 
 Tier 1もCIでは実機へ接続しないため、実デバイスでの電気的・機能的検証は別途必要です。
+
+### AS5047D
+
+AS5047DはSPI mode 1、最大10 MHzで動作し、14-bit角度をdegree/radianへ変換します。`AngleSource`で動的角度誤差補償済み`ANGLECOM`と未補償`ANGLEUNC`を選択できます。全responseのeven parityとEFを検査し、EF時はread-to-clearの`ERRFL`からPARERR、INVCOMM、FRERRを`lastErrorFlags()`へ保存します。
+
+`getStatus()`はDIAAGC/MAGからMAGL、MAGH、COF、offset compensation完了、AGC、magnitudeを返します。磁界警告は通信errorへ変換しません。永久変更を伴うOTP programmingには対応していません。
 
 ## ディレクトリ構成
 

@@ -126,6 +126,7 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
   local.mode = device_config.mode;
   local.spics_io_num = device_config.chip_select;
   local.queue_size = device_config.queue_size;
+  local.cs_ena_posttrans = device_config.cs_ena_posttrans;
   const esp_err_t result = spi_bus_add_device(host_, &local, &device);
   if (result == ESP_OK)
     *slot = device;

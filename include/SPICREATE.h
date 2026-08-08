@@ -10,6 +10,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
 
+class AS5047D;
 class H3LIS331;
 class ICM20602;
 class ICM20948;
@@ -52,8 +53,10 @@ private:
     uint32_t frequency_hz{0};
     uint8_t mode{0};
     uint8_t queue_size{1};
+    uint8_t cs_ena_posttrans{0};
   };
 
+  friend class AS5047D;
   friend class H3LIS331;
   friend class ICM20602;
   friend class ICM20948;

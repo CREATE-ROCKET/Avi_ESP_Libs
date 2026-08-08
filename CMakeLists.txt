@@ -4,6 +4,7 @@ set(AVI_ESP_LIBS_SRCS
     "src/compatibility/time.cpp"
     "src/compatibility/version.cpp"
     "src/radio/NEC920.cpp"
+    "src/sensor/AS5047D.cpp"
     "src/sensor/H3LIS331.cpp"
     "src/sensor/ICM20602.cpp"
     "src/sensor/ICM20948.cpp"

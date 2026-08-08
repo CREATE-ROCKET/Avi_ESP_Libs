@@ -3,6 +3,7 @@
 #include <array>
 #include <type_traits>
 
+#include <AS5047D.h>
 #include <CANCREATE.h>
 #include <H3LIS331.h>
 #include <ICM20602.h>
@@ -16,6 +17,7 @@
 
 inline void aviApiSmoke() {
   static_assert(!std::is_copy_constructible_v<SPICREATE>);
+  static_assert(!std::is_copy_constructible_v<AS5047D>);
   static_assert(!std::is_copy_constructible_v<CANCREATE>);
   static_assert(!std::is_copy_constructible_v<ICM42688>);
   static_assert(!std::is_copy_constructible_v<ICM20602>);
@@ -68,6 +70,22 @@ inline void aviApiSmoke() {
   (void)spi.begin(SPI2_HOST, -1, 13, 11);
   (void)spi.deviceCount();
   (void)spi.end();
+
+  AS5047D encoder;
+  AS5047D::Config encoder_config{};
+  AS5047D::RawData encoder_raw{};
+  AS5047D::Data encoder_data{};
+  AS5047D::Status encoder_status{};
+  AS5047D::ErrorFlags encoder_errors{};
+  (void)encoder.begin(spi, -1, encoder_config);
+  (void)encoder.begin(spi, -1);
+  (void)encoder.readRaw(encoder_raw);
+  (void)encoder.read(encoder_data);
+  (void)encoder.getStatus(encoder_status);
+  (void)encoder.readAndClearErrorFlags(encoder_errors);
+  (void)encoder.lastErrorFlags();
+  (void)encoder.initialized();
+  (void)encoder.end();
 
   CANCREATE can;
   CANCREATE::Config can_config{};
