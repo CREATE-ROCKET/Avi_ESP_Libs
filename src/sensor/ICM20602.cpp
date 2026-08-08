@@ -200,8 +200,7 @@ esp_err_t ICM20602::getStatus(Status &status) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   uint8_t raw{};
-  const esp_err_t result =
-      spi_->readRegister(device_, kIntStatus | 0x80, raw);
+  const esp_err_t result = spi_->readRegister(device_, kIntStatus | 0x80, raw);
   if (result == ESP_OK) {
     Status next{};
     next.data_ready = (raw & 0x01) != 0;

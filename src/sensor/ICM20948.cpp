@@ -623,7 +623,7 @@ esp_err_t ICM20948::read(Data &data) {
     return result;
 
   static constexpr float kAccelSensitivity[] = {16384.0F, 8192.0F, 4096.0F,
-                                                 2048.0F};
+                                                2048.0F};
   static constexpr float kGyroSensitivity[] = {131.0F, 65.5F, 32.8F, 16.4F};
   const auto accel_index = static_cast<uint8_t>(config_.accel_range);
   const auto gyro_index = static_cast<uint8_t>(config_.gyro_range);

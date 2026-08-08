@@ -1,9 +1,9 @@
 #include "ICM42688.h"
 
-#include <climits>
 #include "avi_esp_libs/compatibility.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include <climits>
 
 namespace {
 
@@ -240,27 +240,27 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
     if (interrupt_.signal == nullptr) {
       result = ESP_ERR_NO_MEM;
     } else {
-        gpio_config_t gpio{};
-        gpio.pin_bit_mask = uint64_t{1} << config.int_gpio;
-        gpio.mode = GPIO_MODE_INPUT;
-        gpio.pull_up_en = GPIO_PULLUP_DISABLE;
-        gpio.pull_down_en = GPIO_PULLDOWN_DISABLE;
-        gpio.intr_type = GPIO_INTR_POSEDGE;
-        result = gpio_config(&gpio);
-        if (result == ESP_OK) {
-          result = gpio_install_isr_service(0);
-          if (result == ESP_ERR_INVALID_STATE)
-            result = ESP_OK;
-        }
-        if (result == ESP_OK)
-          result = gpio_isr_handler_add(config.int_gpio, dataReadyIsr,
-                                        &interrupt_);
-        if (result == ESP_OK) {
-          int_gpio_ = config.int_gpio;
-        } else {
-          interrupt_.signal = nullptr;
-          (void)gpio_reset_pin(config.int_gpio);
-        }
+      gpio_config_t gpio{};
+      gpio.pin_bit_mask = uint64_t{1} << config.int_gpio;
+      gpio.mode = GPIO_MODE_INPUT;
+      gpio.pull_up_en = GPIO_PULLUP_DISABLE;
+      gpio.pull_down_en = GPIO_PULLDOWN_DISABLE;
+      gpio.intr_type = GPIO_INTR_POSEDGE;
+      result = gpio_config(&gpio);
+      if (result == ESP_OK) {
+        result = gpio_install_isr_service(0);
+        if (result == ESP_ERR_INVALID_STATE)
+          result = ESP_OK;
+      }
+      if (result == ESP_OK)
+        result =
+            gpio_isr_handler_add(config.int_gpio, dataReadyIsr, &interrupt_);
+      if (result == ESP_OK) {
+        int_gpio_ = config.int_gpio;
+      } else {
+        interrupt_.signal = nullptr;
+        (void)gpio_reset_pin(config.int_gpio);
+      }
     }
   }
 

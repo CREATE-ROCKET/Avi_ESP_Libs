@@ -136,8 +136,7 @@ esp_err_t NEC920::send(MessageId message_id, uint8_t message_number,
 
 esp_err_t NEC920::setRfConfig(uint8_t message_number, uint8_t power,
                               uint8_t channel, uint8_t band,
-                              uint8_t carrier_sense_mode,
-                              uint32_t timeout_ms) {
+                              uint8_t carrier_sense_mode, uint32_t timeout_ms) {
   const uint8_t parameters[]{0x00, power, channel, band, carrier_sense_mode};
   const std::array<uint8_t, 4> module{0xFF, 0xFF, 0xFF, 0xFF};
   return send(MessageId::no_resend, message_number, module, parameters,

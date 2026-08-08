@@ -63,8 +63,7 @@ public:
   [[nodiscard]] esp_err_t read(uint32_t address, uint8_t *data,
                                std::size_t length = kPageSize);
   template <std::size_t N>
-  [[nodiscard]] esp_err_t read(uint32_t address,
-                               std::array<uint8_t, N> &data) {
+  [[nodiscard]] esp_err_t read(uint32_t address, std::array<uint8_t, N> &data) {
     return read(address, data.data(), data.size());
   }
   template <std::size_t N>

@@ -39,18 +39,17 @@ public:
                                const uint8_t *data, std::size_t length,
                                uint32_t timeout_ms = 100);
   template <std::size_t N>
-  [[nodiscard]] esp_err_t
-  send(MessageId message_id, uint8_t message_number,
-       const std::array<uint8_t, 4> &destination, const uint8_t (&data)[N],
-       uint32_t timeout_ms = 100) {
+  [[nodiscard]] esp_err_t send(MessageId message_id, uint8_t message_number,
+                               const std::array<uint8_t, 4> &destination,
+                               const uint8_t (&data)[N],
+                               uint32_t timeout_ms = 100) {
     return send(message_id, message_number, destination, data, N, timeout_ms);
   }
-  [[nodiscard]] esp_err_t
-  setRfConfig(uint8_t message_number, uint8_t power, uint8_t channel,
-              uint8_t band, uint8_t carrier_sense_mode,
-              uint32_t timeout_ms = 100);
-  [[nodiscard]] esp_err_t receive(Packet &packet,
-                                  uint32_t timeout_ms = 100);
+  [[nodiscard]] esp_err_t setRfConfig(uint8_t message_number, uint8_t power,
+                                      uint8_t channel, uint8_t band,
+                                      uint8_t carrier_sense_mode,
+                                      uint32_t timeout_ms = 100);
+  [[nodiscard]] esp_err_t receive(Packet &packet, uint32_t timeout_ms = 100);
   [[nodiscard]] esp_err_t checkCommandResult(const Packet &packet,
                                              uint8_t message_number,
                                              bool &accepted) const;

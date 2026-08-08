@@ -72,11 +72,9 @@ public:
   [[nodiscard]] esp_err_t write(uint32_t identifier, uint8_t value,
                                 uint32_t timeout_ms = 100);
   [[nodiscard]] esp_err_t write(uint32_t identifier, const uint8_t *data,
-                                std::size_t length,
-                                uint32_t timeout_ms = 100);
+                                std::size_t length, uint32_t timeout_ms = 100);
   template <std::size_t N>
-  [[nodiscard]] esp_err_t write(uint32_t identifier,
-                                const uint8_t (&data)[N],
+  [[nodiscard]] esp_err_t write(uint32_t identifier, const uint8_t (&data)[N],
                                 uint32_t timeout_ms = 100) {
     return write(identifier, data, N, timeout_ms);
   }
