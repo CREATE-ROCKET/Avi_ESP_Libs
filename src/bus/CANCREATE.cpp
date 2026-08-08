@@ -13,6 +13,7 @@ namespace {
 
 constexpr uint32_t kStandardIdMask = 0x7FF;
 constexpr uint32_t kExtendedIdMask = 0x1FFFFFFF;
+constexpr auto kTestTimeout = avi::Timeout::milliseconds(1000);
 
 bool validBitrate(CANCREATE::Bitrate bitrate) {
   switch (bitrate) {
@@ -263,15 +264,14 @@ void copyFrame(const twai_message_t &message, CANCREATE::Frame &frame) {
 
 esp_err_t drainReceiveQueue(Backend &backend) {
   twai_message_t message{};
-  while (twai_receive(&message, 0) == ESP_OK) {
+  while (backend.prefetch_count < backend.prefetch_capacity &&
+         twai_receive(&message, 0) == ESP_OK) {
     if (message.data_length_code > 8 ||
         !validIdentifier(message.identifier, message.extd))
       return ESP_ERR_INVALID_SIZE;
     if (!applicationIdentifier(message.identifier, message.extd) ||
         !filterAccepts(backend.filter, message))
       continue;
-    if (backend.prefetch_count == backend.prefetch_capacity)
-      return ESP_ERR_NO_MEM;
     const std::size_t slot = (backend.prefetch_head + backend.prefetch_count) %
                              backend.prefetch_capacity;
     copyFrame(message, backend.prefetched[slot]);
@@ -736,15 +736,21 @@ esp_err_t CANCREATE::recover(avi::Timeout timeout) {
   return ESP_ERR_TIMEOUT;
 }
 
-esp_err_t CANCREATE::test(TestResult &result, avi::Timeout timeout) {
+esp_err_t CANCREATE::test(TestResult &result) {
   if (!initialized_ || backend_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  uint64_t timeout_ms{};
-  TickType_t timeout_ticks{};
-  if (!timeout.isFinite() || !timeout.millisecondsValue(timeout_ms) ||
-      timeout_ms == 0 ||
-      avi::internal::timeoutToTicks(timeout, timeout_ticks) != ESP_OK)
-    return ESP_ERR_INVALID_ARG;
+  avi::internal::Deadline deadline{};
+  if (avi::internal::makeDeadline(kTestTimeout, deadline) != ESP_OK)
+    return ESP_ERR_INVALID_STATE;
+  const auto remainingTimeout = [&deadline](avi::Timeout &remaining) {
+    const int64_t now = avi_micros();
+    if (now >= deadline.microseconds)
+      return ESP_ERR_TIMEOUT;
+    const uint64_t microseconds =
+        static_cast<uint64_t>(deadline.microseconds - now);
+    remaining = avi::Timeout::milliseconds((microseconds + 999U) / 1000U);
+    return ESP_OK;
+  };
   Status status{};
   esp_err_t test_error = getStatus(status);
   if (test_error != ESP_OK)
@@ -763,9 +769,15 @@ esp_err_t CANCREATE::test(TestResult &result, avi::Timeout timeout) {
     test_error = start(temporary, false, false, 0);
 
   if (test_error == ESP_OK) {
+    avi::Timeout remaining = avi::Timeout::milliseconds(1);
+    test_error = remainingTimeout(remaining);
+    TickType_t timeout_ticks{};
+    if (test_error == ESP_OK)
+      test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
 #if ESP_IDF_VERSION_MAJOR >= 6
     auto *backend = static_cast<Backend *>(backend_);
-    if (xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
+    if (test_error == ESP_OK &&
+        xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
       backend->tx_frame = {};
       backend->tx_frame.header.id = kTestIdentifier;
       backend->tx_frame.header.dlc = 0;
@@ -773,11 +785,17 @@ esp_err_t CANCREATE::test(TestResult &result, avi::Timeout timeout) {
       backend->tx_frame.buffer_len = 0;
       __atomic_store_n(&backend->tx_success, 0U, __ATOMIC_RELEASE);
       int timeout_value{};
-      test_error =
-          avi::internal::timeoutToIntMilliseconds(timeout, timeout_value);
+      test_error = remainingTimeout(remaining);
+      if (test_error == ESP_OK)
+        test_error =
+            avi::internal::timeoutToIntMilliseconds(remaining, timeout_value);
       if (test_error == ESP_OK)
         test_error = twai_node_transmit(backend->node, &backend->tx_frame,
                                         timeout_value);
+      if (test_error == ESP_OK)
+        test_error = remainingTimeout(remaining);
+      if (test_error == ESP_OK)
+        test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
       if (test_error == ESP_OK &&
           xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE)
         normal_success =
@@ -795,9 +813,17 @@ esp_err_t CANCREATE::test(TestResult &result, avi::Timeout timeout) {
     message.ss = 1;
     if (test_error == ESP_OK)
       test_error = twai_transmit(&message, timeout_ticks);
-    if (test_error == ESP_OK &&
-        twai_read_alerts(&alerts, timeout_ticks) == ESP_OK)
-      normal_success = (alerts & TWAI_ALERT_TX_SUCCESS) != 0;
+    if (test_error == ESP_OK)
+      test_error = remainingTimeout(remaining);
+    if (test_error == ESP_OK)
+      test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
+    if (test_error == ESP_OK) {
+      const esp_err_t alert_result = twai_read_alerts(&alerts, timeout_ticks);
+      if (alert_result == ESP_OK)
+        normal_success = (alerts & TWAI_ALERT_TX_SUCCESS) != 0;
+      else if (alert_result != ESP_ERR_TIMEOUT)
+        test_error = alert_result;
+    }
 #endif
   }
 
@@ -812,24 +838,41 @@ esp_err_t CANCREATE::test(TestResult &result, avi::Timeout timeout) {
     temporary.mode = Mode::no_ack;
     test_error = start(temporary, true, true, 0);
     if (test_error == ESP_OK) {
+      avi::Timeout remaining = avi::Timeout::milliseconds(1);
+      test_error = remainingTimeout(remaining);
+      TickType_t timeout_ticks{};
+      if (test_error == ESP_OK)
+        test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
 #if ESP_IDF_VERSION_MAJOR >= 6
       auto *backend = static_cast<Backend *>(backend_);
       backend->allow_diagnostic = true;
-      if (xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
+      if (test_error == ESP_OK &&
+          xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
         backend->tx_frame = {};
         backend->tx_frame.header.id = kTestIdentifier;
         backend->tx_frame.header.dlc = 0;
         backend->tx_frame.buffer = backend->tx_data;
         int timeout_value{};
-        test_error =
-            avi::internal::timeoutToIntMilliseconds(timeout, timeout_value);
+        test_error = remainingTimeout(remaining);
+        if (test_error == ESP_OK)
+          test_error =
+              avi::internal::timeoutToIntMilliseconds(remaining, timeout_value);
         if (test_error == ESP_OK)
           test_error = twai_node_transmit(backend->node, &backend->tx_frame,
                                           timeout_value);
+        if (test_error == ESP_OK)
+          test_error = remainingTimeout(remaining);
+        if (test_error == ESP_OK)
+          test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
         if (test_error == ESP_OK &&
             xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
+          test_error = remainingTimeout(remaining);
+          if (test_error == ESP_OK)
+            test_error =
+                avi::internal::timeoutToTicks(remaining, timeout_ticks);
           RawFrame received{};
-          self_reception_success = xQueueReceive(backend->rx_queue, &received,
+          self_reception_success = test_error == ESP_OK &&
+                                   xQueueReceive(backend->rx_queue, &received,
                                                  timeout_ticks) == pdTRUE &&
                                    !received.header.ide &&
                                    received.header.id == kTestIdentifier;
@@ -844,6 +887,10 @@ esp_err_t CANCREATE::test(TestResult &result, avi::Timeout timeout) {
       message.self = 1;
       test_error = twai_transmit(&message, timeout_ticks);
       twai_message_t received{};
+      if (test_error == ESP_OK)
+        test_error = remainingTimeout(remaining);
+      if (test_error == ESP_OK)
+        test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
       if (test_error == ESP_OK)
         self_reception_success =
             twai_receive(&received, timeout_ticks) == ESP_OK &&

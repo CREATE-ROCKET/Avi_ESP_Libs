@@ -111,9 +111,7 @@ public:
   [[nodiscard]] esp_err_t getStatus(Status &status) const;
   [[nodiscard]] esp_err_t
   recover(avi::Timeout timeout = avi::Timeout::noWait());
-  [[nodiscard]] esp_err_t
-  test(TestResult &result,
-       avi::Timeout timeout = avi::Timeout::milliseconds(1000));
+  [[nodiscard]] esp_err_t test(TestResult &result);
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
