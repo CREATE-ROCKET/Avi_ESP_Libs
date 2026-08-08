@@ -6,6 +6,7 @@
 #include <AS5047D.h>
 #include <CANCREATE.h>
 #include <H3LIS331.h>
+#include <I2CCREATE.h>
 #include <ICM20602.h>
 #include <ICM20948.h>
 #include <ICM42688.h>
@@ -14,9 +15,15 @@
 #include <S25FL127S.h>
 #include <S25FL512S.h>
 #include <SPICREATE.h>
+#include <SSCDRRN005PD2A5.h>
+#include <STS3215.h>
+#include <STSCREATE.h>
 
 inline void aviApiSmoke() {
   static_assert(!std::is_copy_constructible_v<SPICREATE>);
+  static_assert(!std::is_copy_constructible_v<I2CCREATE>);
+  static_assert(!std::is_copy_constructible_v<STSCREATE>);
+  static_assert(!std::is_copy_constructible_v<STS3215>);
   static_assert(!std::is_copy_constructible_v<AS5047D>);
   static_assert(!std::is_copy_constructible_v<CANCREATE>);
   static_assert(!std::is_copy_constructible_v<ICM42688>);
@@ -70,6 +77,16 @@ inline void aviApiSmoke() {
   (void)spi.begin(SPI2_HOST, -1, 13, 11);
   (void)spi.deviceCount();
   (void)spi.end();
+
+  I2CCREATE i2c;
+  I2CCREATE::Config i2c_config{};
+  i2c_config.sda = -1;
+  (void)i2c.begin(i2c_config);
+  (void)i2c.begin(I2C_NUM_0, -1, -1);
+  (void)i2c.probe(0x28);
+  (void)i2c.frequencyHz();
+  (void)i2c.deviceCount();
+  (void)i2c.end();
 
   AS5047D encoder;
   AS5047D::Config encoder_config{};
@@ -175,9 +192,13 @@ inline void aviApiSmoke() {
   LPS25HB::Data pressure_data{};
   LPS25HB::RawData pressure_raw{};
   LPS25HB::Status pressure_status{};
+  LPS25HB::SpiConfig pressure_spi_config{};
   pressure_config.one_shot_timeout = avi::Timeout::milliseconds(100);
   (void)pressure.begin(spi, -1, pressure_config);
+  (void)pressure.begin(spi, -1, pressure_spi_config, pressure_config);
   (void)pressure.begin(spi, -1);
+  (void)pressure.begin(i2c, LPS25HB::Address::high, pressure_config);
+  (void)pressure.begin(i2c, LPS25HB::Address::low);
   (void)pressure.whoAmI(identity);
   (void)pressure.getStatus(pressure_status);
   (void)pressure.available();
@@ -185,6 +206,64 @@ inline void aviApiSmoke() {
   (void)pressure.read(pressure_data);
   (void)pressure.initialized();
   (void)pressure.end();
+
+  SSCDRRN005PD2A5 ssc;
+  SSCDRRN005PD2A5::RawData ssc_raw{};
+  SSCDRRN005PD2A5::Data ssc_data{};
+  (void)ssc.begin(i2c);
+  (void)ssc.readRaw(ssc_raw);
+  (void)ssc.read(ssc_data);
+  (void)ssc.end();
+
+  STSCREATE sts;
+  STSCREATE::Config sts_config{};
+  sts_config.tx = GPIO_NUM_NC;
+  constexpr STSCREATE::Baudrate sts_baudrates[]{
+      STSCREATE::Baudrate::bps1000000, STSCREATE::Baudrate::bps500000,
+      STSCREATE::Baudrate::bps250000,  STSCREATE::Baudrate::bps128000,
+      STSCREATE::Baudrate::bps115200,  STSCREATE::Baudrate::bps76800,
+      STSCREATE::Baudrate::bps57600,   STSCREATE::Baudrate::bps38400};
+  (void)sts_baudrates;
+  uint8_t sts_data[8]{};
+  uint8_t sts_ids[]{1, 2};
+  (void)sts.begin(sts_config);
+  (void)sts.ping(1);
+  (void)sts.read(1, 0x38, sts_data, 2);
+  (void)sts.write(1, 0x2A, sts_data, 2);
+  (void)sts.regWrite(1, 0x2A, sts_data, 2);
+  (void)sts.action();
+  (void)sts.syncRead(0x38, 2, sts_ids, 2, sts_data, 4);
+  (void)sts.syncWrite(0x2A, 2, sts_ids, 2, sts_data, 4);
+  (void)sts.recovery(1);
+  (void)sts.resetState(1);
+
+  STS3215 servo;
+  STS3215::RawData servo_raw{};
+  STS3215::Data servo_data{};
+  STS3215::Status servo_status{};
+  STS3215::Motion motion{1.0F, 1.0F, STS3215::TorqueLimit::percent(50.0F)};
+  STS3215::StallProtection stall{true, 50.0F, avi::Timeout::milliseconds(100),
+                                 20.0F};
+  STS3215::TorqueLimit torque = STS3215::TorqueLimit::raw(500);
+  (void)STS3215::Model::c001_1_345;
+  (void)STS3215::Model::c044_1_191;
+  (void)STS3215::Model::c046_1_147;
+  (void)servo.begin(sts, 1, STS3215::Model::c001_1_345);
+  (void)servo.verifyOperatingMode(STS3215::OperatingMode::step);
+  (void)servo.holdCurrentPosition({torque});
+  (void)servo.moveAbsoluteDegrees(10.0F, motion);
+  (void)servo.moveRelativeDegrees(-10.0F, motion);
+  (void)servo.enableTorque();
+  (void)servo.disableTorque();
+  (void)servo.setTorqueLimit(torque);
+  (void)servo.readTorqueLimit(torque);
+  (void)servo.configureStallProtection(stall,
+                                       STS3215::Persistence::volatile_only);
+  (void)servo.readRaw(servo_raw);
+  (void)servo.read(servo_data);
+  (void)servo.getStatus(servo_status);
+  (void)servo.end();
+  (void)sts.end();
 
   S25FL127S flash;
   S25FL127S::Config flash_config{};
