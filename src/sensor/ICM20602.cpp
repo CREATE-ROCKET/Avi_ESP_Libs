@@ -167,46 +167,52 @@ constexpr bool gyroOtpPass(float measured, float trim) {
   return measured > trim * 0.5F;
 }
 
-constexpr bool accelFallbackPass(float measured) {
+constexpr float magnitude(float value) { return value < 0.0F ? -value : value; }
+
+constexpr bool accelFallbackPass(float response) {
+  const float measured = magnitude(response);
   return measured >= 225.0F * 16384.0F / 1000.0F &&
          measured <= 675.0F * 16384.0F / 1000.0F;
 }
 
-constexpr bool gyroFallbackPass(float measured) {
-  return measured >= 60.0F * 131.0F;
+constexpr bool gyroFallbackPass(float response) {
+  return magnitude(response) >= 60.0F * 131.0F;
 }
 
 constexpr bool gyroOffsetPass(float baseline) {
-  return baseline <= 20.0F * 131.0F;
+  return magnitude(baseline) <= 20.0F * 131.0F;
 }
 
 bool accelSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
-  const float measured = std::fabs(static_cast<float>(response));
   if (!otp_valid)
-    return accelFallbackPass(measured);
+    return accelFallbackPass(static_cast<float>(response));
   const float trim = factoryTrim(code);
-  return accelOtpPass(measured, trim);
+  return accelOtpPass(static_cast<float>(response), trim);
 }
 
 bool gyroSelfTestAxis(int32_t response, int32_t baseline, uint8_t code,
                       bool otp_valid) {
-  const float measured = std::fabs(static_cast<float>(response));
-  const bool response_ok = otp_valid ? gyroOtpPass(measured, factoryTrim(code))
-                                     : gyroFallbackPass(measured);
-  const bool offset_ok =
-      gyroOffsetPass(std::fabs(static_cast<float>(baseline)));
+  const bool response_ok =
+      otp_valid ? gyroOtpPass(static_cast<float>(response), factoryTrim(code))
+                : gyroFallbackPass(static_cast<float>(response));
+  const bool offset_ok = gyroOffsetPass(static_cast<float>(baseline));
   return response_ok && offset_ok;
 }
 
 static_assert(!accelOtpPass(499.0F, 1000.0F));
 static_assert(accelOtpPass(1000.0F, 1000.0F));
 static_assert(!accelOtpPass(1501.0F, 1000.0F));
+static_assert(!accelOtpPass(-1000.0F, 1000.0F));
 static_assert(gyroOtpPass(2000.0F, 1000.0F));
 static_assert(!gyroOtpPass(500.0F, 1000.0F));
+static_assert(!gyroOtpPass(-1000.0F, 1000.0F));
 static_assert(accelFallbackPass(225.0F * 16384.0F / 1000.0F));
 static_assert(accelFallbackPass(675.0F * 16384.0F / 1000.0F));
+static_assert(accelFallbackPass(-225.0F * 16384.0F / 1000.0F));
 static_assert(gyroFallbackPass(60.0F * 131.0F));
+static_assert(gyroFallbackPass(-60.0F * 131.0F));
 static_assert(gyroOffsetPass(20.0F * 131.0F));
+static_assert(gyroOffsetPass(-20.0F * 131.0F));
 static_assert(!gyroOffsetPass(20.0F * 131.0F + 1.0F));
 
 } // namespace
