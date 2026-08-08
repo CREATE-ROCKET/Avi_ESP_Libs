@@ -116,7 +116,7 @@ inline void aviApiSmoke() {
   (void)can.available(available_count);
   (void)can.getStatus(can_status);
   (void)can.recover();
-  (void)can.test(can_test, avi::Timeout::seconds(1));
+  (void)can.test(can_test);
   (void)can.initialized();
   (void)can.end();
 
@@ -148,7 +148,7 @@ inline void aviApiSmoke() {
   (void)icm42688.waitDataReady(forever);
   (void)icm42688.readRaw(icm42688_raw);
   (void)icm42688.read(icm42688_data);
-  (void)icm42688.selfTest(icm42688_self_test, avi::Timeout::seconds(1));
+  (void)icm42688.selfTest(icm42688_self_test);
   (void)icm42688.initialized();
   (void)icm42688.end();
 
@@ -166,7 +166,7 @@ inline void aviApiSmoke() {
   (void)icm20948.available();
   (void)icm20948.readRaw(icm20948_raw);
   (void)icm20948.read(icm20948_data);
-  (void)icm20948.selfTest(icm20948_self_test, avi::Timeout::milliseconds(1500));
+  (void)icm20948.selfTest(icm20948_self_test);
   (void)icm20948.initialized();
   (void)icm20948.end();
 
@@ -226,7 +226,7 @@ inline void aviApiSmoke() {
   (void)icm20602.getStatus(icm20602_status);
   (void)icm20602.readRaw(icm20602_raw);
   (void)icm20602.read(icm20602_data);
-  (void)icm20602.selfTest(icm20602_self_test, avi::Timeout::seconds(1));
+  (void)icm20602.selfTest(icm20602_self_test);
   (void)icm20602.initialized();
   (void)icm20602.end();
   H3LIS331 h3lis331;
