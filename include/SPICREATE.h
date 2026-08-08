@@ -44,6 +44,7 @@ public:
   [[nodiscard]] std::size_t deviceCount() const;
 
 private:
+  class LockGuard;
   using Device = spi_device_handle_t;
   struct DeviceConfig {
     int chip_select{-1};

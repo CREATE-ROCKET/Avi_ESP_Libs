@@ -23,6 +23,21 @@ bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
 
 } // 名前なし名前空間
 
+class SPICREATE::LockGuard {
+public:
+  explicit LockGuard(SPICREATE &bus) : bus_(bus), result_(bus_.takeBusLock()) {}
+  ~LockGuard() {
+    if (result_ == ESP_OK)
+      bus_.giveBusLock();
+  }
+
+  [[nodiscard]] esp_err_t result() const { return result_; }
+
+private:
+  SPICREATE &bus_;
+  esp_err_t result_;
+};
+
 SPICREATE::~SPICREATE() { (void)end(); }
 
 esp_err_t SPICREATE::begin(spi_host_device_t host, int sck, int miso, int mosi,
@@ -111,18 +126,15 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
       device_config.frequency_hz == 0 || device_config.frequency_hz > INT_MAX ||
       device_config.mode > 3 || device_config.queue_size == 0)
     return ESP_ERR_INVALID_ARG;
-  const esp_err_t lock_result = takeBusLock();
-  if (lock_result != ESP_OK)
-    return lock_result;
+  LockGuard lock(*this);
+  if (lock.result() != ESP_OK)
+    return lock.result();
   if (device != nullptr) {
-    giveBusLock();
     return ESP_ERR_INVALID_STATE;
   }
   auto slot = std::find(devices_.begin(), devices_.end(), nullptr);
-  if (slot == devices_.end()) {
-    giveBusLock();
+  if (slot == devices_.end())
     return ESP_ERR_NO_MEM;
-  }
   spi_device_interface_config_t local{};
   local.clock_speed_hz = static_cast<int>(device_config.frequency_hz);
   local.mode = device_config.mode;
@@ -131,7 +143,6 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
   const esp_err_t result = spi_bus_add_device(host_, &local, &device);
   if (result == ESP_OK)
     *slot = device;
-  giveBusLock();
   return result;
 }
 
@@ -140,20 +151,17 @@ esp_err_t SPICREATE::removeDevice(Device &device) {
     return ESP_ERR_INVALID_ARG;
   if (!initialized_)
     return ESP_ERR_INVALID_STATE;
-  const esp_err_t lock_result = takeBusLock();
-  if (lock_result != ESP_OK)
-    return lock_result;
+  LockGuard lock(*this);
+  if (lock.result() != ESP_OK)
+    return lock.result();
   auto slot = std::find(devices_.begin(), devices_.end(), device);
-  if (slot == devices_.end()) {
-    giveBusLock();
+  if (slot == devices_.end())
     return ESP_ERR_NOT_FOUND;
-  }
   const esp_err_t result = spi_bus_remove_device(device);
   if (result == ESP_OK) {
     *slot = nullptr;
     device = nullptr;
   }
-  giveBusLock();
   return result;
 }
 
@@ -165,16 +173,12 @@ esp_err_t SPICREATE::pollingTransmit(Device device,
                                      spi_transaction_t &transaction) {
   if (!initialized_ || !owns(device))
     return ESP_ERR_INVALID_STATE;
-  const esp_err_t lock_result = takeBusLock();
-  if (lock_result != ESP_OK)
-    return lock_result;
-  if (!initialized_ || !owns(device)) {
-    giveBusLock();
+  LockGuard lock(*this);
+  if (lock.result() != ESP_OK)
+    return lock.result();
+  if (!initialized_ || !owns(device))
     return ESP_ERR_INVALID_STATE;
-  }
-  const esp_err_t result = spi_device_polling_transmit(device, &transaction);
-  giveBusLock();
-  return result;
+  return spi_device_polling_transmit(device, &transaction);
 }
 
 esp_err_t SPICREATE::readRegister(Device device, uint8_t address,
