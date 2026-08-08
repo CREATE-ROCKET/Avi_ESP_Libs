@@ -21,6 +21,9 @@ constexpr uint8_t kIntSource0 = 0x65;
 constexpr uint8_t kWhoAmI = 0x75;
 constexpr uint8_t kExpectedWhoAmI = 0x47;
 constexpr uint32_t kMaximumSpiFrequency = 24000000;
+constexpr uint8_t kIntTpulseDuration = 0x40;
+constexpr uint8_t kIntTdeassertDisable = 0x20;
+constexpr uint8_t kIntAsyncReset = 0x10;
 
 bool accelBits(ICM42688::AccelRange range, uint8_t &bits) {
   switch (range) {
@@ -112,6 +115,42 @@ template <typename Odr> bool odrBits(Odr odr, uint8_t &bits) {
   return false;
 }
 
+template <typename Odr> constexpr bool isHighOdr(Odr odr) {
+  switch (odr) {
+  case Odr::hz4000:
+  case Odr::hz8000:
+  case Odr::hz16000:
+  case Odr::hz32000:
+    return true;
+  case Odr::hz12_5:
+  case Odr::hz25:
+  case Odr::hz50:
+  case Odr::hz100:
+  case Odr::hz200:
+  case Odr::hz500:
+  case Odr::hz1000:
+  case Odr::hz2000:
+    return false;
+  }
+  return false;
+}
+
+constexpr bool requiresHighOdrInterruptConfig(ICM42688::AccelOdr accel_odr,
+                                              ICM42688::GyroOdr gyro_odr) {
+  return isHighOdr(accel_odr) || isHighOdr(gyro_odr);
+}
+
+static_assert(!requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz1000,
+                                              ICM42688::GyroOdr::hz2000));
+static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz4000,
+                                             ICM42688::GyroOdr::hz1000));
+static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz1000,
+                                             ICM42688::GyroOdr::hz32000));
+static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz8000,
+                                             ICM42688::GyroOdr::hz1000));
+static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz1000,
+                                             ICM42688::GyroOdr::hz16000));
+
 bool filterBits(ICM42688::Filter filter, uint8_t &bits) {
   switch (filter) {
   case ICM42688::Filter::odr_div2:
@@ -190,8 +229,9 @@ float gyroSensitivity(ICM42688::GyroRange range) {
 } // namespace
 
 void ICM42688::dataReadyIsr(void *context) {
-  // SAFETY: contextはgpio_isr_handler_remove()が成功するまで生存する
-  // ICM42688::InterruptStateである。ISRでは固定セマフォの通知だけを行う。
+  // SAFETY: contextはICM42688::InterruptStateを指し、
+  // gpio_isr_handler_remove()が成功するまで生存する。ISRでは固定セマフォの
+  // 通知だけを行い、SPI通信、heap操作、logging、blockingを行わない。
   auto *state = static_cast<InterruptState *>(context);
   BaseType_t task_awoken = pdFALSE;
   (void)xSemaphoreGiveFromISR(state->signal, &task_awoken);
@@ -294,10 +334,18 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
   if (result == ESP_OK && interrupt_.signal != nullptr) {
     uint8_t int_config1{};
     result = spi_->readRegister(device_, kIntConfig1 | 0x80, int_config1);
-    if (result == ESP_OK)
-      result = spi_->writeRegister(
-          device_, kIntConfig1,
-          static_cast<uint8_t>(int_config1 & static_cast<uint8_t>(~0x10U)));
+    if (result == ESP_OK) {
+      const uint8_t high_odr_bits =
+          requiresHighOdrInterruptConfig(config.accel_odr, config.gyro_odr)
+              ? kIntTpulseDuration | kIntTdeassertDisable
+              : 0;
+      int_config1 = static_cast<uint8_t>(
+          (int_config1 &
+           static_cast<uint8_t>(
+               ~(kIntTpulseDuration | kIntTdeassertDisable | kIntAsyncReset))) |
+          high_odr_bits);
+      result = spi_->writeRegister(device_, kIntConfig1, int_config1);
+    }
   }
   if (result == ESP_OK && interrupt_.signal != nullptr)
     result = spi_->writeRegister(device_, kIntSource0, 0x08);
@@ -326,6 +374,7 @@ esp_err_t ICM42688::end() {
     rememberFirst(remove_result, first_error);
     if (remove_result != ESP_OK)
       return first_error;
+    // handlerの解除成功後にだけISR contextを無効化する。
     // GPIO ISRサービスはプロセス全体の共有資源なので、対象GPIOの
     // ハンドラだけを外す。サービス全体の解除は他コンポーネントを破壊する。
     interrupt_.signal = nullptr;
@@ -413,10 +462,6 @@ esp_err_t ICM42688::waitDataReady(avi::Timeout timeout) {
 esp_err_t ICM42688::readRaw(RawData &data) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  // 直接readする場合は、それ以前のサンプル通知だけを先に消す。
-  // この後にISRが通知した新しいサンプルはセマフォへ残る。
-  if (interrupt_.signal != nullptr)
-    (void)xSemaphoreTake(interrupt_.signal, 0);
   uint8_t raw[14]{};
   const esp_err_t result =
       spi_->read(device_, kTemperatureData | 0x80, raw, sizeof(raw));

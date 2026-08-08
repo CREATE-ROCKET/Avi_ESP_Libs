@@ -95,16 +95,21 @@ inline void aviApiSmoke() {
   (void)can.end();
 
   ICM42688 icm42688;
-  ICM42688::Config icm42688_config{};
+  ICM42688::Config low_odr_config{};
+  ICM42688::Config high_odr_config{};
   ICM42688::Data icm42688_data{};
   ICM42688::RawData icm42688_raw{};
   ICM42688::Status icm42688_status{};
   bool ready{};
-  icm42688_config.accel_odr = ICM42688::AccelOdr::hz32000;
-  icm42688_config.gyro_odr = ICM42688::GyroOdr::hz12_5;
-  icm42688_config.gyro_range = ICM42688::GyroRange::dps15_625;
+  low_odr_config.accel_odr = ICM42688::AccelOdr::hz1000;
+  low_odr_config.gyro_odr = ICM42688::GyroOdr::hz1000;
+  high_odr_config.accel_odr = ICM42688::AccelOdr::hz4000;
+  high_odr_config.gyro_odr = ICM42688::GyroOdr::hz32000;
+  high_odr_config.gyro_range = ICM42688::GyroRange::dps15_625;
+  high_odr_config.int_gpio = GPIO_NUM_4;
   uint8_t identity{};
-  (void)icm42688.begin(spi, -1, icm42688_config);
+  (void)icm42688.begin(spi, -1, low_odr_config);
+  (void)icm42688.begin(spi, -1, high_odr_config);
   (void)icm42688.begin(spi, -1);
   (void)icm42688.whoAmI(identity);
   (void)icm42688.getStatus(icm42688_status);
@@ -112,6 +117,7 @@ inline void aviApiSmoke() {
   (void)icm42688.available(ready);
   (void)icm42688.waitDataReady(no_wait);
   (void)icm42688.waitDataReady(one_ms);
+  (void)icm42688.waitDataReady(one_second);
   (void)icm42688.waitDataReady(forever);
   (void)icm42688.readRaw(icm42688_raw);
   (void)icm42688.read(icm42688_data);
