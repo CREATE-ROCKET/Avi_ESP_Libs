@@ -1,10 +1,15 @@
 #include "ICM20602.h"
 
+#include "../compatibility/timeout_internal.h"
 #include "avi_esp_libs/compatibility.h"
+
+#include <cmath>
 
 namespace {
 
 constexpr uint8_t kSampleRateDivider = 0x19;
+constexpr uint8_t kSelfTestGyro = 0x00;
+constexpr uint8_t kSelfTestAccel = 0x0D;
 constexpr uint8_t kConfig = 0x1A;
 constexpr uint8_t kGyroConfig = 0x1B;
 constexpr uint8_t kAccelConfig = 0x1C;
@@ -16,6 +21,7 @@ constexpr uint8_t kPowerManagement = 0x6B;
 constexpr uint8_t kWhoAmI = 0x75;
 constexpr uint8_t kExpectedWhoAmI = 0x12;
 constexpr uint32_t kMaximumSpiFrequency = 10000000;
+constexpr std::size_t kSelfTestSamples = 200;
 
 int16_t signedWord(const uint8_t *data) {
   return static_cast<int16_t>((uint16_t{data[0]} << 8) | data[1]);
@@ -145,6 +151,18 @@ float gyroSensitivity(ICM20602::GyroRange range) {
   return 1.0F;
 }
 
+float factoryTrim(uint8_t code) {
+  return code == 0 ? 0.0F : 2620.0F * std::pow(1.01F, code - 1);
+}
+
+bool selfTestAxis(int32_t response, uint8_t code, float absolute_min,
+                  float absolute_max) {
+  const float measured = std::fabs(static_cast<float>(response));
+  const float trim = factoryTrim(code);
+  return trim > 0.0F ? measured >= trim * 0.5F && measured <= trim * 1.5F
+                     : measured >= absolute_min && measured <= absolute_max;
+}
+
 } // namespace
 
 ICM20602::~ICM20602() {
@@ -208,6 +226,7 @@ esp_err_t ICM20602::begin(SPICREATE &spi, int chip_select,
   }
   accel_range_ = config.accel_range;
   gyro_range_ = config.gyro_range;
+  config_ = config;
   initialized_ = true;
   return ESP_OK;
 }
@@ -222,6 +241,7 @@ esp_err_t ICM20602::end() {
   if (remove_result == ESP_OK) {
     spi_ = nullptr;
     device_ = nullptr;
+    config_ = Config{};
   }
   return remove_result != ESP_OK ? remove_result : sleep_result;
 }
@@ -291,4 +311,126 @@ esp_err_t ICM20602::read(Data &data) {
   next.temperature_celsius = raw.temperature / 326.8F + 25.0F;
   data = next;
   return ESP_OK;
+}
+
+esp_err_t ICM20602::selfTest(SelfTestResult &result, avi::Timeout timeout) {
+  if (!initialized_ || spi_ == nullptr)
+    return ESP_ERR_INVALID_STATE;
+  uint64_t timeout_ms{};
+  if (!timeout.isFinite() || !timeout.millisecondsValue(timeout_ms) ||
+      timeout_ms == 0)
+    return ESP_ERR_INVALID_ARG;
+
+  avi::internal::Deadline deadline{};
+  if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
+    return ESP_ERR_INVALID_ARG;
+
+  const Config saved = config_;
+  SelfTestResult next{};
+  uint8_t gyro_codes[3]{};
+  uint8_t accel_codes[3]{};
+  esp_err_t operation = ESP_OK;
+  for (std::size_t i = 0; i < 3 && operation == ESP_OK; ++i)
+    operation = spi_->readRegister(
+        device_, static_cast<uint8_t>(kSelfTestGyro + i) | 0x80, gyro_codes[i]);
+  for (std::size_t i = 0; i < 3 && operation == ESP_OK; ++i)
+    operation = spi_->readRegister(
+        device_, static_cast<uint8_t>(kSelfTestAccel + i) | 0x80,
+        accel_codes[i]);
+
+  const auto writeTestConfig = [this](bool stimulated) {
+    esp_err_t error = spi_->writeRegister(device_, kConfig, 2);
+    if (error == ESP_OK)
+      error = spi_->writeRegister(device_, kSampleRateDivider, 0);
+    if (error == ESP_OK)
+      error =
+          spi_->writeRegister(device_, kGyroConfig, stimulated ? 0xE0 : 0x00);
+    if (error == ESP_OK)
+      error =
+          spi_->writeRegister(device_, kAccelConfig, stimulated ? 0xE0 : 0x00);
+    if (error == ESP_OK)
+      error = spi_->writeRegister(device_, kAccelConfig2, 2);
+    return error;
+  };
+  const auto collect = [this, &deadline](std::array<int32_t, 3> &accel,
+                                         std::array<int32_t, 3> &gyro) {
+    std::array<int64_t, 3> accel_sum{};
+    std::array<int64_t, 3> gyro_sum{};
+    for (std::size_t sample = 0; sample < kSelfTestSamples; ++sample) {
+      if (avi::internal::expired(deadline))
+        return ESP_ERR_TIMEOUT;
+      RawData raw{};
+      const esp_err_t error = readRaw(raw);
+      if (error != ESP_OK)
+        return error;
+      for (std::size_t axis = 0; axis < 3; ++axis) {
+        accel_sum[axis] += raw.acceleration[axis];
+        gyro_sum[axis] += raw.angular_velocity[axis];
+      }
+      avi_delay_ms(1);
+    }
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      accel[axis] = static_cast<int32_t>(accel_sum[axis] / kSelfTestSamples);
+      gyro[axis] = static_cast<int32_t>(gyro_sum[axis] / kSelfTestSamples);
+    }
+    return ESP_OK;
+  };
+
+  if (operation == ESP_OK)
+    operation = writeTestConfig(false);
+  if (operation == ESP_OK) {
+    avi_delay_ms(20);
+    operation = collect(next.accel_baseline, next.gyro_baseline);
+  }
+  if (operation == ESP_OK)
+    operation = writeTestConfig(true);
+  if (operation == ESP_OK) {
+    avi_delay_ms(20);
+    operation = collect(next.accel_stimulated, next.gyro_stimulated);
+  }
+  for (std::size_t axis = 0; axis < 3; ++axis) {
+    next.accel_response[axis] =
+        next.accel_stimulated[axis] - next.accel_baseline[axis];
+    next.gyro_response[axis] =
+        next.gyro_stimulated[axis] - next.gyro_baseline[axis];
+    next.accel_passed[axis] =
+        selfTestAxis(next.accel_response[axis], accel_codes[axis],
+                     225.0F * 16384.0F / 1000.0F, 675.0F * 16384.0F / 1000.0F);
+    next.gyro_passed[axis] =
+        selfTestAxis(next.gyro_response[axis], gyro_codes[axis], 60.0F * 131.0F,
+                     250.0F * 131.0F);
+  }
+  next.passed = next.accel_passed[0] && next.accel_passed[1] &&
+                next.accel_passed[2] && next.gyro_passed[0] &&
+                next.gyro_passed[1] && next.gyro_passed[2];
+
+  uint8_t accel{};
+  uint8_t gyro{};
+  uint8_t accel_dlpf{};
+  uint8_t gyro_dlpf{};
+  esp_err_t restore = accelBits(saved.accel_range, accel) &&
+                              gyroBits(saved.gyro_range, gyro) &&
+                              accelDlpfBits(saved.accel_dlpf, accel_dlpf) &&
+                              gyroDlpfBits(saved.gyro_dlpf, gyro_dlpf)
+                          ? ESP_OK
+                          : ESP_ERR_INVALID_ARG;
+  if (restore == ESP_OK)
+    restore = spi_->writeRegister(device_, kGyroConfig, gyro);
+  if (restore == ESP_OK)
+    restore = spi_->writeRegister(device_, kAccelConfig, accel);
+  if (restore == ESP_OK)
+    restore = spi_->writeRegister(device_, kConfig, gyro_dlpf);
+  if (restore == ESP_OK)
+    restore = spi_->writeRegister(device_, kAccelConfig2, accel_dlpf);
+  if (restore == ESP_OK)
+    restore = spi_->writeRegister(device_, kSampleRateDivider,
+                                  saved.sample_rate_divider);
+  next.restored = restore == ESP_OK;
+  if (restore == ESP_OK) {
+    config_ = saved;
+    accel_range_ = saved.accel_range;
+    gyro_range_ = saved.gyro_range;
+  }
+  result = next;
+  return restore != ESP_OK ? restore : operation;
 }

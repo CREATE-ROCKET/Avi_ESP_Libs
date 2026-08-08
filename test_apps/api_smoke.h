@@ -202,6 +202,7 @@ inline void aviApiSmoke() {
   ICM20602 icm20602;
   ICM20602::Config icm20602_config{};
   ICM20602::RawData icm20602_raw{};
+  ICM20602::SelfTestResult icm20602_self_test{};
   ICM20602::Data icm20602_data{};
   ICM20602::Status icm20602_status{};
   icm20602_config.accel_dlpf = ICM20602::AccelDlpf::hz44_8;
@@ -213,6 +214,7 @@ inline void aviApiSmoke() {
   (void)icm20602.getStatus(icm20602_status);
   (void)icm20602.readRaw(icm20602_raw);
   (void)icm20602.read(icm20602_data);
+  (void)icm20602.selfTest(icm20602_self_test, avi::Timeout::seconds(1));
   (void)icm20602.initialized();
   (void)icm20602.end();
   H3LIS331 h3lis331;

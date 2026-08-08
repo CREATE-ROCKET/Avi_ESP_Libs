@@ -4,6 +4,7 @@
 #include <cstdint>
 
 #include "SPICREATE.h"
+#include "avi_esp_libs/timeout.h"
 
 class ICM20602 {
 public:
@@ -55,6 +56,19 @@ public:
     bool data_ready{false};
   };
 
+  struct SelfTestResult {
+    bool passed{false};
+    bool restored{false};
+    std::array<bool, 3> accel_passed{};
+    std::array<bool, 3> gyro_passed{};
+    std::array<int32_t, 3> accel_baseline{};
+    std::array<int32_t, 3> accel_stimulated{};
+    std::array<int32_t, 3> accel_response{};
+    std::array<int32_t, 3> gyro_baseline{};
+    std::array<int32_t, 3> gyro_stimulated{};
+    std::array<int32_t, 3> gyro_response{};
+  };
+
   ICM20602() = default;
   ~ICM20602();
   ICM20602(const ICM20602 &) = delete;
@@ -74,11 +88,15 @@ public:
   [[nodiscard]] esp_err_t getStatus(Status &status);
   [[nodiscard]] esp_err_t readRaw(RawData &data);
   [[nodiscard]] esp_err_t read(Data &data);
+  [[nodiscard]] esp_err_t
+  selfTest(SelfTestResult &result,
+           avi::Timeout timeout = avi::Timeout::milliseconds(1000));
 
 private:
   SPICREATE *spi_{nullptr};
   SPICREATE::Device device_{nullptr};
   AccelRange accel_range_{AccelRange::g16};
   GyroRange gyro_range_{GyroRange::dps2000};
+  Config config_{};
   bool initialized_{false};
 };
