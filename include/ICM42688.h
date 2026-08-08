@@ -87,6 +87,19 @@ public:
     bool data_ready{false};
   };
 
+  struct SelfTestResult {
+    bool passed{false};
+    bool restored{false};
+    std::array<bool, 3> accel_passed{};
+    std::array<bool, 3> gyro_passed{};
+    std::array<int32_t, 3> accel_baseline{};
+    std::array<int32_t, 3> accel_stimulated{};
+    std::array<int32_t, 3> accel_response{};
+    std::array<int32_t, 3> gyro_baseline{};
+    std::array<int32_t, 3> gyro_stimulated{};
+    std::array<int32_t, 3> gyro_response{};
+  };
+
   ICM42688() = default;
   ~ICM42688();
   ICM42688(const ICM42688 &) = delete;
@@ -107,6 +120,9 @@ public:
   waitDataReady(avi::Timeout timeout = avi::Timeout::noWait());
   [[nodiscard]] esp_err_t readRaw(RawData &data);
   [[nodiscard]] esp_err_t read(Data &data);
+  [[nodiscard]] esp_err_t
+  selfTest(SelfTestResult &result,
+           avi::Timeout timeout = avi::Timeout::milliseconds(1000));
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
@@ -122,5 +138,6 @@ private:
   gpio_num_t int_gpio_{GPIO_NUM_NC};
   AccelRange accel_range_{AccelRange::g16};
   GyroRange gyro_range_{GyroRange::dps2000};
+  Config config_{};
   bool initialized_{false};
 };

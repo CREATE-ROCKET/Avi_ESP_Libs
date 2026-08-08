@@ -118,6 +118,7 @@ inline void aviApiSmoke() {
   ICM42688::Data icm42688_data{};
   ICM42688::RawData icm42688_raw{};
   ICM42688::Status icm42688_status{};
+  ICM42688::SelfTestResult icm42688_self_test{};
   bool ready{};
   low_odr_config.accel_odr = ICM42688::AccelOdr::hz1000;
   low_odr_config.gyro_odr = ICM42688::GyroOdr::hz1000;
@@ -139,6 +140,7 @@ inline void aviApiSmoke() {
   (void)icm42688.waitDataReady(forever);
   (void)icm42688.readRaw(icm42688_raw);
   (void)icm42688.read(icm42688_data);
+  (void)icm42688.selfTest(icm42688_self_test, avi::Timeout::seconds(1));
   (void)icm42688.initialized();
   (void)icm42688.end();
 
