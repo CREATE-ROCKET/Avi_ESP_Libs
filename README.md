@@ -81,7 +81,13 @@ AS5047DはSPI mode 1、最大10 MHzで動作し、各16-bit frame間に2 usのCS
 
 ### ICM self-test
 
-`ICM42688`、`ICM20602`、`ICM20948`の`selfTest()`はMEMSのself-test stimulusを有効化し、各deviceのvendor手順に従ってbaselineとstimulated sampleをfactory trimと比較します。ICM42688/ICM20602ではgyroはfactory trimの50%超と20 dps以下のbaseline offsetを確認し、accelはfactory trimの50～150%を確認します。factory codeが利用できない場合はgyro 60 dps以上、accel 225～675 mgを使用します。ICM20948ではfactory code欠損をFAILとし、gyroは50%以上、accelは50～150%で判定します。AK09916はX/Yを-200～+200、Zを-1000～-200で判定します。`ESP_OK`は手順が正常に完了した意味であり、個体の合否は`SelfTestResult::passed`で確認します。self-test中は通常測定を行わず、同一instanceの操作は呼出し側でserializeしてください。終了時は元のConfigを復元し、`restored`で結果を示します。
+`ICM42688`、`ICM20602`、`ICM20948`の`selfTest()`はMEMSのself-test stimulusを有効化し、各deviceのvendor手順に従ってbaselineとstimulated sampleをfactory trimと比較します。
+
+- ICM42688はvendor実装どおりresponseの絶対値を使います。factory code有効時はaccel/gyroとも50%超・150%未満、gyro baselineは20 dps以下です。factory code欠損時はaccel 50～1200 mg、gyro 60 dps以上を使用します。
+- ICM20602はfactory code有効時に符号付きresponseを使い、accelは50%超・150%未満、gyroは50%超、gyro baselineは20 dps以下です。factory code欠損時だけresponseの絶対値を使い、accel 225～675 mg、gyro 60 dps以上で判定します。
+- ICM20948は符号付きresponseを使うため、逆方向responseを絶対値化してPASSさせません。factory code欠損はFAIL、accelは50～150%、gyroは50%以上です。AK09916はX/Yを-200～+200、Zを-1000～-200で判定します。
+
+`ESP_OK`は手順が正常に完了した意味であり、個体の合否は`SelfTestResult::passed`で確認します。self-test中は通常測定を行わず、同一instanceの操作は呼出し側でserializeしてください。終了時は元のConfigを復元し、`restored`で結果を示します。
 
 self-test中は通常測定できません。同一instanceの`read()`、`waitDataReady()`、`end()`や別taskからの操作は、呼出し側で停止・serializeしてください。
 
