@@ -45,8 +45,7 @@ can.write(frame, avi::Timeout::milliseconds(100));
 
 ```cpp
 CANCREATE::TestResult test_result{};
-const esp_err_t error =
-    can.test(test_result, avi::Timeout::seconds(1));
+const esp_err_t error = can.test(test_result);
 ```
 
-起動時、通常trafficを開始する前に使用してください。test中はqueueを含むbackendを一時再生成するため既存trafficが保持されない可能性があります。複数nodeから同時に実行すると判定が不安定になります。終了時は元の`Config`へ復元し、復元失敗時は`restored=false`としてCANを未初期化状態にします。
+起動時、通常trafficを開始する前に使用してください。診断timeoutはライブラリ内部で1秒に固定され、呼出し側から変更できません。test中はqueueを含むbackendを一時再生成するため既存trafficが保持されない可能性があります。複数nodeから同時に実行すると判定が不安定になります。終了時は元の`Config`へ復元し、復元失敗時は`restored=false`としてCANを未初期化状態にします。

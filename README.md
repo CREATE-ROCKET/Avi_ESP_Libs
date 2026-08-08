@@ -75,13 +75,13 @@ Tier 1もCIでは実機へ接続しないため、実デバイスでの電気的
 
 ### AS5047D
 
-AS5047DはSPI mode 1、最大10 MHzで動作し、14-bit角度をdegree/radianへ変換します。`AngleSource`で動的角度誤差補償済み`ANGLECOM`と未補償`ANGLEUNC`を選択できます。全responseのeven parityとEFを検査し、EF時はread-to-clearの`ERRFL`からPARERR、INVCOMM、FRERRを`lastErrorFlags()`へ保存します。
+AS5047DはSPI mode 1、最大10 MHzで動作し、各16-bit frame間に2 usのCSn HIGH時間を確保します。14-bit角度をdegree/radianへ変換し、`AngleSource`で動的角度誤差補償済み`ANGLECOM`と未補償`ANGLEUNC`を選択できます。全responseのeven parityとEFを検査し、EF時はread-to-clearの`ERRFL`からPARERR、INVCOMM、FRERRを`lastErrorFlags()`へ保存します。
 
 `getStatus()`はDIAAGC/MAGからMAGL、MAGH、COF、offset compensation完了、AGC、magnitudeを返します。磁界警告は通信errorへ変換しません。永久変更を伴うOTP programmingには対応していません。
 
 ### ICM self-test
 
-`ICM42688`、`ICM20602`、`ICM20948`の`selfTest()`はMEMSのself-test stimulusを有効化し、baselineとstimulated sampleをfactory trimと比較します。ICM20948はAK09916もself-test modeで検査します。`ESP_OK`は手順が正常に完了した意味であり、個体の合否は`SelfTestResult::passed`で確認します。終了時は元のConfigを復元し、`restored`で結果を示します。
+`ICM42688`、`ICM20602`、`ICM20948`の`selfTest()`はMEMSのself-test stimulusを有効化し、各deviceのvendor手順に従ってbaselineとstimulated sampleをfactory trimと比較します。ICM42688/ICM20602ではgyroはfactory trimの50%超と20 dps以下のbaseline offsetを確認し、accelはfactory trimの50～150%を確認します。factory codeが利用できない場合はgyro 60 dps以上、accel 225～675 mgを使用します。ICM20948ではfactory code欠損をFAILとし、gyroは50%以上、accelは50～150%で判定します。AK09916はX/Yを-200～+200、Zを-1000～-200で判定します。`ESP_OK`は手順が正常に完了した意味であり、個体の合否は`SelfTestResult::passed`で確認します。self-test中は通常測定を行わず、同一instanceの操作は呼出し側でserializeしてください。終了時は元のConfigを復元し、`restored`で結果を示します。
 
 self-test中は通常測定できません。同一instanceの`read()`、`waitDataReady()`、`end()`や別taskからの操作は、呼出し側で停止・serializeしてください。
 
@@ -89,7 +89,7 @@ self-test中は通常測定できません。同一instanceの`read()`、`waitDa
 
 standard ID `0x000`～`0x3FF`はapplication用、`0x400`～`0x7FF`はCANCREATE diagnostic予約領域、`0x7FF`は`test()`用です。extended IDは予約規則の対象外です。
 
-`test()`は現在のbitrate/GPIOでnormal single-shot送信のACKを確認し、失敗時だけno-ack/self-receptionを試します。`success`、`no_peer_response`、`controller_failure`を`TestResult`で返し、元Configへ復元します。起動時専用で、test中の通常trafficは保持されない可能性があります。複数nodeから同時に実行しないでください。
+`test()`は現在のbitrate/GPIOでnormal single-shot送信のACKを確認し、失敗時だけno-ack/self-receptionを試します。診断timeoutは内部で1秒に固定しています。`success`、`no_peer_response`、`controller_failure`を`TestResult`で返し、元Configへ復元します。起動時専用で、test中の通常trafficは保持されない可能性があります。複数nodeから同時に実行しないでください。
 
 ## ディレクトリ構成
 
