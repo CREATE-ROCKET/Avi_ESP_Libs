@@ -9,6 +9,7 @@ constexpr uint8_t kReadJedecId = 0x9F;
 constexpr uint8_t kWriteDisable = 0x04;
 constexpr uint8_t kWriteEnable = 0x06;
 constexpr uint8_t kErase = 0x60;
+constexpr uint8_t kEraseBlock = 0xD8;
 constexpr uint8_t kProgram = 0x02;
 constexpr uint8_t kStatus = 0x05;
 constexpr uint8_t kClearStatus = 0x30;
@@ -98,6 +99,21 @@ esp_err_t S25FL127S::readStatus(uint8_t &status) {
   return spi_->readRegister(device_, kStatus, status);
 }
 
+esp_err_t S25FL127S::getStatus(Status &status) {
+  uint8_t raw{};
+  const esp_err_t result = readStatus(raw);
+  if (result == ESP_OK) {
+    Status next{};
+    next.busy = (raw & 0x01U) != 0;
+    next.write_enable = (raw & 0x02U) != 0;
+    next.protected_area = (raw & kProtectionMask) != 0;
+    next.erase_error = (raw & 0x20U) != 0;
+    next.program_error = (raw & 0x40U) != 0;
+    status = next;
+  }
+  return result;
+}
+
 esp_err_t S25FL127S::waitReadyUntil(int64_t deadline_us) {
   if (!initialized())
     return ESP_ERR_INVALID_STATE;
@@ -130,7 +146,7 @@ esp_err_t S25FL127S::writeEnable() {
   return (status & 0x02U) != 0 ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
 }
 
-esp_err_t S25FL127S::erase(uint32_t timeout_ms) {
+esp_err_t S25FL127S::eraseChip(uint32_t timeout_ms) {
   if (!initialized())
     return ESP_ERR_INVALID_STATE;
   const int64_t deadline_us = deadlineAfter(timeout_ms);
@@ -150,6 +166,40 @@ esp_err_t S25FL127S::erase(uint32_t timeout_ms) {
     return result;
   result = spi_->sendCommand(device_, kErase);
   return result == ESP_OK ? waitReadyUntil(deadline_us) : result;
+}
+
+esp_err_t S25FL127S::eraseAddressed(uint8_t command, uint32_t address,
+                                    std::size_t alignment,
+                                    uint32_t timeout_ms) {
+  if (!initialized())
+    return ESP_ERR_INVALID_STATE;
+  if (address >= kCapacity || address % alignment != 0)
+    return ESP_ERR_INVALID_ARG;
+  const int64_t deadline_us = deadlineAfter(timeout_ms);
+  esp_err_t result = waitReadyUntil(deadline_us);
+  if (result != ESP_OK)
+    return result;
+  Status status{};
+  result = getStatus(status);
+  if (result != ESP_OK)
+    return result;
+  if (status.protected_area)
+    return ESP_ERR_INVALID_STATE;
+  result = writeEnable();
+  if (result != ESP_OK)
+    return result;
+  spi_transaction_ext_t transaction{};
+  transaction.base.flags = SPI_TRANS_VARIABLE_CMD | SPI_TRANS_VARIABLE_ADDR;
+  transaction.base.cmd = command;
+  transaction.base.addr = address;
+  transaction.command_bits = 8;
+  transaction.address_bits = 24;
+  result = spi_->transmit(device_, transaction.base);
+  return result == ESP_OK ? waitReadyUntil(deadline_us) : result;
+}
+
+esp_err_t S25FL127S::eraseBlock(uint32_t address, uint32_t timeout_ms) {
+  return eraseAddressed(kEraseBlock, address, kBlockSize, timeout_ms);
 }
 
 esp_err_t S25FL127S::write(uint32_t address, const uint8_t *data,
@@ -226,4 +276,17 @@ esp_err_t S25FL127S::read(uint32_t address, uint8_t *data, std::size_t length) {
   }
 
   return ESP_OK;
+}
+
+esp_err_t S25FL127S::readByte(uint32_t address, uint8_t &value) {
+  uint8_t next{};
+  const esp_err_t result = read(address, &next, 1);
+  if (result == ESP_OK)
+    value = next;
+  return result;
+}
+
+esp_err_t S25FL127S::writeByte(uint32_t address, uint8_t value,
+                               uint32_t timeout_ms) {
+  return write(address, &value, 1, timeout_ms);
 }

@@ -102,15 +102,20 @@ inline void aviApiSmoke() {
   S25FL127S flash;
   S25FL127S::Config flash_config{};
   S25FL127S::JedecId jedec_id{};
+  S25FL127S::Status typed_flash_status{};
   uint8_t flash_status{};
   uint8_t buffer[S25FL127S::kPageSize]{};
   (void)flash.begin(spi, -1, flash_config);
   (void)flash.begin(spi, -1);
   (void)flash.readJedecId(jedec_id);
   (void)flash.readStatus(flash_status);
-  (void)flash.erase(0);
+  (void)flash.getStatus(typed_flash_status);
+  (void)flash.eraseBlock(0, 0);
+  (void)flash.eraseChip(0);
   (void)flash.write(0, buffer, sizeof(buffer), 0);
   (void)flash.read(0, buffer, sizeof(buffer));
+  (void)flash.writeByte(0, 0, 0);
+  (void)flash.readByte(0, flash_status);
   (void)flash.initialized();
   (void)flash.end();
 
