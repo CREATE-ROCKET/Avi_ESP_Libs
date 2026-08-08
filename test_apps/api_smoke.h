@@ -17,6 +17,7 @@ inline void aviApiSmoke() {
   static_assert(!std::is_copy_constructible_v<SPICREATE>);
   static_assert(!std::is_copy_constructible_v<CANCREATE>);
   static_assert(!std::is_copy_constructible_v<ICM42688>);
+  static_assert(!std::is_copy_constructible_v<ICM20602>);
   static_assert(!std::is_copy_constructible_v<ICM20948>);
   static_assert(!std::is_copy_constructible_v<LPS25HB>);
   static_assert(!std::is_copy_constructible_v<S25FL127S>);
@@ -54,14 +55,17 @@ inline void aviApiSmoke() {
   ICM42688 icm42688;
   ICM42688::Config icm42688_config{};
   ICM42688::Data icm42688_data{};
+  ICM42688::RawData icm42688_raw{};
   ICM42688::Status icm42688_status{};
   uint8_t identity{};
   (void)icm42688.begin(spi, -1, icm42688_config);
   (void)icm42688.begin(spi, -1);
   (void)icm42688.whoAmI(identity);
   (void)icm42688.getStatus(icm42688_status);
+  (void)icm42688.available();
   (void)icm42688.waitDataReady(0);
-  (void)icm42688.get(icm42688_data);
+  (void)icm42688.readRaw(icm42688_raw);
+  (void)icm42688.read(icm42688_data);
   (void)icm42688.initialized();
   (void)icm42688.end();
 
@@ -105,10 +109,22 @@ inline void aviApiSmoke() {
   (void)flash.end();
 
   ICM20602 icm20602;
+  ICM20602::Config icm20602_config{};
+  ICM20602::RawData icm20602_raw{};
+  ICM20602::Data icm20602_data{};
+  ICM20602::Status icm20602_status{};
+  (void)icm20602.begin(spi, -1, icm20602_config);
+  (void)icm20602.begin(spi, -1);
+  (void)icm20602.whoAmI(identity);
+  (void)icm20602.available();
+  (void)icm20602.getStatus(icm20602_status);
+  (void)icm20602.readRaw(icm20602_raw);
+  (void)icm20602.read(icm20602_data);
+  (void)icm20602.initialized();
+  (void)icm20602.end();
   H3LIS331 h3lis331;
   S25FL512S flash512;
   NEC920 radio;
-  (void)icm20602;
   (void)h3lis331;
   (void)flash512;
   (void)radio;

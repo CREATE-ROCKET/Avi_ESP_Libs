@@ -1,8 +1,6 @@
 #include "ICM42688.h"
 
 #include <climits>
-#include <new>
-
 #include "avi_esp_libs/compatibility.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
@@ -23,20 +21,6 @@ constexpr uint8_t kIntSource0 = 0x65;
 constexpr uint8_t kWhoAmI = 0x75;
 constexpr uint8_t kExpectedWhoAmI = 0x47;
 constexpr uint32_t kMaximumSpiFrequency = 24000000;
-
-struct InterruptBackend {
-  SemaphoreHandle_t signal{};
-};
-
-void dataReadyIsr(void *context) {
-  // SAFETY: contextはgpio_isr_handler_remove()成功まで保持するBackendであり、
-  // ISR内では固定セマフォの通知以外を行わない。
-  auto *backend = static_cast<InterruptBackend *>(context);
-  BaseType_t task_awoken = pdFALSE;
-  (void)xSemaphoreGiveFromISR(backend->signal, &task_awoken);
-  if (task_awoken == pdTRUE)
-    portYIELD_FROM_ISR();
-}
 
 bool timeoutToTicks(uint32_t timeout_ms, TickType_t &ticks) {
   if (timeout_ms > INT_MAX)
@@ -152,7 +136,47 @@ int16_t signedWord(const uint8_t *data) {
   return static_cast<int16_t>((uint16_t{data[0]} << 8) | data[1]);
 }
 
+float accelSensitivity(ICM42688::AccelRange range) {
+  switch (range) {
+  case ICM42688::AccelRange::g2:
+    return 16384.0F;
+  case ICM42688::AccelRange::g4:
+    return 8192.0F;
+  case ICM42688::AccelRange::g8:
+    return 4096.0F;
+  case ICM42688::AccelRange::g16:
+    return 2048.0F;
+  }
+  return 1.0F;
+}
+
+float gyroSensitivity(ICM42688::GyroRange range) {
+  switch (range) {
+  case ICM42688::GyroRange::dps125:
+    return 262.0F;
+  case ICM42688::GyroRange::dps250:
+    return 131.0F;
+  case ICM42688::GyroRange::dps500:
+    return 65.5F;
+  case ICM42688::GyroRange::dps1000:
+    return 32.8F;
+  case ICM42688::GyroRange::dps2000:
+    return 16.4F;
+  }
+  return 1.0F;
+}
+
 } // 名前なし名前空間
+
+void ICM42688::dataReadyIsr(void *context) {
+  // SAFETY: contextはgpio_isr_handler_remove()が成功するまで生存する
+  // ICM42688::InterruptStateである。ISRでは固定セマフォの通知だけを行う。
+  auto *state = static_cast<InterruptState *>(context);
+  BaseType_t task_awoken = pdFALSE;
+  (void)xSemaphoreGiveFromISR(state->signal, &task_awoken);
+  if (task_awoken == pdTRUE)
+    portYIELD_FROM_ISR();
+}
 
 ICM42688::~ICM42688() {
   if (device_ != nullptr)
@@ -212,15 +236,10 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
     avi_delay_ms(45);
 
   if (result == ESP_OK && config.int_gpio != GPIO_NUM_NC) {
-    auto *backend = new (std::nothrow) InterruptBackend{};
-    if (backend == nullptr) {
+    interrupt_.signal = xSemaphoreCreateBinaryStatic(&interrupt_.storage);
+    if (interrupt_.signal == nullptr) {
       result = ESP_ERR_NO_MEM;
     } else {
-      backend->signal = xSemaphoreCreateBinary();
-      if (backend->signal == nullptr) {
-        delete backend;
-        result = ESP_ERR_NO_MEM;
-      } else {
         gpio_config_t gpio{};
         gpio.pin_bit_mask = uint64_t{1} << config.int_gpio;
         gpio.mode = GPIO_MODE_INPUT;
@@ -234,24 +253,22 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
             result = ESP_OK;
         }
         if (result == ESP_OK)
-          result = gpio_isr_handler_add(config.int_gpio, dataReadyIsr, backend);
+          result = gpio_isr_handler_add(config.int_gpio, dataReadyIsr,
+                                        &interrupt_);
         if (result == ESP_OK) {
-          interrupt_ = backend;
           int_gpio_ = config.int_gpio;
         } else {
-          vSemaphoreDelete(backend->signal);
-          delete backend;
+          interrupt_.signal = nullptr;
           (void)gpio_reset_pin(config.int_gpio);
         }
-      }
     }
   }
 
-  if (result == ESP_OK && interrupt_ != nullptr)
+  if (result == ESP_OK && interrupt_.signal != nullptr)
     result = spi_->writeRegister(device_, kIntConfig, 0x03);
-  if (result == ESP_OK && interrupt_ != nullptr)
+  if (result == ESP_OK && interrupt_.signal != nullptr)
     result = spi_->writeRegister(device_, kIntConfig0, 0x00);
-  if (result == ESP_OK && interrupt_ != nullptr) {
+  if (result == ESP_OK && interrupt_.signal != nullptr) {
     uint8_t int_config1{};
     result = spi_->readRegister(device_, kIntConfig1 | 0x80, int_config1);
     if (result == ESP_OK)
@@ -259,15 +276,17 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
           device_, kIntConfig1,
           static_cast<uint8_t>(int_config1 & static_cast<uint8_t>(~0x10U)));
   }
-  if (result == ESP_OK && interrupt_ != nullptr)
+  if (result == ESP_OK && interrupt_.signal != nullptr)
     result = spi_->writeRegister(device_, kIntSource0, 0x08);
-  if (result == ESP_OK && interrupt_ != nullptr)
+  if (result == ESP_OK && interrupt_.signal != nullptr)
     result = gpio_intr_enable(int_gpio_);
 
   if (result != ESP_OK) {
     const esp_err_t cleanup_result = end();
     return cleanup_result == ESP_OK ? result : cleanup_result;
   }
+  accel_range_ = config.accel_range;
+  gyro_range_ = config.gyro_range;
   initialized_ = true;
   return ESP_OK;
 }
@@ -277,8 +296,7 @@ esp_err_t ICM42688::end() {
     return ESP_ERR_INVALID_STATE;
 
   esp_err_t first_error = ESP_OK;
-  if (interrupt_ != nullptr) {
-    auto *backend = static_cast<InterruptBackend *>(interrupt_);
+  if (interrupt_.signal != nullptr) {
     rememberFirst(gpio_intr_disable(int_gpio_), first_error);
     rememberFirst(spi_->writeRegister(device_, kIntSource0, 0x00), first_error);
     const esp_err_t remove_result = gpio_isr_handler_remove(int_gpio_);
@@ -287,9 +305,7 @@ esp_err_t ICM42688::end() {
       return first_error;
     // GPIO ISRサービスはプロセス全体の共有資源なので、対象GPIOの
     // ハンドラだけを外す。サービス全体の解除は他コンポーネントを破壊する。
-    vSemaphoreDelete(backend->signal);
-    delete backend;
-    interrupt_ = nullptr;
+    interrupt_.signal = nullptr;
     rememberFirst(gpio_reset_pin(int_gpio_), first_error);
     int_gpio_ = GPIO_NUM_NC;
   }
@@ -320,12 +336,24 @@ esp_err_t ICM42688::getStatus(Status &status) {
       spi_->readRegister(device_, kIntStatus | 0x80, value);
   if (result == ESP_OK) {
     status.data_ready = (value & 0x08) != 0;
-    if (status.data_ready && interrupt_ != nullptr) {
-      auto *backend = static_cast<InterruptBackend *>(interrupt_);
-      (void)xSemaphoreTake(backend->signal, 0);
+    if (status.data_ready && interrupt_.signal != nullptr) {
+      (void)xSemaphoreTake(interrupt_.signal, 0);
     }
   }
   return result;
+}
+
+esp_err_t ICM42688::available(bool &ready) {
+  Status status{};
+  const esp_err_t result = getStatus(status);
+  if (result == ESP_OK)
+    ready = status.data_ready;
+  return result;
+}
+
+bool ICM42688::available() {
+  bool ready{};
+  return available(ready) == ESP_OK && ready;
 }
 
 esp_err_t ICM42688::waitDataReady(uint32_t timeout_ms) {
@@ -340,10 +368,9 @@ esp_err_t ICM42688::waitDataReady(uint32_t timeout_ms) {
   if (result != ESP_OK || status.data_ready)
     return result;
 
-  if (interrupt_ != nullptr) {
-    auto *backend = static_cast<InterruptBackend *>(interrupt_);
-    return xSemaphoreTake(backend->signal, ticks) == pdTRUE ? ESP_OK
-                                                            : ESP_ERR_TIMEOUT;
+  if (interrupt_.signal != nullptr) {
+    return xSemaphoreTake(interrupt_.signal, ticks) == pdTRUE ? ESP_OK
+                                                              : ESP_ERR_TIMEOUT;
   }
 
   const int64_t deadline = avi_micros() + int64_t{timeout_ms} * 1000;
@@ -358,25 +385,38 @@ esp_err_t ICM42688::waitDataReady(uint32_t timeout_ms) {
   return ESP_ERR_TIMEOUT;
 }
 
-esp_err_t ICM42688::get(Data &data) {
+esp_err_t ICM42688::readRaw(RawData &data) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  Status status{};
-  esp_err_t result = getStatus(status);
-  if (result != ESP_OK)
-    return result;
-
   uint8_t raw[14]{};
-  result = spi_->read(device_, kTemperatureData | 0x80, raw, sizeof(raw));
+  const esp_err_t result =
+      spi_->read(device_, kTemperatureData | 0x80, raw, sizeof(raw));
   if (result != ESP_OK)
     return result;
 
-  Data next{};
+  RawData next{};
   next.temperature = signedWord(raw);
   for (std::size_t i = 0; i < next.acceleration.size(); ++i)
     next.acceleration[i] = signedWord(&raw[2 + i * 2]);
   for (std::size_t i = 0; i < next.angular_velocity.size(); ++i)
     next.angular_velocity[i] = signedWord(&raw[8 + i * 2]);
+  data = next;
+  return ESP_OK;
+}
+
+esp_err_t ICM42688::read(Data &data) {
+  RawData raw{};
+  const esp_err_t result = readRaw(raw);
+  if (result != ESP_OK)
+    return result;
+  Data next{};
+  const float accel_scale = accelSensitivity(accel_range_);
+  const float gyro_scale = gyroSensitivity(gyro_range_);
+  for (std::size_t i = 0; i < raw.acceleration.size(); ++i) {
+    next.acceleration_g[i] = raw.acceleration[i] / accel_scale;
+    next.angular_velocity_dps[i] = raw.angular_velocity[i] / gyro_scale;
+  }
+  next.temperature_celsius = raw.temperature / 132.48F + 25.0F;
   data = next;
   return ESP_OK;
 }

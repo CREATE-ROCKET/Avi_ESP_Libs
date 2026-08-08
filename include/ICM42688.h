@@ -5,6 +5,8 @@
 
 #include "SPICREATE.h"
 #include "driver/gpio.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/semphr.h"
 
 class ICM42688 {
 public:
@@ -31,10 +33,16 @@ public:
     gpio_num_t int_gpio{GPIO_NUM_NC};
   };
 
-  struct Data {
+  struct RawData {
     std::array<int16_t, 3> acceleration{};
     std::array<int16_t, 3> angular_velocity{};
     int16_t temperature{};
+  };
+
+  struct Data {
+    std::array<float, 3> acceleration_g{};
+    std::array<float, 3> angular_velocity_dps{};
+    float temperature_celsius{};
   };
 
   struct Status {
@@ -55,14 +63,25 @@ public:
   [[nodiscard]] esp_err_t end();
   [[nodiscard]] esp_err_t whoAmI(uint8_t &value);
   [[nodiscard]] esp_err_t getStatus(Status &status);
+  [[nodiscard]] esp_err_t available(bool &ready);
+  [[nodiscard]] bool available();
   [[nodiscard]] esp_err_t waitDataReady(uint32_t timeout_ms = 100);
-  [[nodiscard]] esp_err_t get(Data &data);
+  [[nodiscard]] esp_err_t readRaw(RawData &data);
+  [[nodiscard]] esp_err_t read(Data &data);
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
+  struct InterruptState {
+    StaticSemaphore_t storage{};
+    SemaphoreHandle_t signal{nullptr};
+  };
+  static void dataReadyIsr(void *context);
+
   SPICREATE *spi_{nullptr};
   SPICREATE::Device device_{nullptr};
-  void *interrupt_{nullptr};
+  InterruptState interrupt_{};
   gpio_num_t int_gpio_{GPIO_NUM_NC};
+  AccelRange accel_range_{AccelRange::g16};
+  GyroRange gyro_range_{GyroRange::dps2000};
   bool initialized_{false};
 };
