@@ -20,6 +20,7 @@ constexpr uint8_t kPowerManagement2 = 0x07;
 constexpr uint8_t kInterruptPinConfig = 0x0F;
 constexpr uint8_t kI2cMasterStatus = 0x17;
 constexpr uint8_t kAccelOutput = 0x2D;
+constexpr uint8_t kGyroOutput = 0x33;
 constexpr uint8_t kExternalSensorData = 0x3B;
 constexpr uint8_t kDataReadyStatus = 0x74;
 constexpr uint8_t kRegisterBankSelect = 0x7F;
@@ -166,13 +167,38 @@ float factoryTrim(uint8_t code) {
   return code == 0 ? 0.0F : 2620.0F * std::pow(1.01F, code - 1);
 }
 
-bool selfTestAxis(int32_t response, uint8_t code, float absolute_min,
-                  float absolute_max) {
+bool factoryCodesValid(const uint8_t (&codes)[3]) {
+  return codes[0] != 0 && codes[1] != 0 && codes[2] != 0;
+}
+
+constexpr bool accelOtpPass(float measured, float trim) {
+  return measured >= trim * 0.5F && measured <= trim * 1.5F;
+}
+
+constexpr bool gyroOtpPass(float measured, float trim) {
+  return measured >= trim * 0.5F;
+}
+
+bool accelSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
+  if (!otp_valid)
+    return false;
   const float measured = std::fabs(static_cast<float>(response));
   const float trim = factoryTrim(code);
-  return trim > 0.0F ? measured >= trim * 0.5F && measured <= trim * 1.5F
-                     : measured >= absolute_min && measured <= absolute_max;
+  return accelOtpPass(measured, trim);
 }
+
+bool gyroSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
+  if (!otp_valid)
+    return false;
+  const float measured = std::fabs(static_cast<float>(response));
+  return gyroOtpPass(measured, factoryTrim(code));
+}
+
+static_assert(accelOtpPass(500.0F, 1000.0F));
+static_assert(accelOtpPass(1500.0F, 1000.0F));
+static_assert(!accelOtpPass(1501.0F, 1000.0F));
+static_assert(gyroOtpPass(2000.0F, 1000.0F));
+static_assert(!gyroOtpPass(499.0F, 1000.0F));
 
 } // namespace
 
@@ -712,85 +738,114 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
   if (operation == ESP_OK)
     operation = initial_bank_restore;
 
-  const auto collect = [this, &deadline](std::array<int32_t, 3> &accel,
-                                         std::array<int32_t, 3> &gyro) {
-    std::array<int64_t, 3> accel_sum{};
-    std::array<int64_t, 3> gyro_sum{};
+  const auto collect = [this, &deadline](uint8_t address,
+                                         std::array<int32_t, 3> &output) {
+    std::array<int64_t, 3> sum{};
     for (std::size_t sample = 0; sample < kSelfTestSamples; ++sample) {
       if (avi::internal::expired(deadline))
         return ESP_ERR_TIMEOUT;
-      uint8_t raw[14]{};
+      uint8_t raw[6]{};
       esp_err_t error = selectBank(kBank0);
       if (error == ESP_OK)
-        error = spi_->read(device_, kRead | kAccelOutput, raw, sizeof(raw));
+        error = spi_->read(device_, static_cast<uint8_t>(kRead | address), raw,
+                           sizeof(raw));
       if (error != ESP_OK)
         return error;
-      for (std::size_t axis = 0; axis < 3; ++axis) {
-        accel_sum[axis] += signedBigEndian(&raw[axis * 2]);
-        gyro_sum[axis] += signedBigEndian(&raw[6 + axis * 2]);
-      }
-      avi_delay_ms(1);
+      for (std::size_t axis = 0; axis < 3; ++axis)
+        sum[axis] += signedBigEndian(&raw[axis * 2]);
+      avi_delay_ms(10);
     }
-    for (std::size_t axis = 0; axis < 3; ++axis) {
-      accel[axis] = static_cast<int32_t>(accel_sum[axis] / kSelfTestSamples);
-      gyro[axis] = static_cast<int32_t>(gyro_sum[axis] / kSelfTestSamples);
-    }
+    for (std::size_t axis = 0; axis < 3; ++axis)
+      output[axis] = static_cast<int32_t>(sum[axis] / kSelfTestSamples);
     return ESP_OK;
   };
 
+  // Gyro vendor self-test: divider=10、±250 dps、DLPF level0、AVGCFG=3。
   if (operation == ESP_OK)
     operation = selectBank(kBank2);
   if (operation == ESP_OK)
-    operation = spi_->writeRegister(device_, kGyroSampleRateDivider, 0);
+    operation = spi_->writeRegister(device_, kGyroSampleRateDivider, 10);
   if (operation == ESP_OK)
     operation = spi_->writeRegister(device_, kGyroConfig,
-                                    sensorConfig(0, Dlpf::level2));
+                                    sensorConfig(0, Dlpf::level0));
   if (operation == ESP_OK)
-    operation = spi_->writeRegister(device_, kGyroSelfTestEnable, 0);
+    operation = spi_->writeRegister(device_, kGyroSelfTestEnable, 0x03);
+  if (operation == ESP_OK)
+    operation = selectBank(kBank0);
+  if (operation == ESP_OK) {
+    avi_delay_ms(kGyroscopeStartupDelayMs);
+    operation = collect(kGyroOutput, next.gyro_baseline);
+  }
+  if (operation == ESP_OK)
+    operation = selectBank(kBank2);
+  if (operation == ESP_OK)
+    operation = spi_->writeRegister(device_, kGyroSelfTestEnable, 0x3B);
+  if (operation == ESP_OK)
+    operation = selectBank(kBank0);
+  if (operation == ESP_OK) {
+    avi_delay_ms(20);
+    operation = collect(kGyroOutput, next.gyro_stimulated);
+  }
+
+  // Accel vendor self-test: divider=10、±2 g、DLPF level7、DEC3_CFG=2。
+  if (operation == ESP_OK)
+    operation = selectBank(kBank2);
   if (operation == ESP_OK)
     operation = spi_->writeRegister(device_, kAccelSampleRateDividerHigh, 0);
   if (operation == ESP_OK)
-    operation = spi_->writeRegister(device_, kAccelSampleRateDividerLow, 0);
+    operation = spi_->writeRegister(device_, kAccelSampleRateDividerLow, 10);
   if (operation == ESP_OK)
     operation = spi_->writeRegister(device_, kAccelConfig,
-                                    sensorConfig(0, Dlpf::level2));
+                                    sensorConfig(0, Dlpf::level7));
   if (operation == ESP_OK)
-    operation = spi_->writeRegister(device_, kAccelSelfTestEnable, 0);
+    operation = spi_->writeRegister(device_, kAccelSelfTestEnable, 0x02);
   if (operation == ESP_OK)
     operation = selectBank(kBank0);
   if (operation == ESP_OK) {
     avi_delay_ms(20);
-    operation = collect(next.accel_baseline, next.gyro_baseline);
+    operation = collect(kAccelOutput, next.accel_baseline);
   }
   if (operation == ESP_OK)
     operation = selectBank(kBank2);
   if (operation == ESP_OK)
-    operation = spi_->writeRegister(device_, kGyroSelfTestEnable, 0x38);
-  if (operation == ESP_OK)
-    operation = spi_->writeRegister(device_, kAccelSelfTestEnable, 0x38);
+    operation = spi_->writeRegister(device_, kAccelSelfTestEnable, 0x1E);
   if (operation == ESP_OK)
     operation = selectBank(kBank0);
   if (operation == ESP_OK) {
     avi_delay_ms(20);
-    operation = collect(next.accel_stimulated, next.gyro_stimulated);
+    operation = collect(kAccelOutput, next.accel_stimulated);
   }
 
-  for (std::size_t axis = 0; axis < 3; ++axis) {
-    next.accel_response[axis] =
-        next.accel_stimulated[axis] - next.accel_baseline[axis];
-    next.gyro_response[axis] =
-        next.gyro_stimulated[axis] - next.gyro_baseline[axis];
-    next.accel_passed[axis] =
-        selfTestAxis(next.accel_response[axis], accel_codes[axis],
-                     225.0F * 16384.0F / 1000.0F, 675.0F * 16384.0F / 1000.0F);
-    next.gyro_passed[axis] =
-        selfTestAxis(next.gyro_response[axis], gyro_codes[axis], 60.0F * 131.0F,
-                     250.0F * 131.0F);
+  if (operation == ESP_OK) {
+    const bool accel_otp_valid = factoryCodesValid(accel_codes);
+    const bool gyro_otp_valid = factoryCodesValid(gyro_codes);
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      next.accel_response[axis] =
+          next.accel_stimulated[axis] - next.accel_baseline[axis];
+      next.gyro_response[axis] =
+          next.gyro_stimulated[axis] - next.gyro_baseline[axis];
+      next.accel_passed[axis] = accelSelfTestAxis(
+          next.accel_response[axis], accel_codes[axis], accel_otp_valid);
+      next.gyro_passed[axis] = gyroSelfTestAxis(
+          next.gyro_response[axis], gyro_codes[axis], gyro_otp_valid);
+    }
   }
+
+  const auto remainingTimeout = [&deadline](avi::Timeout &remaining) {
+    const int64_t now = avi_micros();
+    if (now >= deadline.microseconds)
+      return ESP_ERR_TIMEOUT;
+    const uint64_t microseconds =
+        static_cast<uint64_t>(deadline.microseconds - now);
+    remaining = avi::Timeout::milliseconds((microseconds + 999U) / 1000U);
+    return ESP_OK;
+  };
 
   const bool magnetometer_touched = operation == ESP_OK;
   if (operation == ESP_OK && saved.magnetometer_odr == MagnetometerOdr::off)
     operation = configureMagnetometer(MagnetometerOdr::hz100);
+  if (operation == ESP_OK && avi::internal::expired(deadline))
+    operation = ESP_ERR_TIMEOUT;
   if (operation == ESP_OK) {
     operation = selectBank(kBank3);
     if (operation == ESP_OK)
@@ -799,19 +854,28 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
       operation = selectBank(kBank0);
   }
   uint8_t magnetometer_mode = 0;
+  avi::Timeout remaining = avi::Timeout::milliseconds(1);
+  if (operation == ESP_OK)
+    operation = remainingTimeout(remaining);
   if (operation == ESP_OK)
     operation = magnetometerTransfer(kMagnetometerControl2, false,
-                                     &magnetometer_mode, timeout);
+                                     &magnetometer_mode, remaining);
   if (operation == ESP_OK) {
     avi_delay_ms(1);
     magnetometer_mode = 0x10;
+    operation = remainingTimeout(remaining);
+  }
+  if (operation == ESP_OK) {
     operation = magnetometerTransfer(kMagnetometerControl2, false,
-                                     &magnetometer_mode, timeout);
+                                     &magnetometer_mode, remaining);
   }
   uint8_t magnetometer_status{};
   while (operation == ESP_OK && !avi::internal::expired(deadline)) {
+    operation = remainingTimeout(remaining);
+    if (operation != ESP_OK)
+      break;
     operation = magnetometerTransfer(kMagnetometerStatus1, true,
-                                     &magnetometer_status, timeout);
+                                     &magnetometer_status, remaining);
     if (operation != ESP_OK ||
         (magnetometer_status & kMagnetometerDataReady) != 0)
       break;
@@ -821,14 +885,20 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
       (magnetometer_status & kMagnetometerDataReady) == 0)
     operation = ESP_ERR_TIMEOUT;
   uint8_t magnetic[6]{};
-  for (std::size_t i = 0; i < 6 && operation == ESP_OK; ++i)
+  for (std::size_t i = 0; i < 6 && operation == ESP_OK; ++i) {
+    operation = remainingTimeout(remaining);
+    if (operation != ESP_OK)
+      break;
     operation =
         magnetometerTransfer(static_cast<uint8_t>(kMagnetometerData + i), true,
-                             &magnetic[i], timeout);
+                             &magnetic[i], remaining);
+  }
   uint8_t magnetometer_status2{};
   if (operation == ESP_OK)
+    operation = remainingTimeout(remaining);
+  if (operation == ESP_OK)
     operation = magnetometerTransfer(kMagnetometerStatus2, true,
-                                     &magnetometer_status2, timeout);
+                                     &magnetometer_status2, remaining);
   if (operation == ESP_OK &&
       (magnetometer_status2 & kMagnetometerOverflow) != 0)
     operation = ESP_ERR_INVALID_RESPONSE;
@@ -850,31 +920,42 @@ esp_err_t ICM20948::selfTest(SelfTestResult &result, avi::Timeout timeout) {
                 next.magnetometer_passed[2];
 
   esp_err_t restore = initial_bank_restore;
-  if (registers_saved && restore == ESP_OK)
-    restore = selectBank(kBank2);
-  for (std::size_t i = 0; i < 7 && registers_saved && restore == ESP_OK; ++i)
-    restore =
-        spi_->writeRegister(device_, register_addresses[i], saved_registers[i]);
-  if (restore == ESP_OK)
-    restore = selectBank(kBank0);
-  if (restore == ESP_OK && magnetometer_touched) {
-    if (saved.magnetometer_odr == MagnetometerOdr::off) {
-      uint8_t off = 0;
-      restore =
-          magnetometerTransfer(kMagnetometerControl2, false, &off, timeout);
-      if (restore == ESP_OK)
-        restore = selectBank(kBank3);
-      if (restore == ESP_OK)
-        restore = spi_->writeRegister(device_, kI2cSlave0Control, 0);
-      if (restore == ESP_OK)
-        restore = selectBank(kBank0);
-      if (restore == ESP_OK)
-        restore =
-            spi_->writeRegister(device_, kUserControl, kI2cInterfaceDisable);
-    } else {
-      restore = configureMagnetometer(saved.magnetometer_odr);
+  const auto rememberRestore = [&restore](esp_err_t error) {
+    if (restore == ESP_OK && error != ESP_OK)
+      restore = error;
+  };
+  if (registers_saved) {
+    esp_err_t bank_result = selectBank(kBank2);
+    rememberRestore(bank_result);
+    if (bank_result == ESP_OK) {
+      for (std::size_t i = 0; i < 7; ++i)
+        rememberRestore(spi_->writeRegister(device_, register_addresses[i],
+                                            saved_registers[i]));
     }
   }
+  rememberRestore(selectBank(kBank0));
+  if (magnetometer_touched) {
+    esp_err_t magnetometer_restore = ESP_OK;
+    if (saved.magnetometer_odr == MagnetometerOdr::off) {
+      uint8_t off = 0;
+      magnetometer_restore = magnetometerTransfer(
+          kMagnetometerControl2, false, &off, saved.operation_timeout);
+      if (magnetometer_restore == ESP_OK)
+        magnetometer_restore = selectBank(kBank3);
+      if (magnetometer_restore == ESP_OK)
+        magnetometer_restore =
+            spi_->writeRegister(device_, kI2cSlave0Control, 0);
+      if (magnetometer_restore == ESP_OK)
+        magnetometer_restore = selectBank(kBank0);
+      if (magnetometer_restore == ESP_OK)
+        magnetometer_restore =
+            spi_->writeRegister(device_, kUserControl, kI2cInterfaceDisable);
+    } else {
+      magnetometer_restore = configureMagnetometer(saved.magnetometer_odr);
+    }
+    rememberRestore(magnetometer_restore);
+  }
+  rememberRestore(selectBank(kBank0));
   next.restored = restore == ESP_OK;
   result = next;
   return restore != ESP_OK ? restore : operation;
