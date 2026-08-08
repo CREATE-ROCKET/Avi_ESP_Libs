@@ -8,7 +8,7 @@
 namespace {
 
 constexpr uint8_t kSampleRateDivider = 0x19;
-constexpr uint8_t kSelfTestGyro = 0x00;
+constexpr uint8_t kSelfTestGyro = 0x50;
 constexpr uint8_t kSelfTestAccel = 0x0D;
 constexpr uint8_t kConfig = 0x1A;
 constexpr uint8_t kGyroConfig = 0x1B;
@@ -155,13 +155,59 @@ float factoryTrim(uint8_t code) {
   return code == 0 ? 0.0F : 2620.0F * std::pow(1.01F, code - 1);
 }
 
-bool selfTestAxis(int32_t response, uint8_t code, float absolute_min,
-                  float absolute_max) {
-  const float measured = std::fabs(static_cast<float>(response));
-  const float trim = factoryTrim(code);
-  return trim > 0.0F ? measured >= trim * 0.5F && measured <= trim * 1.5F
-                     : measured >= absolute_min && measured <= absolute_max;
+bool factoryCodesValid(const uint8_t (&codes)[3]) {
+  return codes[0] != 0 && codes[1] != 0 && codes[2] != 0;
 }
+
+constexpr bool accelOtpPass(float measured, float trim) {
+  return measured > trim * 0.5F && measured < trim * 1.5F;
+}
+
+constexpr bool gyroOtpPass(float measured, float trim) {
+  return measured > trim * 0.5F;
+}
+
+constexpr bool accelFallbackPass(float measured) {
+  return measured >= 225.0F * 16384.0F / 1000.0F &&
+         measured <= 675.0F * 16384.0F / 1000.0F;
+}
+
+constexpr bool gyroFallbackPass(float measured) {
+  return measured >= 60.0F * 131.0F;
+}
+
+constexpr bool gyroOffsetPass(float baseline) {
+  return baseline <= 20.0F * 131.0F;
+}
+
+bool accelSelfTestAxis(int32_t response, uint8_t code, bool otp_valid) {
+  const float measured = std::fabs(static_cast<float>(response));
+  if (!otp_valid)
+    return accelFallbackPass(measured);
+  const float trim = factoryTrim(code);
+  return accelOtpPass(measured, trim);
+}
+
+bool gyroSelfTestAxis(int32_t response, int32_t baseline, uint8_t code,
+                      bool otp_valid) {
+  const float measured = std::fabs(static_cast<float>(response));
+  const bool response_ok = otp_valid ? gyroOtpPass(measured, factoryTrim(code))
+                                     : gyroFallbackPass(measured);
+  const bool offset_ok =
+      gyroOffsetPass(std::fabs(static_cast<float>(baseline)));
+  return response_ok && offset_ok;
+}
+
+static_assert(!accelOtpPass(499.0F, 1000.0F));
+static_assert(accelOtpPass(1000.0F, 1000.0F));
+static_assert(!accelOtpPass(1501.0F, 1000.0F));
+static_assert(gyroOtpPass(2000.0F, 1000.0F));
+static_assert(!gyroOtpPass(500.0F, 1000.0F));
+static_assert(accelFallbackPass(225.0F * 16384.0F / 1000.0F));
+static_assert(accelFallbackPass(675.0F * 16384.0F / 1000.0F));
+static_assert(gyroFallbackPass(60.0F * 131.0F));
+static_assert(gyroOffsetPass(20.0F * 131.0F));
+static_assert(!gyroOffsetPass(20.0F * 131.0F + 1.0F));
 
 } // namespace
 
@@ -338,16 +384,17 @@ esp_err_t ICM20602::selfTest(SelfTestResult &result, avi::Timeout timeout) {
         device_, static_cast<uint8_t>(kSelfTestAccel + i) | 0x80,
         accel_codes[i]);
 
-  const auto writeTestConfig = [this](bool stimulated) {
+  const auto writeTestConfig = [this](bool accel_stimulated,
+                                      bool gyro_stimulated) {
     esp_err_t error = spi_->writeRegister(device_, kConfig, 2);
     if (error == ESP_OK)
       error = spi_->writeRegister(device_, kSampleRateDivider, 0);
     if (error == ESP_OK)
-      error =
-          spi_->writeRegister(device_, kGyroConfig, stimulated ? 0xE0 : 0x00);
+      error = spi_->writeRegister(device_, kGyroConfig,
+                                  gyro_stimulated ? 0xE0 : 0x00);
     if (error == ESP_OK)
-      error =
-          spi_->writeRegister(device_, kAccelConfig, stimulated ? 0xE0 : 0x00);
+      error = spi_->writeRegister(device_, kAccelConfig,
+                                  accel_stimulated ? 0xE0 : 0x00);
     if (error == ESP_OK)
       error = spi_->writeRegister(device_, kAccelConfig2, 2);
     return error;
@@ -377,32 +424,43 @@ esp_err_t ICM20602::selfTest(SelfTestResult &result, avi::Timeout timeout) {
   };
 
   if (operation == ESP_OK)
-    operation = writeTestConfig(false);
+    operation = writeTestConfig(false, false);
   if (operation == ESP_OK) {
     avi_delay_ms(20);
     operation = collect(next.accel_baseline, next.gyro_baseline);
   }
   if (operation == ESP_OK)
-    operation = writeTestConfig(true);
+    operation = writeTestConfig(true, false);
   if (operation == ESP_OK) {
     avi_delay_ms(20);
-    operation = collect(next.accel_stimulated, next.gyro_stimulated);
+    std::array<int32_t, 3> ignored_gyro{};
+    operation = collect(next.accel_stimulated, ignored_gyro);
   }
-  for (std::size_t axis = 0; axis < 3; ++axis) {
-    next.accel_response[axis] =
-        next.accel_stimulated[axis] - next.accel_baseline[axis];
-    next.gyro_response[axis] =
-        next.gyro_stimulated[axis] - next.gyro_baseline[axis];
-    next.accel_passed[axis] =
-        selfTestAxis(next.accel_response[axis], accel_codes[axis],
-                     225.0F * 16384.0F / 1000.0F, 675.0F * 16384.0F / 1000.0F);
-    next.gyro_passed[axis] =
-        selfTestAxis(next.gyro_response[axis], gyro_codes[axis], 60.0F * 131.0F,
-                     250.0F * 131.0F);
+  if (operation == ESP_OK)
+    operation = writeTestConfig(false, true);
+  if (operation == ESP_OK) {
+    avi_delay_ms(20);
+    std::array<int32_t, 3> ignored_accel{};
+    operation = collect(ignored_accel, next.gyro_stimulated);
   }
-  next.passed = next.accel_passed[0] && next.accel_passed[1] &&
-                next.accel_passed[2] && next.gyro_passed[0] &&
-                next.gyro_passed[1] && next.gyro_passed[2];
+  if (operation == ESP_OK) {
+    const bool accel_otp_valid = factoryCodesValid(accel_codes);
+    const bool gyro_otp_valid = factoryCodesValid(gyro_codes);
+    for (std::size_t axis = 0; axis < 3; ++axis) {
+      next.accel_response[axis] =
+          next.accel_stimulated[axis] - next.accel_baseline[axis];
+      next.gyro_response[axis] =
+          next.gyro_stimulated[axis] - next.gyro_baseline[axis];
+      next.accel_passed[axis] = accelSelfTestAxis(
+          next.accel_response[axis], accel_codes[axis], accel_otp_valid);
+      next.gyro_passed[axis] =
+          gyroSelfTestAxis(next.gyro_response[axis], next.gyro_baseline[axis],
+                           gyro_codes[axis], gyro_otp_valid);
+    }
+    next.passed = next.accel_passed[0] && next.accel_passed[1] &&
+                  next.accel_passed[2] && next.gyro_passed[0] &&
+                  next.gyro_passed[1] && next.gyro_passed[2];
+  }
 
   uint8_t accel{};
   uint8_t gyro{};
@@ -414,17 +472,17 @@ esp_err_t ICM20602::selfTest(SelfTestResult &result, avi::Timeout timeout) {
                               gyroDlpfBits(saved.gyro_dlpf, gyro_dlpf)
                           ? ESP_OK
                           : ESP_ERR_INVALID_ARG;
-  if (restore == ESP_OK)
-    restore = spi_->writeRegister(device_, kGyroConfig, gyro);
-  if (restore == ESP_OK)
-    restore = spi_->writeRegister(device_, kAccelConfig, accel);
-  if (restore == ESP_OK)
-    restore = spi_->writeRegister(device_, kConfig, gyro_dlpf);
-  if (restore == ESP_OK)
-    restore = spi_->writeRegister(device_, kAccelConfig2, accel_dlpf);
-  if (restore == ESP_OK)
-    restore = spi_->writeRegister(device_, kSampleRateDivider,
-                                  saved.sample_rate_divider);
+  const auto restoreRegister = [this, &restore](uint8_t address,
+                                                uint8_t value) {
+    const esp_err_t error = spi_->writeRegister(device_, address, value);
+    if (restore == ESP_OK && error != ESP_OK)
+      restore = error;
+  };
+  restoreRegister(kGyroConfig, gyro);
+  restoreRegister(kAccelConfig, accel);
+  restoreRegister(kConfig, gyro_dlpf);
+  restoreRegister(kAccelConfig2, accel_dlpf);
+  restoreRegister(kSampleRateDivider, saved.sample_rate_divider);
   next.restored = restore == ESP_OK;
   if (restore == ESP_OK) {
     config_ = saved;
