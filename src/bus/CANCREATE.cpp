@@ -14,16 +14,16 @@ namespace {
 constexpr uint32_t kStandardIdMask = 0x7FF;
 constexpr uint32_t kExtendedIdMask = 0x1FFFFFFF;
 
-bool validBitrate(uint32_t bitrate) {
+bool validBitrate(CANCREATE::Bitrate bitrate) {
   switch (bitrate) {
-  case 25000:
-  case 50000:
-  case 100000:
-  case 125000:
-  case 250000:
-  case 500000:
-  case 800000:
-  case 1000000:
+  case CANCREATE::Bitrate::kbps25:
+  case CANCREATE::Bitrate::kbps50:
+  case CANCREATE::Bitrate::kbps100:
+  case CANCREATE::Bitrate::kbps125:
+  case CANCREATE::Bitrate::kbps250:
+  case CANCREATE::Bitrate::kbps500:
+  case CANCREATE::Bitrate::kbps800:
+  case CANCREATE::Bitrate::mbps1:
     return true;
   default:
     return false;
@@ -198,30 +198,30 @@ twai_mode_t modeFrom(CANCREATE::Mode mode) {
   }
 }
 
-bool timingFrom(uint32_t bitrate, twai_timing_config_t &timing) {
+bool timingFrom(CANCREATE::Bitrate bitrate, twai_timing_config_t &timing) {
   switch (bitrate) {
-  case 25000:
+  case CANCREATE::Bitrate::kbps25:
     timing = TWAI_TIMING_CONFIG_25KBITS();
     return true;
-  case 50000:
+  case CANCREATE::Bitrate::kbps50:
     timing = TWAI_TIMING_CONFIG_50KBITS();
     return true;
-  case 100000:
+  case CANCREATE::Bitrate::kbps100:
     timing = TWAI_TIMING_CONFIG_100KBITS();
     return true;
-  case 125000:
+  case CANCREATE::Bitrate::kbps125:
     timing = TWAI_TIMING_CONFIG_125KBITS();
     return true;
-  case 250000:
+  case CANCREATE::Bitrate::kbps250:
     timing = TWAI_TIMING_CONFIG_250KBITS();
     return true;
-  case 500000:
+  case CANCREATE::Bitrate::kbps500:
     timing = TWAI_TIMING_CONFIG_500KBITS();
     return true;
-  case 800000:
+  case CANCREATE::Bitrate::kbps800:
     timing = TWAI_TIMING_CONFIG_800KBITS();
     return true;
-  case 1000000:
+  case CANCREATE::Bitrate::mbps1:
     timing = TWAI_TIMING_CONFIG_1MBITS();
     return true;
   default:
@@ -270,7 +270,7 @@ CANCREATE::~CANCREATE() {
     (void)end();
 }
 
-esp_err_t CANCREATE::begin(gpio_num_t tx, gpio_num_t rx, uint32_t bitrate) {
+esp_err_t CANCREATE::begin(gpio_num_t tx, gpio_num_t rx, Bitrate bitrate) {
   Config config{};
   config.tx = tx;
   config.rx = rx;
@@ -304,7 +304,7 @@ esp_err_t CANCREATE::begin(const Config &config) {
   node_config.io_cfg.rx = config.rx;
   node_config.io_cfg.quanta_clk_out = GPIO_NUM_NC;
   node_config.io_cfg.bus_off_indicator = GPIO_NUM_NC;
-  node_config.bit_timing.bitrate = config.bitrate;
+  node_config.bit_timing.bitrate = static_cast<uint32_t>(config.bitrate);
   node_config.tx_queue_depth = 1;
   node_config.fail_retry_cnt = -1;
   node_config.flags.enable_self_test = config.mode == Mode::no_ack;
@@ -442,6 +442,32 @@ esp_err_t CANCREATE::write(const Frame &frame, uint32_t timeout_ms) {
 #endif
 }
 
+esp_err_t CANCREATE::write(uint32_t identifier, uint8_t value,
+                           uint32_t timeout_ms) {
+  return write(identifier, &value, 1, timeout_ms);
+}
+
+esp_err_t CANCREATE::write(uint32_t identifier, const uint8_t *data,
+                           std::size_t length, uint32_t timeout_ms) {
+  if ((data == nullptr && length != 0) || length > 8 ||
+      !validIdentifier(identifier, false))
+    return length > 8 ? ESP_ERR_INVALID_SIZE : ESP_ERR_INVALID_ARG;
+  Frame frame{};
+  frame.identifier = identifier;
+  frame.data_length = static_cast<uint8_t>(length);
+  if (length != 0)
+    std::memcpy(frame.data, data, length);
+  return write(frame, timeout_ms);
+}
+
+esp_err_t CANCREATE::writeText(uint32_t identifier, std::string_view text,
+                               uint32_t timeout_ms) {
+  if (text.size() > 8)
+    return ESP_ERR_INVALID_SIZE;
+  return write(identifier, reinterpret_cast<const uint8_t *>(text.data()),
+               text.size(), timeout_ms);
+}
+
 esp_err_t CANCREATE::read(Frame &frame, uint32_t timeout_ms) {
   if (!initialized_ || backend_ == nullptr)
     return ESP_ERR_INVALID_STATE;
@@ -506,6 +532,11 @@ esp_err_t CANCREATE::available(std::size_t &count) const {
     count = info.msgs_to_rx;
   return result;
 #endif
+}
+
+std::size_t CANCREATE::available() const {
+  std::size_t count{};
+  return available(count) == ESP_OK ? count : 0;
 }
 
 esp_err_t CANCREATE::getStatus(Status &status) const {

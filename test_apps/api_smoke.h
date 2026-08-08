@@ -35,11 +35,16 @@ inline void aviApiSmoke() {
   CANCREATE::Config can_config{};
   CANCREATE::Frame can_frame{};
   CANCREATE::Status can_status{};
+  uint8_t can_data[]{0x73, 0x01};
   std::size_t available_count{};
+  can_config.bitrate = CANCREATE::Bitrate::kbps500;
   (void)can.begin(can_config);
-  (void)can.begin(GPIO_NUM_NC, GPIO_NUM_NC);
+  (void)can.begin(GPIO_NUM_NC, GPIO_NUM_NC, CANCREATE::Bitrate::kbps500);
+  (void)can.write(0x100, uint8_t{'s'}, 0);
+  (void)can.write(0x100, can_data, 0);
   (void)can.write(can_frame, 0);
   (void)can.read(can_frame, 0);
+  (void)can.available();
   (void)can.available(available_count);
   (void)can.getStatus(can_status);
   (void)can.recover(0);
