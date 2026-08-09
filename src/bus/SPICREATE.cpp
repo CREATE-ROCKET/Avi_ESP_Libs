@@ -56,6 +56,7 @@ esp_err_t SPICREATE::begin(const Config &bus) {
     return result;
   }
   host_ = bus.host;
+  max_transfer_size_ = bus.max_transfer_size;
   transaction_timeout_ = bus.transaction_timeout;
   bus_lock_ = lock;
   initialized_ = true;
@@ -72,6 +73,7 @@ esp_err_t SPICREATE::end() {
   if (result == ESP_OK) {
     vSemaphoreDelete(bus_lock_);
     bus_lock_ = nullptr;
+    max_transfer_size_ = 0;
     initialized_ = false;
   }
   return result;

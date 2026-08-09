@@ -81,9 +81,13 @@ private:
   [[nodiscard]] esp_err_t takeBusLock();
   void giveBusLock();
   [[nodiscard]] bool owns(Device device) const;
+  [[nodiscard]] std::size_t maxTransferSize() const {
+    return max_transfer_size_;
+  }
 
   static constexpr std::size_t kMaxDevices = 8;
   spi_host_device_t host_{SPI2_HOST};
+  std::size_t max_transfer_size_{0};
   avi::Timeout transaction_timeout_{avi::Timeout::noWait()};
   SemaphoreHandle_t bus_lock_{nullptr};
   bool initialized_{false};
