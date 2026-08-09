@@ -233,6 +233,10 @@ inline void aviApiSmoke() {
   (void)sts.write(1, 0x2A, sts_data, 2);
   (void)sts.regWrite(1, 0x2A, sts_data, 2);
   (void)sts.action();
+  (void)sts.action(1, true, &sts_error);
+  (void)sts.action(1, false);
+  (void)sts.action(0xFE, false);
+  (void)sts.action(0xFE, true);
   (void)sts.syncRead(0x38, 2, sts_ids, 2, sts_data, 4);
   (void)sts.syncWrite(0x2A, 2, sts_ids, 2, sts_data, 4);
   (void)sts.recovery(1);
@@ -276,6 +280,22 @@ inline void aviApiSmoke() {
   (void)servo.writeRegister(STS3215::Register::id, sts_data, 1,
                             STS3215::Persistence::volatile_only);
   (void)servo.writeRegister(STS3215::Register::baud_rate, sts_data, 1,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::response_status_level, sts_data,
+                            1, STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::min_position_limit, sts_data, 2,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::max_position_limit, sts_data, 2,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::phase, sts_data, 1,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::angular_resolution, sts_data, 1,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::operating_mode, sts_data, 1,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::current_position, sts_data, 2,
+                            STS3215::Persistence::volatile_only);
+  (void)servo.writeRegister(STS3215::Register::servo_status, sts_data, 1,
                             STS3215::Persistence::volatile_only);
   (void)servo.end();
   (void)sts.end();

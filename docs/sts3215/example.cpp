@@ -18,6 +18,8 @@ esp_err_t initializeServo() {
 esp_err_t moveAndRelease() {
   esp_err_t result = servo.verifyOperatingMode(STS3215::OperatingMode::step);
   if (result == ESP_OK) {
+    // relative target 0、runtime torque limit、torque
+    // ONの順で現在位置を保持する。
     result = servo.holdCurrentPosition({STS3215::TorqueLimit::percent(30.0F)});
   }
   STS3215::Motion motion{};

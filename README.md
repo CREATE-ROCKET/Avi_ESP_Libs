@@ -104,13 +104,15 @@ LPS25HBは同じclassをSPIまたはI2C address `0x5C`/`0x5D`で開始できま�
 
 `esp_err_t`はUART transportとpacket framingの成否を表し、responseの`ERROR` byteはservoが報告する別の状態です。したがって`ESP_OK`かつ`device_error != 0`は正常なprotocol transactionです。`STS3215`はresponseを受信したtransactionの値を`lastDeviceError()`へ保存し、fault中でも`getStatus()`やtelemetryを取得できます。responseを待たないWRITEでは保存値を変更しません。
 
-`STS3215::begin()`はPINGと設定cacheだけを行い、torque、target、operating mode、EPROMを変更しないためservoは動きません。`holdCurrentPosition()`はposition modeでは現在位置をtargetへ設定し、step modeではrelative target 0を設定してからruntime torqueとtorque ONを適用します。Torque Switchのcalibration値128は使用しません。`disableTorque()`後は機械的条件が許せば手で回せ、再度`holdCurrentPosition()`するとその現在位置を保持します。
+`STS3215::begin()`はPINGと設定cacheだけを行い、torque、target、operating mode、EPROMを変更しないためservoは動きません。`holdCurrentPosition()`はposition modeでは現在位置をtargetへ設定し、step modeではrelative target 0を設定してからruntime torque limit、torque ONの順に適用します。既にtorqueが有効でも旧targetへ力を掛けないよう、targetを先に合わせます。Torque Switchのcalibration値128は使用しません。`disableTorque()`後は機械的条件が許せば手で回せ、再度`holdCurrentPosition()`するとその現在位置を保持します。
 
 `moveRelativeDegrees()`はcurrent positionのread+加算ではなく、step mode nativeのBIT15方向 + 15-bit magnitudeを使います。speedはPhase BIT2に応じて1または50 steps/s単位、accelerationは100 steps/s²単位へ変換します。movementごとの`Motion::torque_limit`、SRAM runtime torque、EPROM stall protectionは別の設定です。
 
 telemetryのposition、speed、currentはBIT15、loadはBIT10を符号とするsign-magnitudeです。`Data`ではposition/speed/currentを符号付き物理値へ変換し、loadは符号付きraw値を返します。`TorqueLimit::raw()`/`percent()`は範囲外、NaN、無限値に対して`valid()==false`となり、受付APIは`ESP_ERR_INVALID_ARG`を返します。stall protectionの`trigger_time_ms`は0～2540 msをnearest 10 msへ量子化するservo設定値で、待機を表す`avi::Timeout`ではありません。
 
-EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずbest-effortで元へ戻します。IDとbaudrateは書込み直後に通信条件が変わるため、generic `writeRegister()`では`ESP_ERR_NOT_SUPPORTED`として意図的に禁止します。複数servo instanceは同じSTSCREATEを共有できますが、同一STS3215 instanceの設定、movement、telemetry、`lastDeviceError()`の利用は呼出し側でserializeしてください。
+EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずbest-effortで元へ戻します。ID、baudrate、response level、position limit、phase、angular resolution、operating modeはinstanceの通信条件またはcacheへ影響するため、generic `writeRegister()`では`ESP_ERR_NOT_SUPPORTED`として意図的に禁止します。cacheを変更する設定はhardwareとcacheを同期するtyped setterだけを使用します。current positionとservo statusもread-onlyとしてgeneric writeを拒否します。
+
+提供された磁気エンコーダ版memory tableに従い、Angular Resolutionは`1..3`のみ有効で、`degrees_per_step = 360 / 4096 * resolution`です。同資料でServo Status 0x41のBIT4は未定義のためtyped boolを設けず、値は`Status::raw`へ保持します。broadcast ACTIONはresponseを返さないため、broadcast IDと`wait_response=true`の組合せは`ESP_ERR_INVALID_ARG`です。複数servo instanceは同じSTSCREATEを共有できますが、同一STS3215 instanceの設定、movement、telemetry、`lastDeviceError()`の利用は呼出し側でserializeしてください。
 
 ### AS5047D
 
@@ -308,6 +310,7 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 
 - `STS3215::Data::load_raw`を`uint16_t`からsign-magnitude復号済みの`int16_t`へ変更しました。
 - `STS3215::StallProtection::trigger_time`を`avi::Timeout`から`uint16_t trigger_time_ms`へ変更しました。
+- cache-sensitive registerとread-only telemetryのgeneric `writeRegister()`は`ESP_ERR_NOT_SUPPORTED`を返します。
 
 - `CAN_CREATE`、`CANCREATE_lib.h`、旧互換mode、`setPin()`、`sendChar()`、`sendData()`、`sendLine()`、`readLine()`、`sendPacket()`を削除しました。
 - `CANCREATE::Config::bitrate`と簡易`begin()`は任意整数から`Bitrate` enumへ変更し、`read(Frame&)`の既定timeoutを0 msへ変更しました。
