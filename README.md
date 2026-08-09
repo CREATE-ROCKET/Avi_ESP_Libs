@@ -276,6 +276,31 @@ imu42688.read(data);
 
 `read()`または`readRaw()`を直接呼ぶ使い方は非同期snapshot readです。直接readと`waitDataReady()`を混在させた場合、通知とsampleの対応は保証しません。
 
+### ICM42688 FIFO
+
+通常の`read()`/`readRaw()`は従来どおり最新のsensor registerを読み、FIFOを消費しません。FIFOはdefault disabledの別APIで、DS-000347 v1.6の16-byte Packet 3（Accel + Gyro + 8-bit Temperature + ODR Timestamp）のみを扱います。
+
+```cpp
+ICM42688::Config config{};
+config.accel_odr = ICM42688::AccelOdr::hz1000;
+config.gyro_odr = ICM42688::GyroOdr::hz1000;
+config.int_gpio = GPIO_NUM_4;
+config.fifo.enabled = true;
+config.fifo.watermark_records = 4;
+
+esp_err_t result = imu42688.begin(spi, 10, config);
+std::array<ICM42688::FifoData, 16> samples{};
+std::size_t count{};
+if (result == ESP_OK &&
+    imu42688.waitFifo(avi::Timeout::milliseconds(10)) == ESP_OK) {
+    result = imu42688.readFifo(samples.data(), samples.size(), count);
+}
+```
+
+`timestamp_ticks`はpacket内のraw ODR delta、`timestamp_us`はFIFO開始epochからのsensor-relative時刻です。internal clock、`TMST_RES=0`のためv1.6 section 12.7どおり32/30を整数remainder付きで累積し、ESP32のtimer epochやSPI read時刻とは一致しません。最初のpacketにもsensorのdeltaを反映します。`getFifoStatus()`でwatermark、FIFO full、lost packet数を確認できます。full/lossは通信errorへ変換せずstatusで通知します。
+
+FIFO有効時はAccel/Gyro ODRを同一にし、FIFOの複合readと同じinstanceの他操作は呼出し側でserializeしてください。INT GPIO使用時はDATA_RDYをrouteせず、FIFO threshold/fullだけをstatic semaphoreへ通知します。ISRはSPI、heap、logging、blockingを行いません。Packet 4 high-resolution、FSYNC、external RTC、Accel-only、Gyro-only、異なるAccel/Gyro ODRには対応しません。Accel/Gyroの`-32768`はv1.6のinvalid markerとしてvalidity flagをfalseにし、通信成功とは区別します。FIFO温度についてv1.6は独立したinvalid markerを規定していないため、対応構成では`temperature_valid=true`です。
+
 加速度またはジャイロのODRが4 kHz以上でINT GPIOを使う場合、driverはdatasheetの要件に従い`INT_CONFIG1.INT_TPULSE_DURATION`と`INT_TDEASSERT_DISABLE`を自動設定します。4 kHz未満ではこれらを解除します。`INT_ASYNC_RESET`は全ODRで解除します。
 
 ICM42688は加速度・ジャイロごとに12.5 Hzから32 kHzまでのLow Noise ODRを指定でき、ジャイロrangeは±2000、1000、500、250、125、62.5、31.25、15.625 dpsを選べます。ICM20602は`AccelDlpf`と`GyroDlpf`を別々に設定し、それぞれ`ACCEL_CONFIG2`と`CONFIG`へ反映します。
