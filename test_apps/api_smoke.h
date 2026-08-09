@@ -259,6 +259,8 @@ inline void aviApiSmoke() {
   STS3215::TorqueLimit torque = STS3215::TorqueLimit::raw(500);
   STS3215::TorqueLimit invalid_raw = STS3215::TorqueLimit::raw(1001);
   STS3215::TorqueLimit invalid_percent = STS3215::TorqueLimit::percent(-1.0F);
+  uint8_t sts_register_byte{};
+  uint8_t sts_register_word[2]{};
   (void)STS3215::Model::c001_1_345;
   (void)STS3215::Model::c044_1_191;
   (void)STS3215::Model::c046_1_147;
@@ -283,6 +285,12 @@ inline void aviApiSmoke() {
   (void)servo.readRaw(servo_raw);
   (void)servo.read(servo_data);
   (void)servo.getStatus(servo_status);
+  (void)servo.readRegister(STS3215::Register::servo_status, &sts_register_byte,
+                           1);
+  (void)servo.readRegister(STS3215::Register::current_position,
+                           sts_register_word, 2);
+  (void)servo.writeRegister(STS3215::Register::torque_limit, sts_register_word,
+                            2, STS3215::Persistence::volatile_only);
   (void)servo.readRegister(STS3215::Register::id, sts_data, 1);
   (void)servo.writeRegister(STS3215::Register::id, sts_data, 1,
                             STS3215::Persistence::volatile_only);
