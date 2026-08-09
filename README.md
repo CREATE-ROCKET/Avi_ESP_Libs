@@ -100,11 +100,15 @@ LPS25HBは同じclassをSPIまたはI2C address `0x5C`/`0x5D`で開始できま�
 
 ### STS3215
 
-`STSCREATE`は磁気エンコーダ版STS protocolのlittle-endian packet層です。PING、READ、WRITE、REG WRITE、ACTION、SYNC READ/WRITE、RECOVERY、状態resetを提供します。broadcast PINGは衝突を避けるため拒否します。direction pin指定時はUART shift registerの送信完了後、delayを挟まずRXへ切り替えます。
+`STSCREATE`は磁気エンコーダ版STS protocolのlittle-endian packet層です。PING、READ、WRITE、REG WRITE、ACTION、SYNC READ/WRITE、RECOVERY、状態resetを提供します。broadcast PINGは衝突を避けるため拒否します。direction pin指定時はUART shift registerの送信完了後、delayを挟まずRXへ切り替えます。`lock_timeout`はbus mutex取得、`tx_timeout`はUART shift registerの送信完了、`response_timeout`は1 response packet全体の受信deadlineです。tx/responseのdefaultは各100 msです。
+
+公開する最低baudrate 38.4 kbpsでは、8N1の259-byte packetの理論wire timeが約67.5 ms（切上げ68 ms）になるため、従来の共通10 ms defaultでは最大packetを送信できません。1 Mbpsで短いpacketだけを使う場合は`tx_timeout`と`response_timeout`を明示的に10 ms等へ短縮できます。`syncRead()`のoptional `device_errors`配列には各IDのresponse ERROR byteが入ります。途中で失敗した場合、それ以前に正常受信したdata/error entryは更新済みで、失敗したID以降は未変更です。
 
 `esp_err_t`はUART transportとpacket framingの成否を表し、responseの`ERROR` byteはservoが報告する別の状態です。したがって`ESP_OK`かつ`device_error != 0`は正常なprotocol transactionです。`STS3215`はresponseを受信したtransactionの値を`lastDeviceError()`へ保存し、fault中でも`getStatus()`やtelemetryを取得できます。responseを待たないWRITEでは保存値を変更しません。
 
-`STS3215::begin()`はPINGと設定cacheだけを行い、torque、target、operating mode、EPROMを変更しないためservoは動きません。`holdCurrentPosition()`はposition modeでは現在位置をtargetへ設定し、step modeではrelative target 0を設定してからruntime torque limit、torque ONの順に適用します。既にtorqueが有効でも旧targetへ力を掛けないよう、targetを先に合わせます。Torque Switchのcalibration値128は使用しません。`disableTorque()`後は機械的条件が許せば手で回せ、再度`holdCurrentPosition()`するとその現在位置を保持します。
+`STS3215::begin()`はPINGと設定snapshotだけを読み、torque、target、operating mode、EPROMを変更しないためservoは動きません。cache対象はresponse level、angular resolution、operating mode、phase、position limitsです。全項目の読取とvalidationが成功した場合だけ一括反映され、`configurationValid()`がtrueになります。`refreshConfiguration()`で実機から再取得でき、途中失敗または不正値ではcacheをinvalidにします。typed configuration setterはwriteの成否にかかわらずread-backし、実機値とcacheを再同期します。
+
+cache invalid時はmode確認、typed configuration、movement、`holdCurrentPosition()`、物理値`read(Data&)`を`ESP_ERR_INVALID_STATE`で拒否します。`degreesPerStep()`はquiet NaNを返します。一方、安全停止と診断のため`disableTorque()`、`enableTorque()`、runtime torque、`readRaw()`、`getStatus()`、generic read、`lastDeviceError()`は利用できます。`holdCurrentPosition()`はposition modeでは現在位置をtargetへ設定し、step modeではrelative target 0を設定してからruntime torque limit、torque ONの順に適用します。既にtorqueが有効でも旧targetへ力を掛けないよう、targetを先に合わせます。Torque Switchのcalibration値128は使用しません。`disableTorque()`後は機械的条件が許せば手で回せ、再度`holdCurrentPosition()`するとその現在位置を保持します。
 
 `moveRelativeDegrees()`はcurrent positionのread+加算ではなく、step mode nativeのBIT15方向 + 15-bit magnitudeを使います。speedはPhase BIT2に応じて1または50 steps/s単位、accelerationは100 steps/s²単位へ変換します。movementごとの`Motion::torque_limit`、SRAM runtime torque、EPROM stall protectionは別の設定です。
 
@@ -311,6 +315,9 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 - `STS3215::Data::load_raw`を`uint16_t`からsign-magnitude復号済みの`int16_t`へ変更しました。
 - `STS3215::StallProtection::trigger_time`を`avi::Timeout`から`uint16_t trigger_time_ms`へ変更しました。
 - cache-sensitive registerとread-only telemetryのgeneric `writeRegister()`は`ESP_ERR_NOT_SUPPORTED`を返します。
+- `STSCREATE::Config`へ`tx_timeout`を追加し、`response_timeout`のdefaultを10 msから100 msへ変更しました。
+- `STSCREATE::syncRead()`へsource-compatibleなoptional `device_errors`末尾引数を追加しました。
+- `STS3215`へ`configurationValid()`と`refreshConfiguration()`を追加し、cache invalid時の高レベル操作を拒否します。`degreesPerStep()`はcache invalid時にNaNを返します。
 
 - `CAN_CREATE`、`CANCREATE_lib.h`、旧互換mode、`setPin()`、`sendChar()`、`sendData()`、`sendLine()`、`readLine()`、`sendPacket()`を削除しました。
 - `CANCREATE::Config::bitrate`と簡易`begin()`は任意整数から`Bitrate` enumへ変更し、`read(Frame&)`の既定timeoutを0 msへ変更しました。

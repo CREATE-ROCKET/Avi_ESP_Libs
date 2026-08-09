@@ -11,7 +11,7 @@ esp_err_t initializeServo() {
   esp_err_t result = bus.begin(config);
   if (result == ESP_OK)
     result = servo.begin(bus, 1, STS3215::Model::c001_1_345);
-  // begin()は設定を読むだけでservoを動かさない。
+  // begin()は設定snapshotを読むだけでservoを動かさない。
   return result;
 }
 
