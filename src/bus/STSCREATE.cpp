@@ -27,6 +27,10 @@ constexpr uint8_t kBroadcastId = 0xFE;
 constexpr std::size_t kMaximumParameters = 253;
 constexpr std::size_t kMaximumPacket = 259;
 
+constexpr bool validResponseWait(uint8_t id, bool wait_response) {
+  return id != kBroadcastId || !wait_response;
+}
+
 constexpr uint8_t checksum(uint8_t id, uint8_t length, uint8_t instruction,
                            const uint8_t *parameters,
                            std::size_t parameter_count) {
@@ -91,6 +95,10 @@ static_assert(validResponse(std::array<uint8_t, 6>{0xFF, 0xFF, 0x01, 0x02, 0x20,
                                                    0xDC}));
 static_assert(!validResponse(std::array<uint8_t, 6>{0xFF, 0xFF, 0x01, 0x02,
                                                     0x20, 0xDD}));
+static_assert(validResponseWait(1, true));
+static_assert(validResponseWait(1, false));
+static_assert(validResponseWait(kBroadcastId, false));
+static_assert(!validResponseWait(kBroadcastId, true));
 
 bool validBaudrate(STSCREATE::Baudrate baudrate) {
   switch (baudrate) {
@@ -311,7 +319,7 @@ esp_err_t STSCREATE::transaction(uint8_t id, Instruction instruction,
                                  uint8_t *device_error, bool allow_broadcast) {
   if (!initialized_)
     return ESP_ERR_INVALID_STATE;
-  if (!validId(id, allow_broadcast))
+  if (!validId(id, allow_broadcast) || !validResponseWait(id, wait_response))
     return ESP_ERR_INVALID_ARG;
   LockGuard lock(*this);
   if (lock.result() != ESP_OK)
