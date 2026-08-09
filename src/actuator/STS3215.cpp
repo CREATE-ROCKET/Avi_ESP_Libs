@@ -33,33 +33,46 @@ enum class RegisterWriteAccess : uint8_t {
   invalid
 };
 
-constexpr RegisterWriteAccess registerWriteAccess(STS3215::Register address) {
+struct RegisterDescriptor {
+  std::size_t width;
+  RegisterWriteAccess write_access;
+};
+
+constexpr RegisterDescriptor registerDescriptor(STS3215::Register address) {
   switch (address) {
   case STS3215::Register::id:
   case STS3215::Register::baud_rate:
   case STS3215::Register::response_status_level:
-  case STS3215::Register::min_position_limit:
-  case STS3215::Register::max_position_limit:
   case STS3215::Register::phase:
   case STS3215::Register::angular_resolution:
   case STS3215::Register::operating_mode:
-    return RegisterWriteAccess::cache_sensitive;
-  case STS3215::Register::current_position:
+    return {1, RegisterWriteAccess::cache_sensitive};
+  case STS3215::Register::min_position_limit:
+  case STS3215::Register::max_position_limit:
+    return {2, RegisterWriteAccess::cache_sensitive};
   case STS3215::Register::servo_status:
-    return RegisterWriteAccess::read_only;
+    return {1, RegisterWriteAccess::read_only};
+  case STS3215::Register::current_position:
+    return {2, RegisterWriteAccess::read_only};
   case STS3215::Register::protection_condition:
   case STS3215::Register::protection_torque:
   case STS3215::Register::protection_time:
   case STS3215::Register::overload_torque:
   case STS3215::Register::torque_switch:
   case STS3215::Register::acceleration:
+  case STS3215::Register::lock:
+    return {1, RegisterWriteAccess::allowed};
   case STS3215::Register::target_position:
   case STS3215::Register::running_speed:
   case STS3215::Register::torque_limit:
-  case STS3215::Register::lock:
-    return RegisterWriteAccess::allowed;
+    return {2, RegisterWriteAccess::allowed};
   }
-  return RegisterWriteAccess::invalid;
+  return {0, RegisterWriteAccess::invalid};
+}
+
+constexpr bool validRegisterLength(STS3215::Register address,
+                                   std::size_t length) {
+  return registerDescriptor(address).width == length;
 }
 
 constexpr uint16_t littleEndian(const uint8_t *data) {
@@ -147,30 +160,85 @@ static_assert(stallTimeRaw(0) == 0);
 static_assert(stallTimeRaw(4) == 0);
 static_assert(stallTimeRaw(5) == 1);
 static_assert(stallTimeRaw(2540) == 254);
-static_assert(registerWriteAccess(STS3215::Register::id) ==
+static_assert(registerDescriptor(STS3215::Register::id).write_access ==
               RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::baud_rate) ==
+static_assert(registerDescriptor(STS3215::Register::baud_rate).write_access ==
               RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::response_status_level) ==
+static_assert(registerDescriptor(STS3215::Register::response_status_level)
+                  .write_access == RegisterWriteAccess::cache_sensitive);
+static_assert(registerDescriptor(STS3215::Register::min_position_limit)
+                  .write_access == RegisterWriteAccess::cache_sensitive);
+static_assert(registerDescriptor(STS3215::Register::max_position_limit)
+                  .write_access == RegisterWriteAccess::cache_sensitive);
+static_assert(registerDescriptor(STS3215::Register::phase).write_access ==
               RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::min_position_limit) ==
-              RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::max_position_limit) ==
-              RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::phase) ==
-              RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::angular_resolution) ==
-              RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::operating_mode) ==
-              RegisterWriteAccess::cache_sensitive);
-static_assert(registerWriteAccess(STS3215::Register::torque_limit) ==
+static_assert(registerDescriptor(STS3215::Register::angular_resolution)
+                  .write_access == RegisterWriteAccess::cache_sensitive);
+static_assert(registerDescriptor(STS3215::Register::operating_mode)
+                  .write_access == RegisterWriteAccess::cache_sensitive);
+static_assert(registerDescriptor(STS3215::Register::torque_limit)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::torque_switch)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::protection_condition)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::protection_torque)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::protection_time)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::overload_torque)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::acceleration)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::target_position)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::running_speed)
+                  .write_access == RegisterWriteAccess::allowed);
+static_assert(registerDescriptor(STS3215::Register::lock).write_access ==
               RegisterWriteAccess::allowed);
-static_assert(registerWriteAccess(STS3215::Register::torque_switch) ==
-              RegisterWriteAccess::allowed);
-static_assert(registerWriteAccess(STS3215::Register::current_position) ==
-              RegisterWriteAccess::read_only);
-static_assert(registerWriteAccess(STS3215::Register::servo_status) ==
-              RegisterWriteAccess::read_only);
+static_assert(registerDescriptor(STS3215::Register::current_position)
+                  .write_access == RegisterWriteAccess::read_only);
+static_assert(registerDescriptor(STS3215::Register::servo_status)
+                  .write_access == RegisterWriteAccess::read_only);
+static_assert(registerDescriptor(STS3215::Register::id).width == 1);
+static_assert(registerDescriptor(STS3215::Register::baud_rate).width == 1);
+static_assert(
+    registerDescriptor(STS3215::Register::response_status_level).width == 1);
+static_assert(registerDescriptor(STS3215::Register::min_position_limit).width ==
+              2);
+static_assert(registerDescriptor(STS3215::Register::max_position_limit).width ==
+              2);
+static_assert(registerDescriptor(STS3215::Register::phase).width == 1);
+static_assert(
+    registerDescriptor(STS3215::Register::protection_condition).width == 1);
+static_assert(registerDescriptor(STS3215::Register::angular_resolution).width ==
+              1);
+static_assert(registerDescriptor(STS3215::Register::operating_mode).width == 1);
+static_assert(registerDescriptor(STS3215::Register::protection_torque).width ==
+              1);
+static_assert(registerDescriptor(STS3215::Register::protection_time).width ==
+              1);
+static_assert(registerDescriptor(STS3215::Register::overload_torque).width ==
+              1);
+static_assert(registerDescriptor(STS3215::Register::torque_switch).width == 1);
+static_assert(registerDescriptor(STS3215::Register::acceleration).width == 1);
+static_assert(registerDescriptor(STS3215::Register::target_position).width ==
+              2);
+static_assert(registerDescriptor(STS3215::Register::running_speed).width == 2);
+static_assert(registerDescriptor(STS3215::Register::torque_limit).width == 2);
+static_assert(registerDescriptor(STS3215::Register::lock).width == 1);
+static_assert(registerDescriptor(STS3215::Register::current_position).width ==
+              2);
+static_assert(registerDescriptor(STS3215::Register::servo_status).width == 1);
+static_assert(validRegisterLength(STS3215::Register::torque_limit, 2));
+static_assert(!validRegisterLength(STS3215::Register::torque_limit, 1));
+static_assert(!validRegisterLength(STS3215::Register::torque_limit, 3));
+static_assert(validRegisterLength(STS3215::Register::protection_condition, 1));
+static_assert(!validRegisterLength(STS3215::Register::protection_condition,
+                                   15));
+static_assert(validRegisterLength(STS3215::Register::current_position, 2));
+static_assert(registerDescriptor(static_cast<STS3215::Register>(0xFF)).width ==
+              0);
 static_assert(validConfigurationValues(0, 1, 0));
 static_assert(validConfigurationValues(1, 3, 3));
 static_assert(!validConfigurationValues(2, 1, 0));
@@ -673,17 +741,26 @@ esp_err_t STS3215::read(Data &data) {
 
 esp_err_t STS3215::readRegister(Register address, uint8_t *data,
                                 std::size_t length) {
-  if (registerWriteAccess(address) == RegisterWriteAccess::invalid)
+  if (data == nullptr)
     return ESP_ERR_INVALID_ARG;
+  const RegisterDescriptor descriptor = registerDescriptor(address);
+  if (descriptor.write_access == RegisterWriteAccess::invalid)
+    return ESP_ERR_INVALID_ARG;
+  if (length != descriptor.width)
+    return ESP_ERR_INVALID_SIZE;
   return readBytes(static_cast<uint8_t>(address), data, length);
 }
 
 esp_err_t STS3215::writeRegister(Register address, const uint8_t *data,
                                  std::size_t length, Persistence persistence) {
-  const RegisterWriteAccess access = registerWriteAccess(address);
-  if (access == RegisterWriteAccess::invalid)
+  if (data == nullptr)
     return ESP_ERR_INVALID_ARG;
-  if (access != RegisterWriteAccess::allowed)
+  const RegisterDescriptor descriptor = registerDescriptor(address);
+  if (descriptor.write_access == RegisterWriteAccess::invalid)
+    return ESP_ERR_INVALID_ARG;
+  if (length != descriptor.width)
+    return ESP_ERR_INVALID_SIZE;
+  if (descriptor.write_access != RegisterWriteAccess::allowed)
     return ESP_ERR_NOT_SUPPORTED;
   const uint8_t raw_address = static_cast<uint8_t>(address);
   if (raw_address < kTorqueSwitch)
