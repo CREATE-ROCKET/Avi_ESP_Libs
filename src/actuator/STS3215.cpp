@@ -26,6 +26,42 @@ constexpr uint8_t kFeedbackBit = 0x10;
 constexpr uint8_t kSpeedUnitBit = 0x04;
 constexpr uint8_t kOverloadProtectionBit = 0x20;
 
+enum class RegisterWriteAccess : uint8_t {
+  allowed,
+  cache_sensitive,
+  read_only,
+  invalid
+};
+
+constexpr RegisterWriteAccess registerWriteAccess(STS3215::Register address) {
+  switch (address) {
+  case STS3215::Register::id:
+  case STS3215::Register::baud_rate:
+  case STS3215::Register::response_status_level:
+  case STS3215::Register::min_position_limit:
+  case STS3215::Register::max_position_limit:
+  case STS3215::Register::phase:
+  case STS3215::Register::angular_resolution:
+  case STS3215::Register::operating_mode:
+    return RegisterWriteAccess::cache_sensitive;
+  case STS3215::Register::current_position:
+  case STS3215::Register::servo_status:
+    return RegisterWriteAccess::read_only;
+  case STS3215::Register::protection_condition:
+  case STS3215::Register::protection_torque:
+  case STS3215::Register::protection_time:
+  case STS3215::Register::overload_torque:
+  case STS3215::Register::torque_switch:
+  case STS3215::Register::acceleration:
+  case STS3215::Register::target_position:
+  case STS3215::Register::running_speed:
+  case STS3215::Register::torque_limit:
+  case STS3215::Register::lock:
+    return RegisterWriteAccess::allowed;
+  }
+  return RegisterWriteAccess::invalid;
+}
+
 constexpr uint16_t littleEndian(const uint8_t *data) {
   return static_cast<uint16_t>(uint16_t{data[0]} | (uint16_t{data[1]} << 8));
 }
@@ -105,6 +141,30 @@ static_assert(stallTimeRaw(0) == 0);
 static_assert(stallTimeRaw(4) == 0);
 static_assert(stallTimeRaw(5) == 1);
 static_assert(stallTimeRaw(2540) == 254);
+static_assert(registerWriteAccess(STS3215::Register::id) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::baud_rate) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::response_status_level) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::min_position_limit) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::max_position_limit) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::phase) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::angular_resolution) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::operating_mode) ==
+              RegisterWriteAccess::cache_sensitive);
+static_assert(registerWriteAccess(STS3215::Register::torque_limit) ==
+              RegisterWriteAccess::allowed);
+static_assert(registerWriteAccess(STS3215::Register::torque_switch) ==
+              RegisterWriteAccess::allowed);
+static_assert(registerWriteAccess(STS3215::Register::current_position) ==
+              RegisterWriteAccess::read_only);
+static_assert(registerWriteAccess(STS3215::Register::servo_status) ==
+              RegisterWriteAccess::read_only);
 
 bool validMode(STS3215::OperatingMode mode) {
   return static_cast<uint8_t>(mode) <= 3;
@@ -356,14 +416,14 @@ esp_err_t STS3215::holdCurrentPosition(const HoldConfig &config) {
     uint8_t position[2]{};
     result = readBytes(kCurrentPosition, position, sizeof(position));
     if (result == ESP_OK)
-      result = setTorqueLimit(config.torque_limit);
-    if (result == ESP_OK)
       result = writeBytes(0x2A, position, sizeof(position));
-  } else if (operating_mode_ == OperatingMode::step) {
-    result = setTorqueLimit(config.torque_limit);
-    const uint8_t zero[2]{};
     if (result == ESP_OK)
-      result = writeBytes(0x2A, zero, sizeof(zero));
+      result = setTorqueLimit(config.torque_limit);
+  } else if (operating_mode_ == OperatingMode::step) {
+    const uint8_t zero[2]{};
+    result = writeBytes(0x2A, zero, sizeof(zero));
+    if (result == ESP_OK)
+      result = setTorqueLimit(config.torque_limit);
   } else {
     return ESP_ERR_INVALID_STATE;
   }
@@ -526,14 +586,19 @@ esp_err_t STS3215::read(Data &data) {
 
 esp_err_t STS3215::readRegister(Register address, uint8_t *data,
                                 std::size_t length) {
+  if (registerWriteAccess(address) == RegisterWriteAccess::invalid)
+    return ESP_ERR_INVALID_ARG;
   return readBytes(static_cast<uint8_t>(address), data, length);
 }
 
 esp_err_t STS3215::writeRegister(Register address, const uint8_t *data,
                                  std::size_t length, Persistence persistence) {
-  const uint8_t raw_address = static_cast<uint8_t>(address);
-  if (address == Register::id || address == Register::baud_rate)
+  const RegisterWriteAccess access = registerWriteAccess(address);
+  if (access == RegisterWriteAccess::invalid)
+    return ESP_ERR_INVALID_ARG;
+  if (access != RegisterWriteAccess::allowed)
     return ESP_ERR_NOT_SUPPORTED;
+  const uint8_t raw_address = static_cast<uint8_t>(address);
   if (raw_address < kTorqueSwitch)
     return writeEpRom(raw_address, data, length, persistence);
   return writeBytes(raw_address, data, length);
