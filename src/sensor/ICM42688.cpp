@@ -184,6 +184,10 @@ template <typename Odr> constexpr bool isHighOdr(Odr odr) {
   return false;
 }
 
+template <typename Odr> constexpr bool fifoOdrSupported(Odr odr) {
+  return !isHighOdr(odr);
+}
+
 constexpr bool requiresHighOdrInterruptConfig(ICM42688::AccelOdr accel_odr,
                                               ICM42688::GyroOdr gyro_odr) {
   return isHighOdr(accel_odr) || isHighOdr(gyro_odr);
@@ -199,6 +203,10 @@ static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz8000,
                                              ICM42688::GyroOdr::hz1000));
 static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz1000,
                                              ICM42688::GyroOdr::hz16000));
+static_assert(fifoOdrSupported(ICM42688::AccelOdr::hz12_5));
+static_assert(fifoOdrSupported(ICM42688::AccelOdr::hz2000));
+static_assert(!fifoOdrSupported(ICM42688::AccelOdr::hz4000));
+static_assert(!fifoOdrSupported(ICM42688::GyroOdr::hz32000));
 
 bool filterBits(ICM42688::Filter filter, uint8_t &bits) {
   switch (filter) {
@@ -269,6 +277,12 @@ constexpr std::size_t fifoReadRecordCount(std::size_t available,
   const std::size_t buffer_records = kFifoBufferSize / kFifoPacketSize;
   return std::min(std::min(available, capacity),
                   std::min(transfer_records, buffer_records));
+}
+
+constexpr bool fifoReady(const ICM42688::FifoStatus &status,
+                         uint16_t watermark_records) {
+  return status.threshold || status.full ||
+         status.records_available >= watermark_records;
 }
 
 constexpr esp_err_t parseFifoPacket3(const uint8_t *packet,
@@ -346,6 +360,10 @@ static_assert(fifoReadRecordCount(8, 4, 65) == 4);
 static_assert(fifoReadRecordCount(8, 8, 49) == 3);
 static_assert(fifoReadRecordCount(1, 1, 16) == 0);
 static_assert(fifoReadRecordCount(1, 1, 17) == 1);
+static_assert(!fifoReady({3, false, false, 0}, 4));
+static_assert(fifoReady({4, false, false, 0}, 4));
+static_assert(fifoReady({0, true, false, 0}, 4));
+static_assert(fifoReady({0, false, true, 0}, 4));
 
 float accelSensitivity(ICM42688::AccelRange range) {
   switch (range) {
@@ -490,7 +508,9 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
       (config.fifo.enabled &&
        (config.fifo.watermark_records == 0 ||
         config.fifo.watermark_records > kMaximumWatermarkRecords ||
-        accel_odr != gyro_odr || spi.maxTransferSize() < kFifoPacketSize + 1)))
+        accel_odr != gyro_odr || !fifoOdrSupported(config.accel_odr) ||
+        !fifoOdrSupported(config.gyro_odr) ||
+        spi.maxTransferSize() < kFifoPacketSize + 1)))
     return ESP_ERR_INVALID_ARG;
 
   esp_err_t result =
@@ -894,38 +914,43 @@ esp_err_t ICM42688::fifoAvailable(std::size_t &records) {
 esp_err_t ICM42688::waitFifo(avi::Timeout timeout) {
   if (!initialized_ || spi_ == nullptr || !config_.fifo.enabled)
     return ESP_ERR_INVALID_STATE;
-  TickType_t ticks{};
-  if (avi::internal::timeoutToTicks(timeout, ticks) != ESP_OK)
-    return ESP_ERR_INVALID_ARG;
-  if (interrupt_.signal != nullptr) {
-    if (xSemaphoreTake(interrupt_.signal, ticks) != pdTRUE)
-      return timeout.isNoWait() ? ESP_ERR_NOT_FINISHED : ESP_ERR_TIMEOUT;
-    FifoStatus status{};
-    const esp_err_t result = getFifoStatus(status);
-    if (result != ESP_OK)
-      return result;
-    return status.threshold || status.full ||
-                   status.records_available >= config_.fifo.watermark_records
-               ? ESP_OK
-               : ESP_ERR_NOT_FINISHED;
-  }
-
   avi::internal::Deadline deadline{};
   if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
-  do {
+
+  for (;;) {
+    // FIFO_COUNTが真の状態であり、semaphoreは状態変化のwake-up hintに過ぎない。
     FifoStatus status{};
     const esp_err_t result = getFifoStatus(status);
     if (result != ESP_OK)
       return result;
-    if (status.threshold || status.full ||
-        status.records_available >= config_.fifo.watermark_records)
+    if (fifoReady(status, config_.fifo.watermark_records))
       return ESP_OK;
     if (timeout.isNoWait())
       return ESP_ERR_NOT_FINISHED;
-    avi_delay_ms(1);
-  } while (!avi::internal::expired(deadline));
-  return ESP_ERR_TIMEOUT;
+    if (avi::internal::expired(deadline))
+      return ESP_ERR_TIMEOUT;
+
+    if (interrupt_.signal == nullptr) {
+      avi_delay_ms(1);
+      continue;
+    }
+
+    TickType_t ticks = portMAX_DELAY;
+    if (!deadline.forever) {
+      const int64_t now = avi_micros();
+      if (now >= deadline.microseconds)
+        return ESP_ERR_TIMEOUT;
+      const uint64_t remaining_us =
+          static_cast<uint64_t>(deadline.microseconds - now);
+      const avi::Timeout remaining =
+          avi::Timeout::milliseconds((remaining_us + 999U) / 1000U);
+      if (avi::internal::timeoutToTicks(remaining, ticks) != ESP_OK)
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (xSemaphoreTake(interrupt_.signal, ticks) != pdTRUE)
+      return ESP_ERR_TIMEOUT;
+  }
 }
 
 esp_err_t ICM42688::readFifoRaw(FifoRawData *data, std::size_t capacity,
