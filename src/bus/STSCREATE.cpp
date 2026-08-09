@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <climits>
+#include <limits>
 
 class STSCREATE::LockGuard {
 public:
@@ -33,6 +34,17 @@ constexpr uint64_t wireTimeMicroseconds(std::size_t bytes, uint32_t baudrate) {
 
 constexpr bool validResponseWait(uint8_t id, bool wait_response) {
   return id != kBroadcastId || !wait_response;
+}
+
+constexpr bool validSyncReadPacketSize(std::size_t id_count, uint8_t length) {
+  return id_count > 0 && id_count <= kMaximumParameters - 2 && length > 0 &&
+         length <= 253;
+}
+
+constexpr bool validSyncWritePacketSize(std::size_t id_count, uint8_t length) {
+  return id_count > 0 && length > 0 &&
+         id_count <=
+             (kMaximumParameters - 2) / (static_cast<std::size_t>(length) + 1);
 }
 
 constexpr uint8_t checksum(uint8_t id, uint8_t length, uint8_t instruction,
@@ -106,6 +118,15 @@ static_assert(!validResponseWait(kBroadcastId, true));
 static_assert(wireTimeMicroseconds(259, 38400) == 67448);
 static_assert((wireTimeMicroseconds(259, 38400) + 999) / 1000 == 68);
 static_assert(100 > (wireTimeMicroseconds(259, 38400) + 999) / 1000);
+static_assert(validSyncReadPacketSize(251, 253));
+static_assert(!validSyncReadPacketSize(252, 253));
+static_assert(!validSyncReadPacketSize(1, 0));
+static_assert(!validSyncReadPacketSize(1, 254));
+static_assert(!validSyncReadPacketSize(1, 255));
+static_assert(validSyncWritePacketSize(1, 250));
+static_assert(!validSyncWritePacketSize(1, 251));
+static_assert(validSyncWritePacketSize(83, 2));
+static_assert(!validSyncWritePacketSize(84, 2));
 
 bool validBaudrate(STSCREATE::Baudrate baudrate) {
   switch (baudrate) {
@@ -396,15 +417,27 @@ esp_err_t STSCREATE::syncRead(uint8_t address, uint8_t length,
                               const uint8_t *ids, std::size_t id_count,
                               uint8_t *data, std::size_t data_size,
                               uint8_t *device_errors) {
-  if (ids == nullptr || data == nullptr || id_count == 0 || length == 0 ||
-      id_count > 251 || data_size != id_count * length)
+  if (ids == nullptr || data == nullptr || id_count == 0)
     return ESP_ERR_INVALID_ARG;
+  if (!validSyncReadPacketSize(id_count, length))
+    return ESP_ERR_INVALID_SIZE;
+  if (id_count > std::numeric_limits<std::size_t>::max() /
+                     static_cast<std::size_t>(length))
+    return ESP_ERR_INVALID_SIZE;
+  const std::size_t expected_data_size = id_count * length;
+  if (data_size != expected_data_size)
+    return ESP_ERR_INVALID_SIZE;
   std::array<uint8_t, kMaximumParameters> parameters{};
   parameters[0] = address;
   parameters[1] = length;
   for (std::size_t i = 0; i < id_count; ++i) {
     if (!validId(ids[i], false))
       return ESP_ERR_INVALID_ARG;
+    // 同一IDの重複はresponseとの対応関係を曖昧にするため拒否する。
+    for (std::size_t j = 0; j < i; ++j) {
+      if (ids[i] == ids[j])
+        return ESP_ERR_INVALID_ARG;
+    }
     parameters[i + 2] = ids[i];
   }
   LockGuard lock(*this);
@@ -423,9 +456,15 @@ esp_err_t STSCREATE::syncRead(uint8_t address, uint8_t length,
 esp_err_t STSCREATE::syncWrite(uint8_t address, uint8_t length,
                                const uint8_t *ids, std::size_t id_count,
                                const uint8_t *data, std::size_t data_size) {
-  if (ids == nullptr || data == nullptr || id_count == 0 || length == 0 ||
-      data_size != id_count * length || 2 + id_count * (length + 1) > 253)
+  if (ids == nullptr || data == nullptr || id_count == 0)
     return ESP_ERR_INVALID_ARG;
+  if (!validSyncWritePacketSize(id_count, length) ||
+      id_count > std::numeric_limits<std::size_t>::max() /
+                     static_cast<std::size_t>(length))
+    return ESP_ERR_INVALID_SIZE;
+  const std::size_t expected_data_size = id_count * length;
+  if (data_size != expected_data_size)
+    return ESP_ERR_INVALID_SIZE;
   std::array<uint8_t, kMaximumParameters> parameters{};
   parameters[0] = address;
   parameters[1] = length;
@@ -433,6 +472,11 @@ esp_err_t STSCREATE::syncWrite(uint8_t address, uint8_t length,
   for (std::size_t i = 0; i < id_count; ++i) {
     if (!validId(ids[i], false))
       return ESP_ERR_INVALID_ARG;
+    // 同一IDの重複は適用順を曖昧にするため拒否する。
+    for (std::size_t j = 0; j < i; ++j) {
+      if (ids[i] == ids[j])
+        return ESP_ERR_INVALID_ARG;
+    }
     parameters[cursor++] = ids[i];
     std::copy_n(data + i * length, length, parameters.begin() + cursor);
     cursor += length;
