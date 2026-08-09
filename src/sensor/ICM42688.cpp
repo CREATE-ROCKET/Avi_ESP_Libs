@@ -270,10 +270,9 @@ constexpr uint64_t accumulateTimestamp(uint16_t ticks, uint64_t &microseconds,
 constexpr std::size_t fifoReadRecordCount(std::size_t available,
                                           std::size_t capacity,
                                           std::size_t max_transfer_size) {
-  if (max_transfer_size <= 1)
+  if (max_transfer_size < kFifoPacketSize)
     return 0;
-  const std::size_t transfer_records =
-      (max_transfer_size - 1) / kFifoPacketSize;
+  const std::size_t transfer_records = max_transfer_size / kFifoPacketSize;
   const std::size_t buffer_records = kFifoBufferSize / kFifoPacketSize;
   return std::min(std::min(available, capacity),
                   std::min(transfer_records, buffer_records));
@@ -355,15 +354,16 @@ constexpr bool packetDecodeTest() {
          data.accel_odr_changed && data.gyro_odr_changed;
 }
 static_assert(packetDecodeTest());
-static_assert(fifoReadRecordCount(4, 8, 65) == 4);
-static_assert(fifoReadRecordCount(8, 4, 65) == 4);
-static_assert(fifoReadRecordCount(8, 8, 49) == 3);
-static_assert(fifoReadRecordCount(1, 1, 16) == 0);
-static_assert(fifoReadRecordCount(1, 1, 17) == 1);
-static_assert(!fifoReady({3, false, false, 0}, 4));
-static_assert(fifoReady({4, false, false, 0}, 4));
-static_assert(fifoReady({0, true, false, 0}, 4));
-static_assert(fifoReady({0, false, true, 0}, 4));
+static_assert(fifoReadRecordCount(4, 8, 64) == 4);
+static_assert(fifoReadRecordCount(8, 4, 64) == 4);
+static_assert(fifoReadRecordCount(8, 8, 48) == 3);
+static_assert(fifoReadRecordCount(8, 8, 47) == 2);
+static_assert(fifoReadRecordCount(1, 1, 15) == 0);
+static_assert(fifoReadRecordCount(1, 1, 16) == 1);
+static_assert(!fifoReady({3, false, false, 0, false}, 4));
+static_assert(fifoReady({4, false, false, 0, false}, 4));
+static_assert(fifoReady({0, true, false, 0, false}, 4));
+static_assert(fifoReady({0, false, true, 0, false}, 4));
 
 float accelSensitivity(ICM42688::AccelRange range) {
   switch (range) {
@@ -510,7 +510,7 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
         config.fifo.watermark_records > kMaximumWatermarkRecords ||
         accel_odr != gyro_odr || !fifoOdrSupported(config.accel_odr) ||
         !fifoOdrSupported(config.gyro_odr) ||
-        spi.maxTransferSize() < kFifoPacketSize + 1)))
+        spi.maxTransferSize() < kFifoPacketSize)))
     return ESP_ERR_INVALID_ARG;
 
   esp_err_t result =
@@ -824,6 +824,7 @@ esp_err_t ICM42688::read(Data &data) {
 void ICM42688::resetFifoState() {
   fifo_timestamp_us_ = 0;
   fifo_timestamp_remainder_ = 0;
+  fifo_faulted_ = false;
 }
 
 esp_err_t ICM42688::readFifoCount(uint16_t &records) {
@@ -842,10 +843,9 @@ esp_err_t ICM42688::readFifoBytes(std::size_t capacity, std::size_t &records) {
   esp_err_t result = readFifoCount(available_records);
   if (result != ESP_OK)
     return result;
-  // ESP-IDFのtransaction上限には8-bit command phaseも含まれる。
   const std::size_t next_records =
       fifoReadRecordCount(available_records, capacity, spi_->maxTransferSize());
-  if (spi_->maxTransferSize() < kFifoPacketSize + 1)
+  if (spi_->maxTransferSize() < kFifoPacketSize)
     return ESP_ERR_INVALID_STATE;
   if (next_records != 0) {
     // FIFO packet途中でCSを切らず、16 byte record単位でburst readする。
@@ -863,7 +863,7 @@ esp_err_t ICM42688::drainFifo() {
   esp_err_t result = readFifoCount(available_records);
   std::size_t remaining = available_records;
   const std::size_t transfer_records =
-      std::min(spi_->maxTransferSize() - 1, fifo_buffer_.size()) /
+      std::min(spi_->maxTransferSize(), fifo_buffer_.size()) /
       kFifoPacketSize;
   if (result == ESP_OK && transfer_records == 0)
     return ESP_ERR_INVALID_STATE;
@@ -897,12 +897,15 @@ esp_err_t ICM42688::getFifoStatus(FifoStatus &status) {
   next.full = (interrupt_status & kFifoFullInterrupt) != 0;
   next.lost_packets =
       static_cast<uint16_t>(uint16_t{lost[0]} | (uint16_t{lost[1]} << 8));
+  next.faulted = fifo_faulted_;
   status = next;
   return ESP_OK;
 }
 
 esp_err_t ICM42688::fifoAvailable(std::size_t &records) {
   if (!initialized_ || spi_ == nullptr || !config_.fifo.enabled)
+    return ESP_ERR_INVALID_STATE;
+  if (fifo_faulted_)
     return ESP_ERR_INVALID_STATE;
   uint16_t available_records{};
   const esp_err_t result = readFifoCount(available_records);
@@ -913,6 +916,8 @@ esp_err_t ICM42688::fifoAvailable(std::size_t &records) {
 
 esp_err_t ICM42688::waitFifo(avi::Timeout timeout) {
   if (!initialized_ || spi_ == nullptr || !config_.fifo.enabled)
+    return ESP_ERR_INVALID_STATE;
+  if (fifo_faulted_)
     return ESP_ERR_INVALID_STATE;
   avi::internal::Deadline deadline{};
   if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
@@ -957,6 +962,8 @@ esp_err_t ICM42688::readFifoRaw(FifoRawData *data, std::size_t capacity,
                                 std::size_t &count) {
   if (!initialized_ || spi_ == nullptr || !config_.fifo.enabled)
     return ESP_ERR_INVALID_STATE;
+  if (fifo_faulted_)
+    return ESP_ERR_INVALID_STATE;
   if (data == nullptr && capacity != 0)
     return ESP_ERR_INVALID_ARG;
   if (capacity == 0) {
@@ -968,8 +975,12 @@ esp_err_t ICM42688::readFifoRaw(FifoRawData *data, std::size_t capacity,
   if (result != ESP_OK)
     return result;
   for (std::size_t i = 0; i < next_count; ++i) {
-    if (!validFifoHeader(fifo_buffer_[i * kFifoPacketSize]))
+    if (!validFifoHeader(fifo_buffer_[i * kFifoPacketSize])) {
+      // FIFO_DATAは既に消費されておりtimestampとの対応を復元できないため、
+      // 再初期化されるまでFIFO readを禁止する。
+      fifo_faulted_ = true;
       return ESP_ERR_INVALID_RESPONSE;
+    }
   }
   for (std::size_t i = 0; i < next_count; ++i)
     (void)parseFifoPacket3(&fifo_buffer_[i * kFifoPacketSize], data[i]);
@@ -988,6 +999,8 @@ esp_err_t ICM42688::readFifo(FifoData *data, std::size_t capacity,
                              std::size_t &count) {
   if (!initialized_ || spi_ == nullptr || !config_.fifo.enabled)
     return ESP_ERR_INVALID_STATE;
+  if (fifo_faulted_)
+    return ESP_ERR_INVALID_STATE;
   if (data == nullptr && capacity != 0)
     return ESP_ERR_INVALID_ARG;
   if (capacity == 0) {
@@ -999,8 +1012,12 @@ esp_err_t ICM42688::readFifo(FifoData *data, std::size_t capacity,
   if (result != ESP_OK)
     return result;
   for (std::size_t i = 0; i < next_count; ++i) {
-    if (!validFifoHeader(fifo_buffer_[i * kFifoPacketSize]))
+    if (!validFifoHeader(fifo_buffer_[i * kFifoPacketSize])) {
+      // FIFO_DATAは既に消費されておりtimestampとの対応を復元できないため、
+      // 再初期化されるまでFIFO readを禁止する。
+      fifo_faulted_ = true;
       return ESP_ERR_INVALID_RESPONSE;
+    }
   }
   uint64_t next_timestamp_us = fifo_timestamp_us_;
   uint8_t next_remainder = fifo_timestamp_remainder_;

@@ -120,6 +120,7 @@ public:
     bool threshold{false};
     bool full{false};
     uint16_t lost_packets{};
+    bool faulted{false};
   };
 
   struct Status {
@@ -194,5 +195,6 @@ private:
   std::array<uint8_t, 2080> fifo_buffer_{};
   uint64_t fifo_timestamp_us_{0};
   uint8_t fifo_timestamp_remainder_{0};
+  bool fifo_faulted_{false};
   bool initialized_{false};
 };

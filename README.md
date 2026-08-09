@@ -299,6 +299,8 @@ if (result == ESP_OK &&
 
 `timestamp_ticks`はpacket内のraw ODR delta、`timestamp_us`はFIFO開始epochからのsensor-relative時刻です。internal clock、`TMST_RES=0`のためv1.6 section 12.7どおり32/30を整数remainder付きで累積し、ESP32のtimer epochやSPI read時刻とは一致しません。最初のpacketにもsensorのdeltaを反映します。`getFifoStatus()`でwatermark、FIFO full、lost packet数を確認できます。full/lossは通信errorへ変換せずstatusで通知します。
 
+FIFO Packet 3のheaderが想定形式と一致しない場合、FIFO_DATAは既に消費されておりtimestampとの対応を安全に復元できないため、そのinstanceをFIFO fault状態にします。異常を検出したreadは`ESP_ERR_INVALID_RESPONSE`を返し、それ以降の`fifoAvailable()`、`waitFifo()`、`readFifoRaw()`、`readFifo()`は`ESP_ERR_INVALID_STATE`を返します。`getFifoStatus().faulted`で状態を確認でき、`end()`してから再度`begin()`することで復旧します。
+
 FIFO有効時はAccel/Gyro ODRを同一かつ12.5 Hz～2 kHzにしてください。4 kHz以上は45 msのgyro startup中に2048-byte FIFO容量を超えるため`begin()`で拒否します。FIFOの複合readと同じinstanceの他操作は呼出し側でserializeしてください。INT GPIO使用時はDATA_RDYをrouteせず、FIFO threshold/fullだけをstatic semaphoreへ通知します。`waitFifo()`はFIFO countを先に確認し、semaphoreはwake-up hintとしてのみ使用します。ISRはSPI、heap、logging、blockingを行いません。Packet 4 high-resolution、FSYNC、external RTC、Accel-only、Gyro-only、異なるAccel/Gyro ODRには対応しません。Accel/Gyroの`-32768`はv1.6のinvalid markerとしてvalidity flagをfalseにし、通信成功とは区別します。FIFO温度についてv1.6は独立したinvalid markerを規定していないため、対応構成では`temperature_valid=true`です。
 
 加速度またはジャイロのODRが4 kHz以上でINT GPIOを使う場合、driverはdatasheetの要件に従い`INT_CONFIG1.INT_TPULSE_DURATION`と`INT_TDEASSERT_DISABLE`を自動設定します。4 kHz未満ではこれらを解除します。`INT_ASYNC_RESET`は全ODRで解除します。
