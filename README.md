@@ -102,7 +102,7 @@ LPS25HBは同じclassをSPIまたはI2C address `0x5C`/`0x5D`で開始できま�
 
 `STSCREATE`は磁気エンコーダ版STS protocolのlittle-endian packet層です。PING、READ、WRITE、REG WRITE、ACTION、SYNC READ/WRITE、RECOVERY、状態resetを提供します。broadcast PINGは衝突を避けるため拒否します。direction pin指定時はUART shift registerの送信完了後、delayを挟まずRXへ切り替えます。`lock_timeout`はbus mutex取得、`tx_timeout`はUART shift registerの送信完了、`response_timeout`は1 response packet全体の受信deadlineです。tx/responseのdefaultは各100 msです。
 
-公開する最低baudrate 38.4 kbpsでは、8N1の259-byte packetの理論wire timeが約67.5 ms（切上げ68 ms）になるため、従来の共通10 ms defaultでは最大packetを送信できません。1 Mbpsで短いpacketだけを使う場合は`tx_timeout`と`response_timeout`を明示的に10 ms等へ短縮できます。`syncRead()`のoptional `device_errors`配列には各IDのresponse ERROR byteが入ります。途中で失敗した場合、それ以前に正常受信したdata/error entryは更新済みで、失敗したID以降は未変更です。
+公開する最低baudrate 38.4 kbpsでは、8N1の259-byte packetの理論wire timeが約67.5 ms（切上げ68 ms）になるため、従来の共通10 ms defaultでは最大packetを送信できません。1 Mbpsで短いpacketだけを使う場合は`tx_timeout`と`response_timeout`を明示的に10 ms等へ短縮できます。SYNC READの1台あたりのpayloadは1～253 byteです。SYNC READ/WRITEはpacket size、data size、ID重複を送信前に検査します。`syncRead()`のoptional `device_errors`配列には各IDのresponse ERROR byteが入ります。途中で失敗した場合、それ以前に正常受信したdata/error entryは更新済みで、失敗したID以降は未変更です。
 
 `esp_err_t`はUART transportとpacket framingの成否を表し、responseの`ERROR` byteはservoが報告する別の状態です。したがって`ESP_OK`かつ`device_error != 0`は正常なprotocol transactionです。`STS3215`はresponseを受信したtransactionの値を`lastDeviceError()`へ保存し、fault中でも`getStatus()`やtelemetryを取得できます。responseを待たないWRITEでは保存値を変更しません。
 
@@ -114,7 +114,7 @@ cache invalid時はmode確認、typed configuration、movement、`holdCurrentPos
 
 telemetryのposition、speed、currentはBIT15、loadはBIT10を符号とするsign-magnitudeです。`Data`ではposition/speed/currentを符号付き物理値へ変換し、loadは符号付きraw値を返します。`TorqueLimit::raw()`/`percent()`は範囲外、NaN、無限値に対して`valid()==false`となり、受付APIは`ESP_ERR_INVALID_ARG`を返します。stall protectionの`trigger_time_ms`は0～2540 msをnearest 10 msへ量子化するservo設定値で、待機を表す`avi::Timeout`ではありません。
 
-EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずbest-effortで元へ戻します。ID、baudrate、response level、position limit、phase、angular resolution、operating modeはinstanceの通信条件またはcacheへ影響するため、generic `writeRegister()`では`ESP_ERR_NOT_SUPPORTED`として意図的に禁止します。cacheを変更する設定はhardwareとcacheを同期するtyped setterだけを使用します。current positionとservo statusもread-onlyとしてgeneric writeを拒否します。
+EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずbest-effortで元へ戻します。ID、baudrate、response level、position limit、phase、angular resolution、operating modeはinstanceの通信条件またはcacheへ影響するため、generic `writeRegister()`では`ESP_ERR_NOT_SUPPORTED`として意図的に禁止します。cacheを変更する設定はhardwareとcacheを同期するtyped setterだけを使用します。current positionとservo statusもread-onlyとしてgeneric writeを拒否します。typed `Register` accessはregister固有widthだけを許可するため、隣接するcache-sensitive/read-only registerへの越境writeはできません。任意spanのraw accessは提供せず、高レベルmovement内部の連続WRITEだけを個別に管理します。
 
 提供された磁気エンコーダ版memory tableに従い、Angular Resolutionは`1..3`のみ有効で、`degrees_per_step = 360 / 4096 * resolution`です。同資料でServo Status 0x41のBIT4は未定義のためtyped boolを設けず、値は`Status::raw`へ保持します。broadcast ACTIONはresponseを返さないため、broadcast IDと`wait_response=true`の組合せは`ESP_ERR_INVALID_ARG`です。複数servo instanceは同じSTSCREATEを共有できますが、同一STS3215 instanceの設定、movement、telemetry、`lastDeviceError()`の利用は呼出し側でserializeしてください。
 
@@ -318,6 +318,7 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 - `STSCREATE::Config`へ`tx_timeout`を追加し、`response_timeout`のdefaultを10 msから100 msへ変更しました。
 - `STSCREATE::syncRead()`へsource-compatibleなoptional `device_errors`末尾引数を追加しました。
 - `STS3215`へ`configurationValid()`と`refreshConfiguration()`を追加し、cache invalid時の高レベル操作を拒否します。`degreesPerStep()`はcache invalid時にNaNを返します。
+- `STS3215::readRegister()`/`writeRegister()`は各`Register`固有width以外を拒否します。SYNC READ/WRITEも表現不能なsizeと重複IDを送信前に拒否します。
 
 - `CAN_CREATE`、`CANCREATE_lib.h`、旧互換mode、`setPin()`、`sendChar()`、`sendData()`、`sendLine()`、`readLine()`、`sendPacket()`を削除しました。
 - `CANCREATE::Config::bitrate`と簡易`begin()`は任意整数から`Bitrate` enumへ変更し、`read(Frame&)`の既定timeoutを0 msへ変更しました。
