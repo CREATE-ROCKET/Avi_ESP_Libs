@@ -143,6 +143,9 @@ inline void aviApiSmoke() {
   ICM42688::Data icm42688_data{};
   ICM42688::RawData icm42688_raw{};
   ICM42688::Status icm42688_status{};
+  ICM42688::FifoRawData icm42688_fifo_raw[4]{};
+  ICM42688::FifoData icm42688_fifo_data[4]{};
+  ICM42688::FifoStatus icm42688_fifo_status{};
   ICM42688::SelfTestResult icm42688_self_test{};
   bool ready{};
   low_odr_config.accel_odr = ICM42688::AccelOdr::hz1000;
@@ -151,6 +154,8 @@ inline void aviApiSmoke() {
   high_odr_config.gyro_odr = ICM42688::GyroOdr::hz32000;
   high_odr_config.gyro_range = ICM42688::GyroRange::dps15_625;
   high_odr_config.int_gpio = GPIO_NUM_4;
+  low_odr_config.fifo.enabled = true;
+  low_odr_config.fifo.watermark_records = 4;
   uint8_t identity{};
   (void)icm42688.begin(spi, -1, low_odr_config);
   (void)icm42688.begin(spi, -1, high_odr_config);
@@ -165,6 +170,14 @@ inline void aviApiSmoke() {
   (void)icm42688.waitDataReady(forever);
   (void)icm42688.readRaw(icm42688_raw);
   (void)icm42688.read(icm42688_data);
+  std::size_t fifo_count{};
+  (void)icm42688.getFifoStatus(icm42688_fifo_status);
+  (void)icm42688.fifoAvailable(fifo_count);
+  (void)icm42688.waitFifo(no_wait);
+  (void)icm42688.waitFifo(one_ms);
+  (void)icm42688.waitFifo(forever);
+  (void)icm42688.readFifoRaw(icm42688_fifo_raw, 4, fifo_count);
+  (void)icm42688.readFifo(icm42688_fifo_data, 4, fifo_count);
   (void)icm42688.selfTest(icm42688_self_test);
   (void)icm42688.initialized();
   (void)icm42688.end();

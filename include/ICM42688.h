@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 #include "SPICREATE.h"
@@ -61,6 +62,11 @@ public:
     odr_div40
   };
 
+  struct FifoConfig {
+    bool enabled{false};
+    uint16_t watermark_records{1};
+  };
+
   struct Config {
     uint32_t frequency_hz{8000000};
     AccelRange accel_range{AccelRange::g16};
@@ -69,6 +75,7 @@ public:
     GyroOdr gyro_odr{GyroOdr::hz1000};
     Filter filter{Filter::odr_div4};
     gpio_num_t int_gpio{GPIO_NUM_NC};
+    FifoConfig fifo{};
   };
 
   struct RawData {
@@ -81,6 +88,38 @@ public:
     std::array<float, 3> acceleration_g{};
     std::array<float, 3> angular_velocity_dps{};
     float temperature_celsius{};
+  };
+
+  struct FifoRawData {
+    std::array<int16_t, 3> acceleration{};
+    std::array<int16_t, 3> angular_velocity{};
+    int8_t temperature{};
+    uint16_t timestamp_ticks{};
+    bool acceleration_valid{false};
+    bool angular_velocity_valid{false};
+    bool temperature_valid{true};
+    bool accel_odr_changed{false};
+    bool gyro_odr_changed{false};
+  };
+
+  struct FifoData {
+    std::array<float, 3> acceleration_g{};
+    std::array<float, 3> angular_velocity_dps{};
+    float temperature_celsius{};
+    uint16_t timestamp_ticks{};
+    uint64_t timestamp_us{};
+    bool acceleration_valid{false};
+    bool angular_velocity_valid{false};
+    bool temperature_valid{true};
+    bool accel_odr_changed{false};
+    bool gyro_odr_changed{false};
+  };
+
+  struct FifoStatus {
+    uint16_t records_available{};
+    bool threshold{false};
+    bool full{false};
+    uint16_t lost_packets{};
   };
 
   struct Status {
@@ -120,6 +159,14 @@ public:
   waitDataReady(avi::Timeout timeout = avi::Timeout::noWait());
   [[nodiscard]] esp_err_t readRaw(RawData &data);
   [[nodiscard]] esp_err_t read(Data &data);
+  [[nodiscard]] esp_err_t getFifoStatus(FifoStatus &status);
+  [[nodiscard]] esp_err_t fifoAvailable(std::size_t &records);
+  [[nodiscard]] esp_err_t
+  waitFifo(avi::Timeout timeout = avi::Timeout::noWait());
+  [[nodiscard]] esp_err_t readFifoRaw(FifoRawData *data, std::size_t capacity,
+                                      std::size_t &count);
+  [[nodiscard]] esp_err_t readFifo(FifoData *data, std::size_t capacity,
+                                   std::size_t &count);
   [[nodiscard]] esp_err_t
   selfTest(SelfTestResult &result,
            avi::Timeout timeout = avi::Timeout::milliseconds(2500));
@@ -130,7 +177,12 @@ private:
     StaticSemaphore_t storage{};
     SemaphoreHandle_t signal{nullptr};
   };
-  static void dataReadyIsr(void *context);
+  static void interruptIsr(void *context);
+  [[nodiscard]] esp_err_t readFifoCount(uint16_t &records);
+  [[nodiscard]] esp_err_t drainFifo();
+  [[nodiscard]] esp_err_t readFifoBytes(std::size_t capacity,
+                                        std::size_t &records);
+  void resetFifoState();
 
   SPICREATE *spi_{nullptr};
   SPICREATE::Device device_{nullptr};
@@ -139,5 +191,8 @@ private:
   AccelRange accel_range_{AccelRange::g16};
   GyroRange gyro_range_{GyroRange::dps2000};
   Config config_{};
+  std::array<uint8_t, 2080> fifo_buffer_{};
+  uint64_t fifo_timestamp_us_{0};
+  uint8_t fifo_timestamp_remainder_{0};
   bool initialized_{false};
 };
