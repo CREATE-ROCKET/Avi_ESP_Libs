@@ -96,6 +96,12 @@ constexpr uint16_t torqueRawFromPercent(float value) {
 constexpr uint16_t stallTimeRaw(uint16_t milliseconds) {
   return static_cast<uint16_t>((milliseconds + 5) / 10);
 }
+constexpr bool validConfigurationValues(uint8_t response_status_level,
+                                        uint8_t angular_resolution,
+                                        uint8_t operating_mode) {
+  return response_status_level <= 1 && angular_resolution >= 1 &&
+         angular_resolution <= 3 && operating_mode <= 3;
+}
 static_assert(absolute(degreesPerStep(1) - 0.087890625F) < 0.000001F);
 static_assert(absolute(4096 * degreesPerStep(1) - 360.0F) < 0.001F);
 static_assert(absolute(2048 * degreesPerStep(1) - 180.0F) < 0.001F);
@@ -165,6 +171,12 @@ static_assert(registerWriteAccess(STS3215::Register::current_position) ==
               RegisterWriteAccess::read_only);
 static_assert(registerWriteAccess(STS3215::Register::servo_status) ==
               RegisterWriteAccess::read_only);
+static_assert(validConfigurationValues(0, 1, 0));
+static_assert(validConfigurationValues(1, 3, 3));
+static_assert(!validConfigurationValues(2, 1, 0));
+static_assert(!validConfigurationValues(0, 0, 0));
+static_assert(!validConfigurationValues(0, 4, 0));
+static_assert(!validConfigurationValues(0, 1, 4));
 
 bool validMode(STS3215::OperatingMode mode) {
   return static_cast<uint8_t>(mode) <= 3;
@@ -198,7 +210,61 @@ float STS3215::gearRatio() const {
 }
 
 float STS3215::degreesPerStep() const {
+  if (!configuration_valid_)
+    return std::numeric_limits<float>::quiet_NaN();
   return ::degreesPerStep(angular_resolution_);
+}
+
+esp_err_t STS3215::readConfiguration(STSCREATE &bus, uint8_t id,
+                                     ConfigurationSnapshot &snapshot) {
+  uint8_t response_level{};
+  uint8_t resolution{};
+  uint8_t mode{};
+  uint8_t phase{};
+  uint8_t minimum[2]{};
+  uint8_t maximum[2]{};
+  const auto read = [this, &bus, id](uint8_t address, uint8_t *data,
+                                     std::size_t length) {
+    uint8_t device_error{};
+    const esp_err_t result = bus.read(id, address, data, length, &device_error);
+    if (result == ESP_OK)
+      last_device_error_ = device_error;
+    return result;
+  };
+  esp_err_t result = read(kResponseStatusLevel, &response_level, 1);
+  if (result == ESP_OK)
+    result = read(kAngularResolution, &resolution, 1);
+  if (result == ESP_OK)
+    result = read(kOperatingMode, &mode, 1);
+  if (result == ESP_OK)
+    result = read(kPhase, &phase, 1);
+  if (result == ESP_OK)
+    result = read(kMinimumPosition, minimum, sizeof(minimum));
+  if (result == ESP_OK)
+    result = read(kMaximumPosition, maximum, sizeof(maximum));
+  if (result != ESP_OK)
+    return result;
+  if (!validConfigurationValues(response_level, resolution, mode))
+    return ESP_ERR_INVALID_RESPONSE;
+  ConfigurationSnapshot next{};
+  next.response_status_level = response_level;
+  next.angular_resolution = resolution;
+  next.operating_mode = static_cast<OperatingMode>(mode);
+  next.phase = phase;
+  next.minimum_position = littleEndian(minimum);
+  next.maximum_position = littleEndian(maximum);
+  snapshot = next;
+  return ESP_OK;
+}
+
+void STS3215::commitConfiguration(const ConfigurationSnapshot &snapshot) {
+  response_status_level_ = snapshot.response_status_level;
+  angular_resolution_ = snapshot.angular_resolution;
+  operating_mode_ = snapshot.operating_mode;
+  phase_ = snapshot.phase;
+  minimum_position_ = snapshot.minimum_position;
+  maximum_position_ = snapshot.maximum_position;
+  configuration_valid_ = true;
 }
 
 esp_err_t STS3215::readBytes(uint8_t address, uint8_t *data,
@@ -217,7 +283,7 @@ esp_err_t STS3215::writeBytes(uint8_t address, const uint8_t *data,
                               std::size_t length) {
   if (!initialized_ || bus_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  if (response_status_level_ == 0)
+  if (!configuration_valid_ || response_status_level_ == 0)
     return bus_->write(id_, address, data, length, false);
   uint8_t device_error{};
   const esp_err_t result =
@@ -234,42 +300,33 @@ esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id, Model model) {
     return ESP_ERR_INVALID_ARG;
   uint8_t device_error{};
   esp_err_t result = bus.ping(id, &device_error);
-  uint8_t response_level{};
-  uint8_t resolution{};
-  uint8_t mode{};
-  uint8_t phase{};
-  uint8_t minimum[2]{};
-  uint8_t maximum[2]{};
   if (result == ESP_OK)
-    result =
-        bus.read(id, kResponseStatusLevel, &response_level, 1, &device_error);
+    last_device_error_ = device_error;
+  ConfigurationSnapshot snapshot{};
   if (result == ESP_OK)
-    result = bus.read(id, kAngularResolution, &resolution, 1, &device_error);
-  if (result == ESP_OK)
-    result = bus.read(id, kOperatingMode, &mode, 1, &device_error);
-  if (result == ESP_OK)
-    result = bus.read(id, kPhase, &phase, 1, &device_error);
-  if (result == ESP_OK)
-    result =
-        bus.read(id, kMinimumPosition, minimum, sizeof(minimum), &device_error);
-  if (result == ESP_OK)
-    result =
-        bus.read(id, kMaximumPosition, maximum, sizeof(maximum), &device_error);
+    result = readConfiguration(bus, id, snapshot);
   if (result != ESP_OK)
     return result;
-  if (response_level > 1 || resolution == 0 || resolution > 3 || mode > 3)
-    return ESP_ERR_INVALID_RESPONSE;
   bus_ = &bus;
   id_ = id;
   model_ = model;
-  response_status_level_ = response_level;
-  angular_resolution_ = resolution;
-  operating_mode_ = static_cast<OperatingMode>(mode);
-  phase_ = phase;
-  minimum_position_ = littleEndian(minimum);
-  maximum_position_ = littleEndian(maximum);
-  last_device_error_ = device_error;
+  commitConfiguration(snapshot);
   initialized_ = true;
+  return ESP_OK;
+}
+
+esp_err_t STS3215::refreshConfiguration() {
+  if (!initialized_ || bus_ == nullptr) {
+    configuration_valid_ = false;
+    return ESP_ERR_INVALID_STATE;
+  }
+  ConfigurationSnapshot snapshot{};
+  const esp_err_t result = readConfiguration(*bus_, id_, snapshot);
+  if (result != ESP_OK) {
+    configuration_valid_ = false;
+    return result;
+  }
+  commitConfiguration(snapshot);
   return ESP_OK;
 }
 
@@ -277,19 +334,20 @@ esp_err_t STS3215::end() {
   if (!initialized_)
     return ESP_ERR_INVALID_STATE;
   initialized_ = false;
+  configuration_valid_ = false;
   bus_ = nullptr;
   return ESP_OK;
 }
 
 esp_err_t STS3215::getOperatingMode(OperatingMode &mode) const {
-  if (!initialized_)
+  if (!initialized_ || !configuration_valid_)
     return ESP_ERR_INVALID_STATE;
   mode = operating_mode_;
   return ESP_OK;
 }
 
 esp_err_t STS3215::verifyOperatingMode(OperatingMode expected) const {
-  if (!initialized_)
+  if (!initialized_ || !configuration_valid_)
     return ESP_ERR_INVALID_STATE;
   return operating_mode_ == expected ? ESP_OK : ESP_ERR_INVALID_STATE;
 }
@@ -321,35 +379,56 @@ esp_err_t STS3215::setOperatingMode(OperatingMode mode,
                                     Persistence persistence) {
   if (!validMode(mode))
     return ESP_ERR_INVALID_ARG;
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
+  if (!validPersistence(persistence))
+    return ESP_ERR_INVALID_ARG;
   const uint8_t raw = static_cast<uint8_t>(mode);
-  const esp_err_t result = writeEpRom(kOperatingMode, &raw, 1, persistence);
-  if (result == ESP_OK)
-    operating_mode_ = mode;
-  return result;
+  const esp_err_t operation = writeEpRom(kOperatingMode, &raw, 1, persistence);
+  const esp_err_t refresh = refreshConfiguration();
+  if (refresh != ESP_OK)
+    return refresh;
+  if (operation != ESP_OK)
+    return operation;
+  return operating_mode_ == mode ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
 }
 
 esp_err_t STS3215::configureStepMode(Persistence persistence) {
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
+  if (!validPersistence(persistence))
+    return ESP_ERR_INVALID_ARG;
   const uint8_t values[]{0, 0, 0, 0};
-  esp_err_t result =
+  esp_err_t operation =
       writeEpRom(kMinimumPosition, values, sizeof(values), persistence);
   const uint8_t mode = static_cast<uint8_t>(OperatingMode::step);
-  if (result == ESP_OK)
-    result = writeEpRom(kOperatingMode, &mode, 1, persistence);
-  if (result == ESP_OK) {
-    minimum_position_ = 0;
-    maximum_position_ = 0;
-    operating_mode_ = OperatingMode::step;
-  }
-  return result;
+  if (operation == ESP_OK)
+    operation = writeEpRom(kOperatingMode, &mode, 1, persistence);
+  const esp_err_t refresh = refreshConfiguration();
+  if (refresh != ESP_OK)
+    return refresh;
+  if (operation != ESP_OK)
+    return operation;
+  return minimum_position_ == 0 && maximum_position_ == 0 &&
+                 operating_mode_ == OperatingMode::step
+             ? ESP_OK
+             : ESP_ERR_INVALID_RESPONSE;
 }
 
 esp_err_t STS3215::updatePhase(uint8_t mask, uint8_t value,
                                Persistence persistence) {
-  uint8_t next = static_cast<uint8_t>((phase_ & ~mask) | (value & mask));
-  const esp_err_t result = writeEpRom(kPhase, &next, 1, persistence);
-  if (result == ESP_OK)
-    phase_ = next;
-  return result;
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
+  if (!validPersistence(persistence))
+    return ESP_ERR_INVALID_ARG;
+  const uint8_t next = static_cast<uint8_t>((phase_ & ~mask) | (value & mask));
+  const esp_err_t operation = writeEpRom(kPhase, &next, 1, persistence);
+  const esp_err_t refresh = refreshConfiguration();
+  if (refresh != ESP_OK)
+    return refresh;
+  if (operation != ESP_OK)
+    return operation;
+  return (phase_ & mask) == (next & mask) ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
 }
 
 esp_err_t STS3215::setDirection(Direction direction, Persistence persistence) {
@@ -409,7 +488,9 @@ esp_err_t STS3215::readTorqueLimit(TorqueLimit &limit) {
 }
 
 esp_err_t STS3215::holdCurrentPosition(const HoldConfig &config) {
-  if (!initialized_ || !config.torque_limit.valid())
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
+  if (!config.torque_limit.valid())
     return ESP_ERR_INVALID_ARG;
   esp_err_t result = ESP_OK;
   if (operating_mode_ == OperatingMode::position) {
@@ -478,6 +559,8 @@ esp_err_t STS3215::encodeMotion(float degrees, const Motion &motion,
 }
 
 esp_err_t STS3215::moveAbsoluteDegrees(float degrees, const Motion &motion) {
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
   if (operating_mode_ != OperatingMode::position)
     return ESP_ERR_INVALID_STATE;
   uint8_t data[9]{};
@@ -487,6 +570,8 @@ esp_err_t STS3215::moveAbsoluteDegrees(float degrees, const Motion &motion) {
 }
 
 esp_err_t STS3215::moveRelativeDegrees(float degrees, const Motion &motion) {
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
   if (operating_mode_ != OperatingMode::step)
     return ESP_ERR_INVALID_STATE;
   if (degrees == 0.0F)
@@ -565,6 +650,8 @@ esp_err_t STS3215::readRaw(RawData &data) {
 }
 
 esp_err_t STS3215::read(Data &data) {
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
   RawData raw{};
   const esp_err_t result = readRaw(raw);
   if (result != ESP_OK)

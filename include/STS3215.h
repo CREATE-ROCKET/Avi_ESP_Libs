@@ -110,6 +110,8 @@ public:
   [[nodiscard]] esp_err_t begin(STSCREATE &bus, uint8_t id, Model model);
   [[nodiscard]] esp_err_t end();
   [[nodiscard]] bool initialized() const { return initialized_; }
+  [[nodiscard]] bool configurationValid() const { return configuration_valid_; }
+  [[nodiscard]] esp_err_t refreshConfiguration();
   [[nodiscard]] uint8_t lastDeviceError() const { return last_device_error_; }
   [[nodiscard]] float gearRatio() const;
   [[nodiscard]] float degreesPerStep() const;
@@ -146,6 +148,18 @@ public:
                                         Persistence persistence);
 
 private:
+  struct ConfigurationSnapshot {
+    uint8_t response_status_level{};
+    uint8_t angular_resolution{};
+    OperatingMode operating_mode{OperatingMode::position};
+    uint8_t phase{};
+    uint16_t minimum_position{};
+    uint16_t maximum_position{};
+  };
+
+  [[nodiscard]] esp_err_t readConfiguration(STSCREATE &bus, uint8_t id,
+                                            ConfigurationSnapshot &snapshot);
+  void commitConfiguration(const ConfigurationSnapshot &snapshot);
   [[nodiscard]] esp_err_t readBytes(uint8_t address, uint8_t *data,
                                     std::size_t length);
   [[nodiscard]] esp_err_t writeBytes(uint8_t address, const uint8_t *data,
@@ -171,4 +185,5 @@ private:
   uint16_t maximum_position_{4095};
   uint8_t last_device_error_{};
   bool initialized_{false};
+  bool configuration_valid_{false};
 };
