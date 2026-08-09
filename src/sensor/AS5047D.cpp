@@ -37,11 +37,15 @@ constexpr uint16_t withEvenParity(uint16_t value) {
 constexpr uint16_t makeReadCommand(uint16_t address) {
   return withEvenParity(static_cast<uint16_t>(kRead | (address & kDataMask)));
 }
+constexpr uint16_t angleFromResponse(uint16_t response) {
+  return static_cast<uint16_t>(response & kDataMask);
+}
 constexpr AS5047D::ErrorFlags decodeErrors(uint16_t value) {
   return {(value & 0x04) != 0, (value & 0x02) != 0, (value & 0x01) != 0};
 }
 static_assert(makeReadCommand(kAngleCompensated) == 0xFFFF);
 static_assert(!hasOddParity(makeReadCommand(kAngleUncompensated)));
+static_assert(angleFromResponse(0xFFFF) == 0x3FFF);
 static_assert(decodeErrors(0x07).framing_error);
 static_assert(16383.0F * kDegreesPerCount < 360.0F);
 } // namespace
@@ -85,6 +89,7 @@ esp_err_t AS5047D::begin(SPICREATE &spi, int chip_select,
   }
   config_ = config;
   last_error_flags_ = {};
+  pipeline_active_ = false;
   initialized_ = true;
   return ESP_OK;
 }
@@ -93,6 +98,7 @@ esp_err_t AS5047D::end() {
   if (spi_ == nullptr || device_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   initialized_ = false;
+  pipeline_active_ = false;
   const esp_err_t result = spi_->removeDevice(device_);
   if (result != ESP_OK)
     return result;
@@ -103,22 +109,28 @@ esp_err_t AS5047D::end() {
 }
 
 esp_err_t AS5047D::transferFrame(uint16_t tx, uint16_t &rx) {
-  uint8_t tx_bytes[]{static_cast<uint8_t>(tx >> 8), static_cast<uint8_t>(tx)};
-  uint8_t rx_bytes[2]{};
   spi_transaction_t transaction{};
+  transaction.flags = SPI_TRANS_USE_TXDATA | SPI_TRANS_USE_RXDATA;
   transaction.length = 16;
-  transaction.tx_buffer = tx_bytes;
-  transaction.rx_buffer = rx_bytes;
+  transaction.tx_data[0] = static_cast<uint8_t>(tx >> 8);
+  transaction.tx_data[1] = static_cast<uint8_t>(tx);
   const esp_err_t result = spi_->pollingTransmit(device_, transaction);
   waitChipSelectHigh();
   if (result != ESP_OK)
     return result;
   const uint16_t next = static_cast<uint16_t>(
-      static_cast<uint16_t>(rx_bytes[0]) << 8 | rx_bytes[1]);
+      static_cast<uint16_t>(transaction.rx_data[0]) << 8 |
+      transaction.rx_data[1]);
   if (hasOddParity(next))
     return ESP_ERR_INVALID_CRC;
   rx = next;
   return ESP_OK;
+}
+
+uint16_t AS5047D::angleReadCommand() const {
+  return makeReadCommand(config_.angle_source == AngleSource::compensated
+                             ? kAngleCompensated
+                             : kAngleUncompensated);
 }
 
 esp_err_t AS5047D::readRegister(uint16_t address, uint16_t &value) {
@@ -133,7 +145,7 @@ esp_err_t AS5047D::readRegister(uint16_t address, uint16_t &value) {
     return result;
   if ((response & kError) != 0)
     return handleErrorFlag();
-  value = static_cast<uint16_t>(response & kDataMask);
+  value = angleFromResponse(response);
   return ESP_OK;
 }
 
@@ -146,7 +158,7 @@ esp_err_t AS5047D::readErrorFlagsInternal(ErrorFlags &flags) {
   result = transferFrame(makeReadCommand(0), response);
   if (result != ESP_OK)
     return result;
-  flags = decodeErrors(static_cast<uint16_t>(response & kDataMask));
+  flags = decodeErrors(angleFromResponse(response));
   return ESP_OK;
 }
 
@@ -160,7 +172,7 @@ esp_err_t AS5047D::handleErrorFlag() {
 }
 
 esp_err_t AS5047D::readAndClearErrorFlags(ErrorFlags &flags) {
-  if (!initialized_)
+  if (!initialized_ || pipeline_active_)
     return ESP_ERR_INVALID_STATE;
   ErrorFlags next{};
   const esp_err_t result = readErrorFlagsInternal(next);
@@ -172,7 +184,7 @@ esp_err_t AS5047D::readAndClearErrorFlags(ErrorFlags &flags) {
 }
 
 esp_err_t AS5047D::readRaw(RawData &data) {
-  if (!initialized_)
+  if (!initialized_ || pipeline_active_)
     return ESP_ERR_INVALID_STATE;
   uint16_t angle{};
   const esp_err_t result = readRegister(
@@ -194,8 +206,59 @@ esp_err_t AS5047D::read(Data &data) {
   return ESP_OK;
 }
 
+esp_err_t AS5047D::startPipelinedRead() {
+  if (!initialized_ || pipeline_active_)
+    return ESP_ERR_INVALID_STATE;
+
+  uint16_t response{};
+  const esp_err_t result = transferFrame(angleReadCommand(), response);
+  if (result != ESP_OK)
+    return result;
+  if ((response & kError) != 0)
+    return handleErrorFlag();
+
+  pipeline_active_ = true;
+  return ESP_OK;
+}
+
+esp_err_t AS5047D::readPipelinedRaw(RawData &data) {
+  if (!initialized_ || !pipeline_active_)
+    return ESP_ERR_INVALID_STATE;
+
+  uint16_t response{};
+  const esp_err_t result = transferFrame(angleReadCommand(), response);
+  if (result != ESP_OK) {
+    pipeline_active_ = false;
+    return result;
+  }
+  if ((response & kError) != 0) {
+    pipeline_active_ = false;
+    return handleErrorFlag();
+  }
+
+  data = {angleFromResponse(response)};
+  return ESP_OK;
+}
+
+esp_err_t AS5047D::readPipelined(Data &data) {
+  RawData raw{};
+  const esp_err_t result = readPipelinedRaw(raw);
+  if (result != ESP_OK)
+    return result;
+  data = {raw.angle, raw.angle * kDegreesPerCount,
+          raw.angle * kRadiansPerCount};
+  return ESP_OK;
+}
+
+esp_err_t AS5047D::stopPipelinedRead() {
+  if (!initialized_ || !pipeline_active_)
+    return ESP_ERR_INVALID_STATE;
+  pipeline_active_ = false;
+  return ESP_OK;
+}
+
 esp_err_t AS5047D::getStatus(Status &status) {
-  if (!initialized_)
+  if (!initialized_ || pipeline_active_)
     return ESP_ERR_INVALID_STATE;
   uint16_t diagnostics{};
   esp_err_t result = readRegister(kDiagnostics, diagnostics);
