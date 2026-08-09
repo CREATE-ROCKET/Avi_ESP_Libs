@@ -218,6 +218,8 @@ inline void aviApiSmoke() {
   STSCREATE sts;
   STSCREATE::Config sts_config{};
   sts_config.tx = GPIO_NUM_NC;
+  sts_config.tx_timeout = avi::Timeout::milliseconds(100);
+  sts_config.response_timeout = avi::Timeout::milliseconds(100);
   constexpr STSCREATE::Baudrate sts_baudrates[]{
       STSCREATE::Baudrate::bps1000000, STSCREATE::Baudrate::bps500000,
       STSCREATE::Baudrate::bps250000,  STSCREATE::Baudrate::bps128000,
@@ -226,6 +228,7 @@ inline void aviApiSmoke() {
   (void)sts_baudrates;
   uint8_t sts_data[8]{};
   uint8_t sts_error{};
+  uint8_t sts_errors[2]{};
   uint8_t sts_ids[]{1, 2};
   (void)sts.begin(sts_config);
   (void)sts.ping(1);
@@ -238,6 +241,7 @@ inline void aviApiSmoke() {
   (void)sts.action(0xFE, false);
   (void)sts.action(0xFE, true);
   (void)sts.syncRead(0x38, 2, sts_ids, 2, sts_data, 4);
+  (void)sts.syncRead(0x38, 2, sts_ids, 2, sts_data, 4, sts_errors);
   (void)sts.syncWrite(0x2A, 2, sts_ids, 2, sts_data, 4);
   (void)sts.recovery(1);
   (void)sts.recovery(1, &sts_error);
@@ -259,6 +263,9 @@ inline void aviApiSmoke() {
   (void)STS3215::Model::c044_1_191;
   (void)STS3215::Model::c046_1_147;
   (void)servo.begin(sts, 1, STS3215::Model::c001_1_345);
+  (void)servo.configurationValid();
+  (void)servo.refreshConfiguration();
+  (void)servo.degreesPerStep();
   (void)servo.lastDeviceError();
   (void)torque.valid();
   (void)invalid_raw.valid();
