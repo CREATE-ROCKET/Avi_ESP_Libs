@@ -27,6 +27,10 @@ constexpr uint8_t kBroadcastId = 0xFE;
 constexpr std::size_t kMaximumParameters = 253;
 constexpr std::size_t kMaximumPacket = 259;
 
+constexpr uint64_t wireTimeMicroseconds(std::size_t bytes, uint32_t baudrate) {
+  return (bytes * 10ULL * 1000000ULL + baudrate - 1) / baudrate;
+}
+
 constexpr bool validResponseWait(uint8_t id, bool wait_response) {
   return id != kBroadcastId || !wait_response;
 }
@@ -99,6 +103,9 @@ static_assert(validResponseWait(1, true));
 static_assert(validResponseWait(1, false));
 static_assert(validResponseWait(kBroadcastId, false));
 static_assert(!validResponseWait(kBroadcastId, true));
+static_assert(wireTimeMicroseconds(259, 38400) == 67448);
+static_assert((wireTimeMicroseconds(259, 38400) + 999) / 1000 == 68);
+static_assert(100 > (wireTimeMicroseconds(259, 38400) + 999) / 1000);
 
 bool validBaudrate(STSCREATE::Baudrate baudrate) {
   switch (baudrate) {
@@ -128,8 +135,10 @@ bool STSCREATE::validId(uint8_t id, bool allow_broadcast) {
 esp_err_t STSCREATE::begin(const Config &config) {
   if (initialized_)
     return ESP_ERR_INVALID_STATE;
+  uint64_t tx_ms{};
   uint64_t response_ms{};
   TickType_t ignored{};
+  avi::internal::Deadline ignored_deadline{};
   if (config.port < UART_NUM_0 || config.port >= UART_NUM_MAX ||
       !GPIO_IS_VALID_OUTPUT_GPIO(config.tx) || !GPIO_IS_VALID_GPIO(config.rx) ||
       config.tx == config.rx ||
@@ -137,9 +146,14 @@ esp_err_t STSCREATE::begin(const Config &config) {
        !GPIO_IS_VALID_OUTPUT_GPIO(config.direction_enable)) ||
       !validBaudrate(config.baudrate) ||
       avi::internal::timeoutToTicks(config.lock_timeout, ignored) != ESP_OK ||
+      !config.tx_timeout.isFinite() ||
+      !config.tx_timeout.millisecondsValue(tx_ms) || tx_ms == 0 ||
+      avi::internal::timeoutToTicks(config.tx_timeout, ignored) != ESP_OK ||
       !config.response_timeout.isFinite() ||
       !config.response_timeout.millisecondsValue(response_ms) ||
-      response_ms == 0)
+      response_ms == 0 ||
+      avi::internal::makeDeadline(config.response_timeout, ignored_deadline) !=
+          ESP_OK)
     return ESP_ERR_INVALID_ARG;
   SemaphoreHandle_t lock = xSemaphoreCreateMutex();
   if (lock == nullptr)
@@ -165,6 +179,7 @@ esp_err_t STSCREATE::begin(const Config &config) {
   direction_enable_ = config.direction_enable;
   direction_polarity_ = config.direction_polarity;
   lock_timeout_ = config.lock_timeout;
+  tx_timeout_ = config.tx_timeout;
   response_timeout_ = config.response_timeout;
   bus_lock_ = lock;
   initialized_ = true;
@@ -244,7 +259,7 @@ esp_err_t STSCREATE::sendPacket(uint8_t id, Instruction instruction,
     result = written < 0 ? ESP_FAIL : ESP_ERR_INVALID_SIZE;
   TickType_t ticks{};
   if (result == ESP_OK) {
-    result = avi::internal::timeoutToTicks(response_timeout_, ticks);
+    result = avi::internal::timeoutToTicks(tx_timeout_, ticks);
     if (result == ESP_OK)
       result = uart_wait_tx_done(port_, ticks);
   }
@@ -379,7 +394,8 @@ esp_err_t STSCREATE::action(uint8_t id, bool wait_response,
 
 esp_err_t STSCREATE::syncRead(uint8_t address, uint8_t length,
                               const uint8_t *ids, std::size_t id_count,
-                              uint8_t *data, std::size_t data_size) {
+                              uint8_t *data, std::size_t data_size,
+                              uint8_t *device_errors) {
   if (ids == nullptr || data == nullptr || id_count == 0 || length == 0 ||
       id_count > 251 || data_size != id_count * length)
     return ESP_ERR_INVALID_ARG;
@@ -398,7 +414,9 @@ esp_err_t STSCREATE::syncRead(uint8_t address, uint8_t length,
   esp_err_t result = sendPacket(kBroadcastId, Instruction::sync_read,
                                 parameters.data(), id_count + 2);
   for (std::size_t i = 0; i < id_count && result == ESP_OK; ++i)
-    result = receivePacket(ids[i], data + i * length, length, nullptr);
+    result =
+        receivePacket(ids[i], data + i * length, length,
+                      device_errors == nullptr ? nullptr : &device_errors[i]);
   return result;
 }
 

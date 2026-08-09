@@ -45,7 +45,8 @@ public:
     DirectionPolarity direction_polarity{DirectionPolarity::tx_high};
     Baudrate baudrate{Baudrate::bps1000000};
     avi::Timeout lock_timeout{avi::Timeout::noWait()};
-    avi::Timeout response_timeout{avi::Timeout::milliseconds(10)};
+    avi::Timeout tx_timeout{avi::Timeout::milliseconds(100)};
+    avi::Timeout response_timeout{avi::Timeout::milliseconds(100)};
   };
 
   STSCREATE() = default;
@@ -74,7 +75,8 @@ public:
                                  uint8_t *device_error = nullptr);
   [[nodiscard]] esp_err_t syncRead(uint8_t address, uint8_t length,
                                    const uint8_t *ids, std::size_t id_count,
-                                   uint8_t *data, std::size_t data_size);
+                                   uint8_t *data, std::size_t data_size,
+                                   uint8_t *device_errors = nullptr);
   [[nodiscard]] esp_err_t syncWrite(uint8_t address, uint8_t length,
                                     const uint8_t *ids, std::size_t id_count,
                                     const uint8_t *data, std::size_t data_size);
@@ -107,7 +109,8 @@ private:
   int direction_enable_{GPIO_NUM_NC};
   DirectionPolarity direction_polarity_{DirectionPolarity::tx_high};
   avi::Timeout lock_timeout_{avi::Timeout::noWait()};
-  avi::Timeout response_timeout_{avi::Timeout::milliseconds(10)};
+  avi::Timeout tx_timeout_{avi::Timeout::milliseconds(100)};
+  avi::Timeout response_timeout_{avi::Timeout::milliseconds(100)};
   SemaphoreHandle_t bus_lock_{nullptr};
   bool initialized_{false};
 };
