@@ -216,10 +216,8 @@ static_assert(registerDescriptor(STS3215::Register::angular_resolution).width ==
 static_assert(registerDescriptor(STS3215::Register::operating_mode).width == 1);
 static_assert(registerDescriptor(STS3215::Register::protection_torque).width ==
               1);
-static_assert(registerDescriptor(STS3215::Register::protection_time).width ==
-              1);
-static_assert(registerDescriptor(STS3215::Register::overload_torque).width ==
-              1);
+static_assert(registerDescriptor(STS3215::Register::protection_time).width == 1);
+static_assert(registerDescriptor(STS3215::Register::overload_torque).width == 1);
 static_assert(registerDescriptor(STS3215::Register::torque_switch).width == 1);
 static_assert(registerDescriptor(STS3215::Register::acceleration).width == 1);
 static_assert(registerDescriptor(STS3215::Register::target_position).width ==
@@ -263,18 +261,6 @@ STS3215::TorqueLimit STS3215::TorqueLimit::percent(float value) {
   if (!validTorquePercent(value))
     return TorqueLimit(0, false);
   return TorqueLimit(torqueRawFromPercent(value), true);
-}
-
-float STS3215::gearRatio() const {
-  switch (model_) {
-  case Model::c001_1_345:
-    return 345.0F;
-  case Model::c044_1_191:
-    return 191.0F;
-  case Model::c046_1_147:
-    return 147.0F;
-  }
-  return 0.0F;
 }
 
 float STS3215::degreesPerStep() const {
@@ -361,10 +347,10 @@ esp_err_t STS3215::writeBytes(uint8_t address, const uint8_t *data,
   return result;
 }
 
-esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id, Model model) {
+esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id) {
   if (initialized_ || bus_ != nullptr)
     return ESP_ERR_INVALID_STATE;
-  if (!bus.initialized() || id > 253 || static_cast<uint8_t>(model) > 2)
+  if (!bus.initialized() || id > 253)
     return ESP_ERR_INVALID_ARG;
   uint8_t device_error{};
   esp_err_t result = bus.ping(id, &device_error);
@@ -377,7 +363,6 @@ esp_err_t STS3215::begin(STSCREATE &bus, uint8_t id, Model model) {
     return result;
   bus_ = &bus;
   id_ = id;
-  model_ = model;
   commitConfiguration(snapshot);
   initialized_ = true;
   return ESP_OK;

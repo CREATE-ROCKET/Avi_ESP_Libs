@@ -8,7 +8,6 @@
 
 class STS3215 {
 public:
-  enum class Model : uint8_t { c001_1_345, c044_1_191, c046_1_147 };
   enum class OperatingMode : uint8_t {
     position = 0,
     velocity = 1,
@@ -107,13 +106,12 @@ public:
   STS3215(STS3215 &&) = delete;
   STS3215 &operator=(STS3215 &&) = delete;
 
-  [[nodiscard]] esp_err_t begin(STSCREATE &bus, uint8_t id, Model model);
+  [[nodiscard]] esp_err_t begin(STSCREATE &bus, uint8_t id);
   [[nodiscard]] esp_err_t end();
   [[nodiscard]] bool initialized() const { return initialized_; }
   [[nodiscard]] bool configurationValid() const { return configuration_valid_; }
   [[nodiscard]] esp_err_t refreshConfiguration();
   [[nodiscard]] uint8_t lastDeviceError() const { return last_device_error_; }
-  [[nodiscard]] float gearRatio() const;
   [[nodiscard]] float degreesPerStep() const;
   [[nodiscard]] esp_err_t getOperatingMode(OperatingMode &mode) const;
   [[nodiscard]] esp_err_t verifyOperatingMode(OperatingMode expected) const;
@@ -176,7 +174,6 @@ private:
 
   STSCREATE *bus_{nullptr};
   uint8_t id_{};
-  Model model_{Model::c001_1_345};
   OperatingMode operating_mode_{OperatingMode::position};
   uint8_t response_status_level_{};
   uint8_t angular_resolution_{1};

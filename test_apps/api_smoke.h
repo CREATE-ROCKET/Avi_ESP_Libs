@@ -274,10 +274,7 @@ inline void aviApiSmoke() {
   STS3215::TorqueLimit invalid_percent = STS3215::TorqueLimit::percent(-1.0F);
   uint8_t sts_register_byte{};
   uint8_t sts_register_word[2]{};
-  (void)STS3215::Model::c001_1_345;
-  (void)STS3215::Model::c044_1_191;
-  (void)STS3215::Model::c046_1_147;
-  (void)servo.begin(sts, 1, STS3215::Model::c001_1_345);
+  (void)servo.begin(sts, 1);
   (void)servo.configurationValid();
   (void)servo.refreshConfiguration();
   (void)servo.degreesPerStep();
