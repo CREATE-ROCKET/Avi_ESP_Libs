@@ -51,7 +51,7 @@ STSCREATE::Config sts_config;
 sts_config.tx = GPIO_NUM_17;
 sts_config.rx = GPIO_NUM_18;
 sts_bus.begin(sts_config);
-servo.begin(sts_bus, 1, STS3215::Model::c001_1_345); // 動作は開始しない
+servo.begin(sts_bus, 1); // 動作は開始しない
 ```
 
 Tier 1 sensorは `begin()`、`available()`、`read()`、`end()` が基本です。`read()`は単位付きの物理値、`readRaw()`はdevice registerの符号付き整数を返します。
@@ -339,6 +339,7 @@ smoke appは全公開ヘッダを同じtranslation unitで読み込み、Tier 1�
 
 この版は旧`main`および旧バージョン番号付きdirectoryとの後方互換性がありません。
 
+- `STS3215::Model`と`gearRatio()`を削除し、`begin()`を`begin(STSCREATE &, uint8_t)`へ変更しました。
 - `STS3215::Data::load_raw`を`uint16_t`からsign-magnitude復号済みの`int16_t`へ変更しました。
 - `STS3215::StallProtection::trigger_time`を`avi::Timeout`から`uint16_t trigger_time_ms`へ変更しました。
 - cache-sensitive registerとread-only telemetryのgeneric `writeRegister()`は`ESP_ERR_NOT_SUPPORTED`を返します。

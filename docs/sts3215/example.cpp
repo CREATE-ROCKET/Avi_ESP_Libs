@@ -10,7 +10,7 @@ esp_err_t initializeServo() {
   config.rx = GPIO_NUM_18;
   esp_err_t result = bus.begin(config);
   if (result == ESP_OK)
-    result = servo.begin(bus, 1, STS3215::Model::c001_1_345);
+    result = servo.begin(bus, 1);
   // begin()は設定snapshotを読むだけでservoを動かさない。
   return result;
 }
