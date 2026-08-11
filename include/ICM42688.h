@@ -94,6 +94,7 @@ public:
     std::array<int16_t, 3> acceleration{};
     std::array<int16_t, 3> angular_velocity{};
     int8_t temperature{};
+    // Packet 3に格納された、前回ODR eventからのraw delta。
     uint16_t timestamp_ticks{};
     bool acceleration_valid{false};
     bool angular_velocity_valid{false};
@@ -106,7 +107,9 @@ public:
     std::array<float, 3> acceleration_g{};
     std::array<float, 3> angular_velocity_dps{};
     float temperature_celsius{};
+    // raw ODR delta。internal clockではmicrosecond値そのものではない。
     uint16_t timestamp_ticks{};
+    // FIFO開始epochから32/30補正を累積したsensor-relative時刻。
     uint64_t timestamp_us{};
     bool acceleration_valid{false};
     bool angular_velocity_valid{false};
@@ -174,6 +177,8 @@ public:
   [[nodiscard]] bool initialized() const { return initialized_; }
 
 private:
+  static constexpr std::size_t kFifoBufferBytes{2080};
+
   struct InterruptState {
     StaticSemaphore_t storage{};
     SemaphoreHandle_t signal{nullptr};
@@ -192,7 +197,7 @@ private:
   AccelRange accel_range_{AccelRange::g16};
   GyroRange gyro_range_{GyroRange::dps2000};
   Config config_{};
-  std::array<uint8_t, 2080> fifo_buffer_{};
+  std::array<uint8_t, kFifoBufferBytes> fifo_buffer_{};
   uint64_t fifo_timestamp_us_{0};
   uint8_t fifo_timestamp_remainder_{0};
   bool fifo_faulted_{false};

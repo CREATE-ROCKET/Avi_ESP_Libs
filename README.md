@@ -297,7 +297,9 @@ if (result == ESP_OK &&
 }
 ```
 
-`timestamp_ticks`はpacket内のraw ODR delta、`timestamp_us`はFIFO開始epochからのsensor-relative時刻です。internal clock、`TMST_RES=0`のためv1.6 section 12.7どおり32/30を整数remainder付きで累積し、ESP32のtimer epochやSPI read時刻とは一致しません。最初のpacketにもsensorのdeltaを反映します。`getFifoStatus()`でwatermark、FIFO full、lost packet数を確認できます。full/lossは通信errorへ変換せずstatusで通知します。
+Packet 3ではtemperatureがoffset `0x0D`、big-endian timestampが`0x0E`～`0x0F`です。`timestamp_ticks`はpacket内のraw ODR delta、`timestamp_us`はFIFO開始epochからのsensor-relative時刻です。99LはINT2/FSYNC/CLKINをGNDへ固定してexternal RTCを使わないため、internal clock、`TMST_RES=0`、`TMST_DELTA_EN=1`で動作します。v1.6 section 12.7どおり各deltaへ32/30を整数remainder付きで累積し、ESP32のtimer epochやSPI read時刻とは一致しません。最初のpacketにもsensorのdeltaを反映します。FIFO再初期化、sensor reset、`end()`後の再`begin()`ではepochを0へ戻すため、呼出しをまたぐ時刻連続性はありません。
+
+`getFifoStatus()`でwatermark、FIFO full、lost packet数、format faultを確認できます。full/lossは通信errorへ変換せずstatusで通知します。raw delta、ODR change bit、validity flagと併せて、上位層がsample欠落やtimestamp不整合を判定できます。driverは欠落sampleのtimestampを推測しません。FIFO temperatureは8-bit値を`raw / 2.07 + 25`で変換します。通常register readの16-bit temperatureは従来どおり`raw / 132.48 + 25`であり、両者を混用しません。
 
 FIFO Packet 3のheaderが想定形式と一致しない場合、FIFO_DATAは既に消費されておりtimestampとの対応を安全に復元できないため、そのinstanceをFIFO fault状態にします。異常を検出したreadは`ESP_ERR_INVALID_RESPONSE`を返し、それ以降の`fifoAvailable()`、`waitFifo()`、`readFifoRaw()`、`readFifo()`は`ESP_ERR_INVALID_STATE`を返します。`getFifoStatus().faulted`で状態を確認でき、`end()`してから再度`begin()`することで復旧します。
 

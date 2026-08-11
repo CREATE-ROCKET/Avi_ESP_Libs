@@ -8,6 +8,8 @@ namespace {
 SPICREATE spi;
 ICM42688 imu;
 uint32_t batches{};
+uint64_t previous_timestamp_us{};
+bool has_previous_timestamp{};
 } // namespace
 
 esp_err_t beginFifo(spi_host_device_t host, int sck, int miso, int mosi,
@@ -16,14 +18,21 @@ esp_err_t beginFifo(spi_host_device_t host, int sck, int miso, int mosi,
   if (result != ESP_OK)
     return result;
   ICM42688::Config config{};
+  config.frequency_hz = 8'000'000;
+  config.accel_range = ICM42688::AccelRange::g16;
+  config.gyro_range = ICM42688::GyroRange::dps2000;
   config.accel_odr = ICM42688::AccelOdr::hz1000;
   config.gyro_odr = ICM42688::GyroOdr::hz1000;
   config.int_gpio = interrupt_gpio;
   config.fifo.enabled = true;
   config.fifo.watermark_records = 4;
   result = imu.begin(spi, chip_select, config);
-  if (result != ESP_OK)
+  if (result != ESP_OK) {
     (void)spi.end();
+  } else {
+    previous_timestamp_us = 0;
+    has_previous_timestamp = false;
+  }
   return result;
 }
 
@@ -45,15 +54,25 @@ esp_err_t readFifoOnce() {
     return result;
   }
 
-  // UART負荷を抑えるため、100 batchごとに先頭sampleだけ表示する。
+  uint64_t last_delta_us{};
+  for (std::size_t i = 0; i < count; ++i) {
+    if (has_previous_timestamp)
+      last_delta_us = samples[i].timestamp_us - previous_timestamp_us;
+    previous_timestamp_us = samples[i].timestamp_us;
+    has_previous_timestamp = true;
+  }
+
+  // UART負荷を抑えるため、100 batchごとに末尾sampleだけ表示する。
   if (count != 0 && (++batches % 100) == 0) {
-    const auto &sample = samples[0];
-    std::printf("fifo=%u read=%u full=%u lost=%u ticks=%u timestamp_us=%llu "
+    const auto &sample = samples[count - 1];
+    std::printf("fifo=%u read=%u full=%u lost=%u ticks=%u delta_us=%llu "
+                "timestamp_us=%llu "
                 "accel=%.3f,%.3f,%.3f gyro=%.3f,%.3f,%.3f temp=%.2f\n",
                 static_cast<unsigned>(status.records_available),
                 static_cast<unsigned>(count), status.full,
                 static_cast<unsigned>(status.lost_packets),
                 static_cast<unsigned>(sample.timestamp_ticks),
+                static_cast<unsigned long long>(last_delta_us),
                 static_cast<unsigned long long>(sample.timestamp_us),
                 sample.acceleration_g[0], sample.acceleration_g[1],
                 sample.acceleration_g[2], sample.angular_velocity_dps[0],
