@@ -120,7 +120,9 @@ EPROM setterは`Persistence`を要求し、lock flagを一時変更して必ずb
 
 ### AS5047D
 
-AS5047DはSPI mode 1、最大10 MHzで動作し、各16-bit frame間に2 usのCSn HIGH時間を確保します。14-bit角度をdegree/radianへ変換し、`AngleSource`で動的角度誤差補償済み`ANGLECOM`と未補償`ANGLEUNC`を選択できます。全responseのeven parityとEFを検査し、EF時はread-to-clearの`ERRFL`からPARERR、INVCOMM、FRERRを`lastErrorFlags()`へ保存します。
+AS5047DはSPI mode 1、最大10 MHzで動作し、各16-bit frame間に2 usのCSn HIGH時間を確保します。14-bit角度をdegree/radianへ変換し、`AngleSource`で動的角度誤差補償済み`ANGLECOM`と未補償`ANGLEUNC`を選択できます。SPIは1-frame pipelineで、frame NのMISOは1つ前のMOSI commandへのresponseです。通常readはread commandとNOPの2 frameを使い、最初のstale responseはparityだけ、2 frame目でrequested registerのdata/EFを評価します。連続readはprime後に1 frame/sampleです。
+
+全responseのeven parityを検査し、requested commandに対応するEF時はread-to-clearの`ERRFL`からPARERR、INVCOMM、FRERRを`lastErrorFlags()`へ保存します。ERRFLは診断時にclearされるため、あとから`readAndClearErrorFlags()`を呼ぶと0の場合があります。同一instanceの通常read、pipeline、status/error操作は呼出し側でserializeしてください。
 
 `getStatus()`はDIAAGC/MAGからMAGL、MAGH、COF、offset compensation完了、AGC、magnitudeを返します。磁界警告は通信errorへ変換しません。永久変更を伴うOTP programmingには対応していません。
 

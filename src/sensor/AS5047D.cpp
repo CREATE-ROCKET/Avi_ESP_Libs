@@ -3,6 +3,7 @@
 #include "avi_esp_libs/compatibility.h"
 
 namespace {
+constexpr uint16_t kNop = 0x0000;
 constexpr uint16_t kErrorFlags = 0x0001;
 constexpr uint16_t kDiagnostics = 0x3FFC;
 constexpr uint16_t kMagnitude = 0x3FFD;
@@ -44,6 +45,7 @@ constexpr AS5047D::ErrorFlags decodeErrors(uint16_t value) {
   return {(value & 0x04) != 0, (value & 0x02) != 0, (value & 0x01) != 0};
 }
 static_assert(makeReadCommand(kAngleCompensated) == 0xFFFF);
+static_assert(makeReadCommand(kNop) == 0xC000);
 static_assert(!hasOddParity(makeReadCommand(kAngleUncompensated)));
 static_assert(angleFromResponse(0xFFFF) == 0x3FFF);
 static_assert(decodeErrors(0x07).framing_error);
@@ -118,9 +120,9 @@ esp_err_t AS5047D::transferFrame(uint16_t tx, uint16_t &rx) {
   waitChipSelectHigh();
   if (result != ESP_OK)
     return result;
-  const uint16_t next = static_cast<uint16_t>(
-      static_cast<uint16_t>(transaction.rx_data[0]) << 8 |
-      transaction.rx_data[1]);
+  const uint16_t next =
+      static_cast<uint16_t>(static_cast<uint16_t>(transaction.rx_data[0]) << 8 |
+                            transaction.rx_data[1]);
   if (hasOddParity(next))
     return ESP_ERR_INVALID_CRC;
   rx = next;
@@ -134,13 +136,14 @@ uint16_t AS5047D::angleReadCommand() const {
 }
 
 esp_err_t AS5047D::readRegister(uint16_t address, uint16_t &value) {
-  uint16_t response{};
-  esp_err_t result = transferFrame(makeReadCommand(address), response);
+  uint16_t previous_response{};
+  // 同じframeのMISOは1つ前のcommandへのresponseなので、parityだけ検証する。
+  esp_err_t result = transferFrame(makeReadCommand(address), previous_response);
   if (result != ESP_OK)
     return result;
-  if ((response & kError) != 0)
-    return handleErrorFlag();
-  result = transferFrame(makeReadCommand(0), response);
+  uint16_t response{};
+  // NOP readを送り、直前に送ったrequested registerのresponseを回収する。
+  result = transferFrame(makeReadCommand(kNop), response);
   if (result != ESP_OK)
     return result;
   if ((response & kError) != 0)
@@ -155,7 +158,7 @@ esp_err_t AS5047D::readErrorFlagsInternal(ErrorFlags &flags) {
   if (result != ESP_OK)
     return result;
   uint16_t response{};
-  result = transferFrame(makeReadCommand(0), response);
+  result = transferFrame(makeReadCommand(kNop), response);
   if (result != ESP_OK)
     return result;
   flags = decodeErrors(angleFromResponse(response));
@@ -210,13 +213,12 @@ esp_err_t AS5047D::startPipelinedRead() {
   if (!initialized_ || pipeline_active_)
     return ESP_ERR_INVALID_STATE;
 
-  uint16_t response{};
-  const esp_err_t result = transferFrame(angleReadCommand(), response);
+  uint16_t previous_response{};
+  const esp_err_t result = transferFrame(angleReadCommand(), previous_response);
   if (result != ESP_OK)
     return result;
-  if ((response & kError) != 0)
-    return handleErrorFlag();
 
+  // prime frameのMISOは以前のcommandへのresponseであり、ANGLEのEFではない。
   pipeline_active_ = true;
   return ESP_OK;
 }
