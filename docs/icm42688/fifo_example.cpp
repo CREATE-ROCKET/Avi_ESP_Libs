@@ -50,7 +50,13 @@ esp_err_t readFifoOnce() {
   std::size_t count{};
   result = imu.readFifo(samples.data(), samples.size(), count);
   if (result != ESP_OK) {
-    std::printf("FIFO parse/read error: %s\n", esp_err_to_name(result));
+    ICM42688::FifoStatus fault_status{};
+    if (imu.getFifoStatus(fault_status) == ESP_OK && fault_status.faulted) {
+      std::printf("FIFO continuity lost: lost=%u\n",
+                  static_cast<unsigned>(fault_status.lost_packets));
+    } else {
+      std::printf("FIFO parse/read error: %s\n", esp_err_to_name(result));
+    }
     return result;
   }
 

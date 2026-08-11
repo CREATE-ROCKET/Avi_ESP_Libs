@@ -185,6 +185,7 @@ private:
   };
   static void interruptIsr(void *context);
   [[nodiscard]] esp_err_t readFifoCount(uint16_t &records);
+  [[nodiscard]] esp_err_t readFifoLostPackets(uint16_t &lost_packets);
   [[nodiscard]] esp_err_t drainFifo();
   [[nodiscard]] esp_err_t readFifoBytes(std::size_t capacity,
                                         std::size_t &records);
@@ -200,6 +201,7 @@ private:
   std::array<uint8_t, kFifoBufferBytes> fifo_buffer_{};
   uint64_t fifo_timestamp_us_{0};
   uint8_t fifo_timestamp_remainder_{0};
+  uint16_t fifo_lost_packets_baseline_{0};
   bool fifo_faulted_{false};
   bool initialized_{false};
 };

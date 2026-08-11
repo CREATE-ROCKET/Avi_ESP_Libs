@@ -194,7 +194,23 @@ template <typename Odr> constexpr bool isHighOdr(Odr odr) {
 }
 
 template <typename Odr> constexpr bool fifoOdrSupported(Odr odr) {
-  return !isHighOdr(odr);
+  switch (odr) {
+  case Odr::hz25:
+  case Odr::hz50:
+  case Odr::hz100:
+  case Odr::hz200:
+  case Odr::hz500:
+  case Odr::hz1000:
+  case Odr::hz2000:
+    return true;
+  case Odr::hz12_5:
+  case Odr::hz4000:
+  case Odr::hz8000:
+  case Odr::hz16000:
+  case Odr::hz32000:
+    return false;
+  }
+  return false;
 }
 
 constexpr bool requiresHighOdrInterruptConfig(ICM42688::AccelOdr accel_odr,
@@ -212,9 +228,15 @@ static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz8000,
                                              ICM42688::GyroOdr::hz1000));
 static_assert(requiresHighOdrInterruptConfig(ICM42688::AccelOdr::hz1000,
                                              ICM42688::GyroOdr::hz16000));
-static_assert(fifoOdrSupported(ICM42688::AccelOdr::hz12_5));
+static_assert(!fifoOdrSupported(ICM42688::AccelOdr::hz12_5));
+static_assert(fifoOdrSupported(ICM42688::AccelOdr::hz25));
+static_assert(fifoOdrSupported(ICM42688::AccelOdr::hz1000));
 static_assert(fifoOdrSupported(ICM42688::AccelOdr::hz2000));
 static_assert(!fifoOdrSupported(ICM42688::AccelOdr::hz4000));
+static_assert(!fifoOdrSupported(ICM42688::GyroOdr::hz12_5));
+static_assert(fifoOdrSupported(ICM42688::GyroOdr::hz25));
+static_assert(fifoOdrSupported(ICM42688::GyroOdr::hz1000));
+static_assert(fifoOdrSupported(ICM42688::GyroOdr::hz2000));
 static_assert(!fifoOdrSupported(ICM42688::GyroOdr::hz32000));
 
 bool filterBits(ICM42688::Filter filter, uint8_t &bits) {
@@ -291,6 +313,11 @@ constexpr bool fifoReady(const ICM42688::FifoStatus &status,
                          uint16_t watermark_records) {
   return status.threshold || status.full ||
          status.records_available >= watermark_records;
+}
+
+constexpr bool fifoContinuityLost(uint16_t baseline, uint16_t before,
+                                  uint16_t after) {
+  return before != baseline || after != baseline || after != before;
 }
 
 constexpr esp_err_t parseFifoPacket3(const uint8_t *packet,
@@ -387,6 +414,11 @@ static_assert(!fifoReady({3, false, false, 0, false}, 4));
 static_assert(fifoReady({4, false, false, 0, false}, 4));
 static_assert(fifoReady({0, true, false, 0, false}, 4));
 static_assert(fifoReady({0, false, true, 0, false}, 4));
+static_assert(!fifoContinuityLost(0, 0, 0));
+static_assert(!fifoContinuityLost(5, 5, 5));
+static_assert(fifoContinuityLost(0, 1, 1));
+static_assert(fifoContinuityLost(0, 0, 1));
+static_assert(fifoContinuityLost(3, 3, 4));
 
 float accelSensitivity(ICM42688::AccelRange range) {
   switch (range) {
@@ -665,6 +697,10 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
     result = drainFifo();
   if (result == ESP_OK) {
     resetFifoState();
+    if (config.fifo.enabled)
+      result = readFifoLostPackets(fifo_lost_packets_baseline_);
+  }
+  if (result == ESP_OK) {
     result = spi_->readRegister(device_, kIntStatus | 0x80, pending);
   }
   if (result == ESP_OK && interrupt_.signal != nullptr) {
@@ -847,6 +883,7 @@ esp_err_t ICM42688::read(Data &data) {
 void ICM42688::resetFifoState() {
   fifo_timestamp_us_ = 0;
   fifo_timestamp_remainder_ = 0;
+  fifo_lost_packets_baseline_ = 0;
   fifo_faulted_ = false;
 }
 
@@ -861,9 +898,30 @@ esp_err_t ICM42688::readFifoCount(uint16_t &records) {
   return result;
 }
 
+esp_err_t ICM42688::readFifoLostPackets(uint16_t &lost_packets) {
+  uint8_t raw[2]{};
+  const esp_err_t result =
+      spi_->read(device_, kFifoLostPacketLow | 0x80, raw, sizeof(raw));
+  if (result == ESP_OK) {
+    // v1.6の一覧表と詳細欄が矛盾するため、14.55/14.56の詳細記述を採用する。
+    lost_packets =
+        static_cast<uint16_t>(uint16_t{raw[0]} | (uint16_t{raw[1]} << 8));
+  }
+  return result;
+}
+
 esp_err_t ICM42688::readFifoBytes(std::size_t capacity, std::size_t &records) {
+  records = 0;
+  uint16_t lost_before{};
+  esp_err_t result = readFifoLostPackets(lost_before);
+  if (result != ESP_OK)
+    return result;
+  if (lost_before != fifo_lost_packets_baseline_) {
+    fifo_faulted_ = true;
+    return ESP_ERR_INVALID_RESPONSE;
+  }
   uint16_t available_records{};
-  esp_err_t result = readFifoCount(available_records);
+  result = readFifoCount(available_records);
   if (result != ESP_OK)
     return result;
   const std::size_t next_records =
@@ -874,8 +932,24 @@ esp_err_t ICM42688::readFifoBytes(std::size_t capacity, std::size_t &records) {
     // FIFO packet途中でCSを切らず、16 byte record単位でburst readする。
     result = spi_->read(device_, kFifoData | 0x80, fifo_buffer_.data(),
                         next_records * kFifoPacket3Size);
-    if (result != ESP_OK)
+    if (result != ESP_OK) {
+      // 消費量を確定できないため、次のtimestampを連続とは扱えない。
+      fifo_faulted_ = true;
       return result;
+    }
+  }
+  uint16_t lost_after{};
+  result = readFifoLostPackets(lost_after);
+  if (result != ESP_OK) {
+    if (next_records != 0)
+      fifo_faulted_ = true;
+    return result;
+  }
+  if (fifoContinuityLost(fifo_lost_packets_baseline_, lost_before,
+                         lost_after)) {
+    // 読み出したbatchは時系列連続性を保証できないためcallerへ渡さない。
+    fifo_faulted_ = true;
+    return ESP_ERR_INVALID_RESPONSE;
   }
   records = next_records;
   return ESP_OK;
@@ -904,22 +978,22 @@ esp_err_t ICM42688::getFifoStatus(FifoStatus &status) {
     return ESP_ERR_INVALID_STATE;
   uint8_t interrupt_status{};
   uint16_t records{};
-  uint8_t lost[2]{};
+  uint16_t lost_packets{};
   esp_err_t result =
       spi_->readRegister(device_, kIntStatus | 0x80, interrupt_status);
   if (result == ESP_OK)
     result = readFifoCount(records);
   if (result == ESP_OK)
-    result = spi_->read(device_, kFifoLostPacketLow | 0x80, lost, sizeof(lost));
+    result = readFifoLostPackets(lost_packets);
   if (result != ESP_OK)
     return result;
   FifoStatus next{};
   next.records_available = records;
   next.threshold = (interrupt_status & kFifoThresholdInterrupt) != 0;
   next.full = (interrupt_status & kFifoFullInterrupt) != 0;
-  // v1.6の一覧表と詳細欄が矛盾するため、14.55/14.56の詳細記述を採用する。
-  next.lost_packets =
-      static_cast<uint16_t>(uint16_t{lost[0]} | (uint16_t{lost[1]} << 8));
+  next.lost_packets = lost_packets;
+  if (lost_packets != fifo_lost_packets_baseline_)
+    fifo_faulted_ = true;
   next.faulted = fifo_faulted_;
   status = next;
   return ESP_OK;
@@ -952,6 +1026,8 @@ esp_err_t ICM42688::waitFifo(avi::Timeout timeout) {
     const esp_err_t result = getFifoStatus(status);
     if (result != ESP_OK)
       return result;
+    if (status.faulted)
+      return ESP_ERR_INVALID_RESPONSE;
     if (fifoReady(status, config_.fifo.watermark_records))
       return ESP_OK;
     if (timeout.isNoWait())
@@ -983,6 +1059,7 @@ esp_err_t ICM42688::waitFifo(avi::Timeout timeout) {
 
 esp_err_t ICM42688::readFifoRaw(FifoRawData *data, std::size_t capacity,
                                 std::size_t &count) {
+  count = 0;
   if (!initialized_ || spi_ == nullptr || !config_.fifo.enabled)
     return ESP_ERR_INVALID_STATE;
   if (fifo_faulted_)
@@ -1021,6 +1098,7 @@ esp_err_t ICM42688::readFifoRaw(FifoRawData *data, std::size_t capacity,
 
 esp_err_t ICM42688::readFifo(FifoData *data, std::size_t capacity,
                              std::size_t &count) {
+  count = 0;
   if (!initialized_ || spi_ == nullptr || !config_.fifo.enabled)
     return ESP_ERR_INVALID_STATE;
   if (fifo_faulted_)
