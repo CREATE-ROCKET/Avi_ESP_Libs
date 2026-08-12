@@ -140,7 +140,9 @@ self-test中は通常測定できません。同一instanceの`read()`、`waitDa
 
 ### CAN diagnostic
 
-standard ID `0x000`～`0x3FF`はapplication用、`0x400`～`0x7FF`はCANCREATE diagnostic予約領域、`0x7FF`は`test()`用です。extended IDは予約規則の対象外です。
+standard ID `0x000`～`0x3FF`はapplication用です。`0x400`～`0x7FE`はdiagnostic用で、既定では送受信を拒否し、`Config::allow_diagnostic_frames = true`を明示した場合だけ`Frame` APIで利用できます。`0x7FF`は`test()`専用で、opt-inしても公開送受信APIでは利用できません。extended IDは予約規則の対象外です。
+
+`Status::successful_tx_count`と`failed_tx_count`はdriver開始後の物理送信完了結果です。`tx_completion_counts_valid`がfalseの場合は集計値を採用しないでください。`write()`の成功はqueue投入までで、物理ACK成功を意味しません。
 
 `test()`は現在のbitrate/GPIOでnormal single-shot送信のACKを確認し、失敗時だけno-ack/self-receptionを試します。診断timeoutは内部で1秒に固定しています。`success`、`no_peer_response`、`controller_failure`を`TestResult`で返し、元Configへ復元します。起動時専用で、test中の通常trafficは保持されない可能性があります。複数nodeから同時に実行しないでください。
 

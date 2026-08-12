@@ -31,6 +31,7 @@ public:
 
   static constexpr uint32_t kApplicationIdMax = 0x3FF;
   static constexpr uint32_t kDiagnosticIdMask = 0x400;
+  static constexpr uint32_t kDiagnosticIdMax = 0x7FE;
   static constexpr uint32_t kTestIdentifier = 0x7FF;
 
   struct Frame {
@@ -55,6 +56,7 @@ public:
     Mode mode{Mode::normal};
     Filter filter{};
     uint16_t rx_queue_depth{8};
+    bool allow_diagnostic_frames{false};
   };
 
   struct Status {
@@ -65,6 +67,9 @@ public:
     uint32_t rx_error_count{0};
     uint32_t bus_error_count{0};
     uint32_t dropped_rx_count{0};
+    uint32_t successful_tx_count{0};
+    uint32_t failed_tx_count{0};
+    bool tx_completion_counts_valid{false};
   };
 
   struct TestResult {

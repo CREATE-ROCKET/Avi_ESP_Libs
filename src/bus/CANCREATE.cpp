@@ -35,9 +35,33 @@ bool validIdentifier(uint32_t identifier, bool extended) {
   return identifier <= (extended ? kExtendedIdMask : kStandardIdMask);
 }
 
-bool applicationIdentifier(uint32_t identifier, bool extended) {
+constexpr bool applicationIdentifier(uint32_t identifier, bool extended) {
   return extended || identifier <= CANCREATE::kApplicationIdMax;
 }
+
+constexpr bool usableIdentifier(uint32_t identifier, bool extended,
+                                bool allow_diagnostic) {
+  return applicationIdentifier(identifier, extended) ||
+         (allow_diagnostic && !extended &&
+          identifier >= CANCREATE::kDiagnosticIdMask &&
+          identifier <= CANCREATE::kDiagnosticIdMax);
+}
+
+constexpr bool receivableIdentifier(uint32_t identifier, bool extended,
+                                    bool allow_diagnostic,
+                                    bool allow_internal_test) {
+  return usableIdentifier(identifier, extended, allow_diagnostic) ||
+         (allow_internal_test && !extended &&
+          identifier == CANCREATE::kTestIdentifier);
+}
+
+static_assert(usableIdentifier(0x3FF, false, false));
+static_assert(!usableIdentifier(0x400, false, false));
+static_assert(usableIdentifier(0x400, false, true));
+static_assert(usableIdentifier(0x7FE, false, true));
+static_assert(!usableIdentifier(0x7FF, false, true));
+static_assert(!receivableIdentifier(0x7FF, false, true, false));
+static_assert(receivableIdentifier(0x7FF, false, true, true));
 
 bool validConfig(const CANCREATE::Config &config) {
   if (!GPIO_IS_VALID_OUTPUT_GPIO(config.tx) || !GPIO_IS_VALID_GPIO(config.rx) ||
@@ -80,8 +104,20 @@ struct Backend {
   uint32_t dropped_rx{};
   uint32_t recovering{};
   uint32_t tx_success{};
-  uint32_t allow_diagnostic{};
+  uint32_t successful_tx{};
+  uint32_t failed_tx{};
+  bool allow_diagnostic{false};
+  bool allow_test_identifier{false};
 };
+
+void IRAM_ATTR incrementSaturating(uint32_t &value) {
+  uint32_t current = __atomic_load_n(&value, __ATOMIC_RELAXED);
+  while (current != UINT32_MAX &&
+         !__atomic_compare_exchange_n(&value, &current, current + 1U, false,
+                                      __ATOMIC_RELAXED,
+                                      __ATOMIC_RELAXED)) {
+  }
+}
 
 Backend *createBackend() {
   void *memory =
@@ -127,10 +163,9 @@ bool IRAM_ATTR receiveFrame(twai_node_handle_t node,
     __atomic_fetch_add(&backend->dropped_rx, 1U, __ATOMIC_RELAXED);
     return false;
   }
-  const bool allow_diagnostic =
-      __atomic_load_n(&backend->allow_diagnostic, __ATOMIC_ACQUIRE) != 0;
-  if (!allow_diagnostic && !frame.header.ide &&
-      frame.header.id > CANCREATE::kApplicationIdMax)
+  if (!receivableIdentifier(frame.header.id, frame.header.ide,
+                            backend->allow_diagnostic,
+                            backend->allow_test_identifier))
     return false;
   raw.header = frame.header;
   BaseType_t task_awoken = pdFALSE;
@@ -148,6 +183,10 @@ bool IRAM_ATTR transmitDone(twai_node_handle_t,
   auto *backend = static_cast<Backend *>(context);
   __atomic_store_n(&backend->tx_success, event->is_tx_success ? 1U : 0U,
                    __ATOMIC_RELEASE);
+  if (event->is_tx_success)
+    incrementSaturating(backend->successful_tx);
+  else
+    incrementSaturating(backend->failed_tx);
   BaseType_t task_awoken = pdFALSE;
   (void)xSemaphoreGiveFromISR(backend->tx_available, &task_awoken);
   return task_awoken == pdTRUE;
@@ -192,6 +231,8 @@ struct Backend {
   std::size_t prefetch_capacity{};
   std::size_t prefetch_head{};
   std::size_t prefetch_count{};
+  uint32_t accepted_tx{};
+  bool allow_diagnostic{};
 };
 
 twai_mode_t modeFrom(CANCREATE::Mode mode) {
@@ -271,7 +312,8 @@ esp_err_t drainReceiveQueue(Backend &backend) {
     if (message.data_length_code > 8 ||
         !validIdentifier(message.identifier, message.extd))
       return ESP_ERR_INVALID_SIZE;
-    if (!applicationIdentifier(message.identifier, message.extd) ||
+    if (!usableIdentifier(message.identifier, message.extd,
+                          backend.allow_diagnostic) ||
         !filterAccepts(backend.filter, message))
       continue;
     const std::size_t slot = (backend.prefetch_head + backend.prefetch_count) %
@@ -342,6 +384,8 @@ esp_err_t CANCREATE::start(const Config &config, bool self_test, bool loopback,
     return ESP_ERR_NO_MEM;
   }
   (void)xSemaphoreGive(backend->tx_available);
+  backend->allow_diagnostic = config.allow_diagnostic_frames;
+  backend->allow_test_identifier = self_test;
 
   twai_onchip_node_config_t node_config{};
   node_config.io_cfg.tx = config.tx;
@@ -395,6 +439,7 @@ esp_err_t CANCREATE::start(const Config &config, bool self_test, bool loopback,
     return ESP_ERR_NO_MEM;
   }
   backend->prefetch_capacity = config.rx_queue_depth;
+  backend->allow_diagnostic = config.allow_diagnostic_frames;
 
   twai_timing_config_t timing{};
   if (!timingFrom(config.bitrate, timing)) {
@@ -472,7 +517,8 @@ esp_err_t CANCREATE::write(const Frame &frame, avi::Timeout timeout) {
     return ESP_ERR_INVALID_SIZE;
   if (avi::internal::timeoutToTicks(timeout, timeout_ticks) != ESP_OK ||
       !validIdentifier(frame.identifier, frame.extended) ||
-      !applicationIdentifier(frame.identifier, frame.extended))
+      !usableIdentifier(frame.identifier, frame.extended,
+                        config_.allow_diagnostic_frames))
     return ESP_ERR_INVALID_ARG;
 
 #if ESP_IDF_VERSION_MAJOR >= 6
@@ -506,6 +552,11 @@ esp_err_t CANCREATE::write(const Frame &frame, avi::Timeout timeout) {
   message.rtr = frame.remote;
   std::memcpy(message.data, frame.data, frame.data_length);
   const esp_err_t result = twai_transmit(&message, timeout_ticks);
+  if (result == ESP_OK) {
+    auto &accepted = static_cast<Backend *>(backend_)->accepted_tx;
+    if (accepted != UINT32_MAX)
+      ++accepted;
+  }
   return timeout.isNoWait() && result == ESP_ERR_TIMEOUT ? ESP_ERR_NOT_FINISHED
                                                          : result;
 #endif
@@ -580,7 +631,8 @@ esp_err_t CANCREATE::read(Frame &frame, avi::Timeout timeout) {
     if (message.data_length_code > sizeof(next.data) ||
         !validIdentifier(message.identifier, message.extd))
       return ESP_ERR_INVALID_SIZE;
-    if (applicationIdentifier(message.identifier, message.extd) &&
+    if (usableIdentifier(message.identifier, message.extd,
+                         backend->allow_diagnostic) &&
         filterAccepts(backend->filter, message))
       break;
 
@@ -639,6 +691,11 @@ esp_err_t CANCREATE::getStatus(Status &status) const {
   next.bus_error_count = record.bus_err_num;
   next.dropped_rx_count =
       __atomic_load_n(&backend->dropped_rx, __ATOMIC_RELAXED);
+  next.successful_tx_count =
+      __atomic_load_n(&backend->successful_tx, __ATOMIC_RELAXED);
+  next.failed_tx_count =
+      __atomic_load_n(&backend->failed_tx, __ATOMIC_RELAXED);
+  next.tx_completion_counts_valid = true;
 #else
   auto &backend = *static_cast<Backend *>(backend_);
   const esp_err_t drain = drainReceiveQueue(backend);
@@ -655,6 +712,15 @@ esp_err_t CANCREATE::getStatus(Status &status) const {
   next.rx_error_count = info.rx_error_counter;
   next.bus_error_count = info.bus_error_count;
   next.dropped_rx_count = info.rx_missed_count + info.rx_overrun_count;
+  next.failed_tx_count = info.tx_failed_count;
+  const uint64_t completed_or_pending =
+      static_cast<uint64_t>(info.tx_failed_count) + info.msgs_to_tx;
+  next.successful_tx_count =
+      backend.accepted_tx >= completed_or_pending
+          ? static_cast<uint32_t>(backend.accepted_tx - completed_or_pending)
+          : 0;
+  next.tx_completion_counts_valid =
+      backend.accepted_tx >= completed_or_pending;
 #endif
   status = next;
   return ESP_OK;
@@ -847,7 +913,6 @@ esp_err_t CANCREATE::test(TestResult &result) {
         test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
 #if ESP_IDF_VERSION_MAJOR >= 6
       auto *backend = static_cast<Backend *>(backend_);
-      __atomic_store_n(&backend->allow_diagnostic, 1U, __ATOMIC_RELEASE);
       if (test_error == ESP_OK &&
           xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
         backend->tx_frame = {};

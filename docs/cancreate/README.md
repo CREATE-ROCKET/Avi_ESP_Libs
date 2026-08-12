@@ -23,7 +23,9 @@ esp_err_t pollCan(CANCREATE::Frame &frame)
 }
 ```
 
-`write(identifier, ...)`は11bit standard frame専用です。application IDは`0x000`～`0x3FF`です。`0x400`～`0x7FF`はCANCREATE内部diagnostic用に予約し、通常送受信から除外します。extended frameは予約規則の対象外です。8 byte超過も拒否します。
+`write(identifier, ...)`は11bit standard frame専用です。application IDは`0x000`～`0x3FF`です。`0x400`～`0x7FE`はdiagnostic用で、既定では送受信から除外し、`Config::allow_diagnostic_frames = true`を明示した場合だけ`Frame` APIで利用できます。`0x7FF`は`test()`専用で、opt-in対象外です。extended frameは予約規則の対象外です。8 byte超過も拒否します。
+
+`write()`の成功はqueue投入までです。物理送信完了は`getStatus()`の`tx_completion_counts_valid`を確認してから`successful_tx_count`/`failed_tx_count`を使用します。
 
 ```cpp
 CANCREATE::Frame frame;
