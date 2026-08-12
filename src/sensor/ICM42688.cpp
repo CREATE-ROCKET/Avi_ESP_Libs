@@ -55,6 +55,7 @@ constexpr uint8_t kFifoPacket3Config = 0x47;
 constexpr uint8_t kTimestampInternalDeltaConfig = 0x05;
 constexpr uint8_t kFifoCountAndBigEndian = 0x70;
 constexpr std::size_t kMaximumFifoBytes = 2080;
+constexpr std::size_t kSensorFifoBytes = 2048;
 constexpr std::size_t kMinimumFifoPacketSize = 8;
 constexpr std::size_t kFifoPacket3Size = 16;
 constexpr std::size_t kMaximumFifoPacketSize = 20;
@@ -65,7 +66,8 @@ constexpr std::size_t kFifoAccelOffset = 1;
 constexpr std::size_t kFifoGyroOffset = 7;
 constexpr std::size_t kFifoTemperatureOffset = 13;
 constexpr std::size_t kFifoTimestampOffset = 14;
-constexpr uint16_t kMaximumWatermarkRecords = 0x0FFF;
+constexpr uint16_t kMaximumWatermarkRecords =
+    static_cast<uint16_t>(kSensorFifoBytes / kFifoPacket3Size);
 constexpr std::size_t kSelfTestSamples = 200;
 constexpr uint8_t kSelfTestRegulatorEnable = 0x40;
 constexpr uint8_t kAccelSelfTestZ = 0x20;
@@ -350,9 +352,12 @@ constexpr esp_err_t parseFifoPacket3(const uint8_t *packet,
 }
 
 static_assert(kMaximumFifoBytes == 2080);
+static_assert(kSensorFifoBytes == 2048);
+static_assert(kMaximumWatermarkRecords == 128);
 static_assert(kMaximumFifoPacketSize <= kMaximumFifoBytes);
 static_assert(kMaximumFifoFrames == 260);
 static_assert(kMaximumFifoBytes / kFifoPacket3Size == 130);
+static_assert(kSensorFifoBytes / kFifoPacket3Size == 128);
 static_assert(kMaximumFifoBytes / kMaximumFifoPacketSize == 104);
 static_assert(validFifoHeader(0x68));
 static_assert(validFifoHeader(0x69));
@@ -522,9 +527,10 @@ static_assert(!gyroOffsetPass(20.0F * 131.0F + 1.0F));
 
 void ICM42688::interruptIsr(void *context) {
   // SAFETY: contextはICM42688::InterruptStateを指し、
-  // gpio_isr_handler_remove()が成功するまで生存する。ISRでは固定セマフォの
-  // 通知だけを行い、SPI通信、heap操作、logging、blockingを行わない。
+  // gpio_isr_handler_remove()が成功するまで生存する。ISRでは固定領域の
+  // sequence更新とセマフォ通知だけを行い、SPI、heap、logging、blockingは行わない。
   auto *state = static_cast<InterruptState *>(context);
+  __atomic_fetch_add(&state->produced, 1U, __ATOMIC_RELEASE);
   BaseType_t task_awoken = pdFALSE;
   (void)xSemaphoreGiveFromISR(state->signal, &task_awoken);
   if (task_awoken == pdTRUE)
@@ -586,6 +592,8 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
   if (result == ESP_OK && identity != kExpectedWhoAmI)
     result = ESP_ERR_INVALID_RESPONSE;
   if (result == ESP_OK && config.int_gpio != GPIO_NUM_NC) {
+    interrupt_.produced = 0;
+    interrupt_.consumed = 0;
     interrupt_.signal = xSemaphoreCreateBinaryStatic(&interrupt_.storage);
     if (interrupt_.signal == nullptr) {
       result = ESP_ERR_NO_MEM;
@@ -682,8 +690,6 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
                    : kDataReadyInterrupt));
   if (result == ESP_OK && config.fifo.enabled)
     result = updateRegister(kFifoConfig, 0xC0, kFifoStreamMode);
-  if (result == ESP_OK && config.fifo.enabled)
-    result = spi_->writeRegister(device_, kSignalPathReset, kFifoFlush);
   uint8_t pending{};
   if (result == ESP_OK)
     result = spi_->readRegister(device_, kIntStatus | 0x80, pending);
@@ -693,18 +699,22 @@ esp_err_t ICM42688::begin(SPICREATE &spi, int chip_select,
     // v1.6 14.36はON遷移後200usのregister write禁止とgyro 45ms起動を規定する。
     avi_delay_ms(45);
   }
-  if (result == ESP_OK && config.fifo.enabled)
-    result = drainFifo();
+  if (result == ESP_OK && config.fifo.enabled) {
+    // 起動待ち中のsampleだけを一度破棄し、この直後をFIFO timestamp epochとする。
+    // runtimeのFIFO fullではflushせず、lost packet発生時はfaultとして扱う。
+    result = spi_->writeRegister(device_, kSignalPathReset, kFifoFlush);
+  }
   if (result == ESP_OK) {
     resetFifoState();
     if (config.fifo.enabled)
       result = readFifoLostPackets(fifo_lost_packets_baseline_);
   }
-  if (result == ESP_OK) {
+  if (result == ESP_OK)
     result = spi_->readRegister(device_, kIntStatus | 0x80, pending);
-  }
   if (result == ESP_OK && interrupt_.signal != nullptr) {
     (void)xSemaphoreTake(interrupt_.signal, 0);
+    interrupt_.consumed =
+        __atomic_load_n(&interrupt_.produced, __ATOMIC_ACQUIRE);
     result = gpio_set_intr_type(int_gpio_, GPIO_INTR_POSEDGE);
   }
   if (result == ESP_OK && interrupt_.signal != nullptr)
@@ -726,9 +736,8 @@ esp_err_t ICM42688::end() {
     return ESP_ERR_INVALID_STATE;
 
   esp_err_t first_error = ESP_OK;
-  if (interrupt_.signal != nullptr) {
+  if (interrupt_.signal != nullptr)
     rememberFirst(gpio_intr_disable(int_gpio_), first_error);
-  }
 
   initialized_ = false;
   rememberFirst(spi_->writeRegister(device_, kPowerManagement, 0x00),
@@ -764,6 +773,8 @@ esp_err_t ICM42688::end() {
     // GPIO ISRサービスはプロセス全体の共有資源なので、対象GPIOの
     // ハンドラだけを外す。サービス全体の解除は他コンポーネントを破壊する。
     interrupt_.signal = nullptr;
+    interrupt_.produced = 0;
+    interrupt_.consumed = 0;
     rememberFirst(gpio_reset_pin(int_gpio_), first_error);
     int_gpio_ = GPIO_NUM_NC;
   }
@@ -791,9 +802,8 @@ esp_err_t ICM42688::getStatus(Status &status) {
   uint8_t value{};
   const esp_err_t result =
       spi_->readRegister(device_, kIntStatus | 0x80, value);
-  if (result == ESP_OK) {
-    status.data_ready = (value & 0x08) != 0;
-  }
+  if (result == ESP_OK)
+    status.data_ready = (value & kDataReadyInterrupt) != 0;
   return result;
 }
 
@@ -801,7 +811,8 @@ esp_err_t ICM42688::available(bool &ready) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
   if (interrupt_.signal != nullptr && !config_.fifo.enabled) {
-    ready = uxSemaphoreGetCount(interrupt_.signal) != 0;
+    ready = __atomic_load_n(&interrupt_.produced, __ATOMIC_ACQUIRE) !=
+            interrupt_.consumed;
     return ESP_OK;
   }
   Status status{};
@@ -819,19 +830,36 @@ bool ICM42688::available() {
 esp_err_t ICM42688::waitDataReady(avi::Timeout timeout) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
-  TickType_t ticks{};
-  if (avi::internal::timeoutToTicks(timeout, ticks) != ESP_OK)
-    return ESP_ERR_INVALID_ARG;
-
-  if (interrupt_.signal != nullptr && !config_.fifo.enabled) {
-    if (xSemaphoreTake(interrupt_.signal, ticks) == pdTRUE)
-      return ESP_OK;
-    return timeout.isNoWait() ? ESP_ERR_NOT_FINISHED : ESP_ERR_TIMEOUT;
-  }
 
   avi::internal::Deadline deadline{};
   if (avi::internal::makeDeadline(timeout, deadline) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
+
+  if (interrupt_.signal != nullptr && !config_.fifo.enabled) {
+    for (;;) {
+      if (__atomic_load_n(&interrupt_.produced, __ATOMIC_ACQUIRE) !=
+          interrupt_.consumed)
+        return ESP_OK;
+      if (timeout.isNoWait())
+        return ESP_ERR_NOT_FINISHED;
+
+      TickType_t ticks = portMAX_DELAY;
+      if (!deadline.forever) {
+        const int64_t now = avi_micros();
+        if (now >= deadline.microseconds)
+          return ESP_ERR_TIMEOUT;
+        const uint64_t remaining_us =
+            static_cast<uint64_t>(deadline.microseconds - now);
+        const avi::Timeout remaining =
+            avi::Timeout::milliseconds((remaining_us + 999U) / 1000U);
+        if (avi::internal::timeoutToTicks(remaining, ticks) != ESP_OK)
+          return ESP_ERR_INVALID_ARG;
+      }
+      if (xSemaphoreTake(interrupt_.signal, ticks) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+    }
+  }
+
   Status status{};
   do {
     const esp_err_t result = getStatus(status);
@@ -847,6 +875,13 @@ esp_err_t ICM42688::waitDataReady(avi::Timeout timeout) {
 esp_err_t ICM42688::readRaw(RawData &data) {
   if (!initialized_ || spi_ == nullptr)
     return ESP_ERR_INVALID_STATE;
+  const bool sequence_tracked =
+      interrupt_.signal != nullptr && !config_.fifo.enabled;
+  const uint32_t observed_sequence =
+      sequence_tracked
+          ? __atomic_load_n(&interrupt_.produced, __ATOMIC_ACQUIRE)
+          : 0U;
+
   uint8_t raw[14]{};
   const esp_err_t result =
       spi_->read(device_, kTemperatureData | 0x80, raw, sizeof(raw));
@@ -860,6 +895,11 @@ esp_err_t ICM42688::readRaw(RawData &data) {
   for (std::size_t i = 0; i < next.angular_velocity.size(); ++i)
     next.angular_velocity[i] = signedWord(&raw[8 + i * 2]);
   data = next;
+  if (sequence_tracked) {
+    // 読出し開始前までのIRQだけをconsumeする。SPI中に来たIRQはfreshのまま残る。
+    interrupt_.consumed = observed_sequence;
+    (void)xSemaphoreTake(interrupt_.signal, 0);
+  }
   return ESP_OK;
 }
 
@@ -953,24 +993,6 @@ esp_err_t ICM42688::readFifoBytes(std::size_t capacity, std::size_t &records) {
   }
   records = next_records;
   return ESP_OK;
-}
-
-esp_err_t ICM42688::drainFifo() {
-  uint16_t available_records{};
-  esp_err_t result = readFifoCount(available_records);
-  std::size_t remaining = available_records;
-  const std::size_t transfer_records =
-      std::min(spi_->maxTransferSize(), fifo_buffer_.size()) / kFifoPacket3Size;
-  if (result == ESP_OK && transfer_records == 0)
-    return ESP_ERR_INVALID_STATE;
-  // startup中のsampleはgyroの起動保証前なので、通常sampleとして返さない。
-  while (result == ESP_OK && remaining != 0) {
-    const std::size_t chunk = std::min(remaining, transfer_records);
-    result = spi_->read(device_, kFifoData | 0x80, fifo_buffer_.data(),
-                        chunk * kFifoPacket3Size);
-    remaining -= chunk;
-  }
-  return result;
 }
 
 esp_err_t ICM42688::getFifoStatus(FifoStatus &status) {
@@ -1223,7 +1245,7 @@ esp_err_t ICM42688::selfTest(SelfTestResult &result, avi::Timeout timeout) {
           spi_->readRegister(device_, kIntStatus | 0x80, int_status);
       if (error != ESP_OK)
         return error;
-      if ((int_status & 0x08) == 0) {
+      if ((int_status & kDataReadyInterrupt) == 0) {
         avi_delay_ms(1);
         continue;
       }
@@ -1254,10 +1276,12 @@ esp_err_t ICM42688::selfTest(SelfTestResult &result, avi::Timeout timeout) {
   };
 
   // Gyroは±250 dps、1 kHz、約100 Hz帯域、3次filter、LNで検査する。
+  // configurationはsensor OFF中に行い、OFF->ON直後のwrite禁止時間を侵さない。
   if (operation == ESP_OK)
-    operation =
-        spi_->writeRegister(device_, kPowerManagement,
-                            static_cast<uint8_t>((saved_power & 0xF0) | 0x0C));
+    operation = spi_->writeRegister(device_, kPowerManagement,
+                                    static_cast<uint8_t>(saved_power & 0xF0));
+  if (operation == ESP_OK)
+    operation = checkedDelay(1);
   if (operation == ESP_OK)
     operation = spi_->writeRegister(device_, kGyroConfig, 0x66);
   if (operation == ESP_OK)
@@ -1270,6 +1294,10 @@ esp_err_t ICM42688::selfTest(SelfTestResult &result, avi::Timeout timeout) {
                             static_cast<uint8_t>((saved_filter & 0xF0) | 0x04));
   if (operation == ESP_OK)
     operation = spi_->writeRegister(device_, kSelfTestConfig, 0x00);
+  if (operation == ESP_OK)
+    operation =
+        spi_->writeRegister(device_, kPowerManagement,
+                            static_cast<uint8_t>((saved_power & 0xF0) | 0x0C));
   if (operation == ESP_OK)
     operation = checkedDelay(60);
   if (operation == ESP_OK)
@@ -1286,9 +1314,10 @@ esp_err_t ICM42688::selfTest(SelfTestResult &result, avi::Timeout timeout) {
 
   // Accelは±2 g、1 kHz、約100 Hz帯域、3次filter、LNで検査する。
   if (operation == ESP_OK)
-    operation =
-        spi_->writeRegister(device_, kPowerManagement,
-                            static_cast<uint8_t>((saved_power & 0xF0) | 0x03));
+    operation = spi_->writeRegister(device_, kPowerManagement,
+                                    static_cast<uint8_t>(saved_power & 0xF0));
+  if (operation == ESP_OK)
+    operation = checkedDelay(1);
   if (operation == ESP_OK)
     operation = spi_->writeRegister(device_, kAccelConfig, 0x66);
   if (operation == ESP_OK)
@@ -1299,6 +1328,10 @@ esp_err_t ICM42688::selfTest(SelfTestResult &result, avi::Timeout timeout) {
     operation =
         spi_->writeRegister(device_, kGyroAccelFilter,
                             static_cast<uint8_t>((saved_filter & 0x0F) | 0x40));
+  if (operation == ESP_OK)
+    operation =
+        spi_->writeRegister(device_, kPowerManagement,
+                            static_cast<uint8_t>((saved_power & 0xF0) | 0x03));
   if (operation == ESP_OK)
     operation = checkedDelay(25);
   if (operation == ESP_OK)
@@ -1341,6 +1374,9 @@ esp_err_t ICM42688::selfTest(SelfTestResult &result, avi::Timeout timeout) {
   };
   restoreRegister(kRegisterBankSelect, 0);
   if (registers_saved) {
+    // configuration復元もsensor OFF中に行う。
+    restoreRegister(kPowerManagement, static_cast<uint8_t>(saved_power & 0xF0));
+    avi_delay_ms(1);
     restoreRegister(kSelfTestConfig, saved_self_test);
     restoreRegister(kGyroConfig, saved_gyro);
     restoreRegister(kAccelConfig, saved_accel);
@@ -1348,9 +1384,16 @@ esp_err_t ICM42688::selfTest(SelfTestResult &result, avi::Timeout timeout) {
     restoreRegister(kAccelConfig1, saved_accel_config1);
     restoreRegister(kGyroAccelFilter, saved_filter);
     restoreRegister(kPowerManagement, saved_power);
+    if ((saved_power & 0x0C) != 0)
+      avi_delay_ms(45);
+    else if ((saved_power & 0x03) != 0)
+      avi_delay_ms(1);
   }
-  if (interrupt_.signal != nullptr)
+  if (interrupt_.signal != nullptr) {
     (void)xSemaphoreTake(interrupt_.signal, 0);
+    interrupt_.consumed =
+        __atomic_load_n(&interrupt_.produced, __ATOMIC_ACQUIRE);
+  }
   next.restored = restore == ESP_OK;
   result = next;
   return restore != ESP_OK ? restore : operation;
