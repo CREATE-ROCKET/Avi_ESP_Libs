@@ -9,7 +9,6 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
-#include "soc/soc_caps.h"
 
 class AS5047D;
 class H3LIS331;
@@ -87,11 +86,13 @@ private:
     return max_transfer_size_;
   }
 
-  static constexpr std::size_t kMaxDevices = SOC_SPI_MAX_CS_NUM;
+  // hardware CSの実際の上限はspi_bus_add_device()に判定させる。
+  // この配列はESP32系で利用するhandleの追跡領域であり、公開上限ではない。
+  static constexpr std::size_t kDeviceTrackingCapacity = 8;
   spi_host_device_t host_{SPI2_HOST};
   std::size_t max_transfer_size_{0};
   avi::Timeout transaction_timeout_{avi::Timeout::noWait()};
   SemaphoreHandle_t bus_lock_{nullptr};
   bool initialized_{false};
-  std::array<Device, kMaxDevices> devices_{};
+  std::array<Device, kDeviceTrackingCapacity> devices_{};
 };

@@ -121,9 +121,6 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
     return lock.result();
   if (device != nullptr)
     return ESP_ERR_INVALID_STATE;
-  if (deviceCount() >=
-      static_cast<std::size_t>(SOC_SPI_PERIPH_CS_NUM(host_)))
-    return ESP_ERR_NOT_FOUND;
   auto slot = std::find(devices_.begin(), devices_.end(), nullptr);
   if (slot == devices_.end())
     return ESP_ERR_NO_MEM;
@@ -134,6 +131,8 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
   local.queue_size = device_config.queue_size;
   local.cs_ena_posttrans = device_config.cs_ena_posttrans;
   local.cs_ena_pretrans = device_config.cs_ena_pretrans;
+  // hardware CS slot数はESP-IDF driverがSoC/hostごとに管理し、
+  // 空きがなければESP_ERR_NOT_FOUNDを返す。private SoC capabilityには依存しない。
   const esp_err_t result = spi_bus_add_device(host_, &local, &device);
   if (result == ESP_OK)
     *slot = device;
