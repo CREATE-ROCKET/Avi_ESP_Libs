@@ -226,7 +226,22 @@ esp_err_t I2CCREATE::probe(uint8_t address) {
   TickType_t ticks{};
   if (avi::internal::timeoutToTicks(operation_timeout_, ticks) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
-  return i2c_master_write_to_device(port_, address, nullptr, 0, ticks);
+
+  i2c_cmd_handle_t command = i2c_cmd_link_create();
+  if (command == nullptr)
+    return ESP_ERR_NO_MEM;
+
+  esp_err_t result = i2c_master_start(command);
+  if (result == ESP_OK) {
+    result = i2c_master_write_byte(
+        command, static_cast<uint8_t>((address << 1) | I2C_MASTER_WRITE), true);
+  }
+  if (result == ESP_OK)
+    result = i2c_master_stop(command);
+  if (result == ESP_OK)
+    result = i2c_master_cmd_begin(port_, command, ticks);
+  i2c_cmd_link_delete(command);
+  return result;
 #endif
 }
 
