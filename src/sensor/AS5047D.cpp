@@ -7,12 +7,14 @@ constexpr uint16_t kNop = 0x0000;
 constexpr uint16_t kErrorFlags = 0x0001;
 constexpr uint16_t kDiagnostics = 0x3FFC;
 constexpr uint16_t kMagnitude = 0x3FFD;
+constexpr uint16_t kZeroPositionLow = 0x0017;
 constexpr uint16_t kAngleUncompensated = 0x3FFE;
 constexpr uint16_t kAngleCompensated = 0x3FFF;
 constexpr uint16_t kRead = 0x4000;
 constexpr uint16_t kError = 0x4000;
 constexpr uint16_t kDataMask = 0x3FFF;
 constexpr uint32_t kMaximumFrequencyHz = 10000000;
+constexpr uint32_t kChipSelectSetupNanoseconds = 350;
 constexpr float kDegreesPerCount = 360.0F / 16384.0F;
 constexpr float kRadiansPerCount = 6.28318530717958647692F / 16384.0F;
 
@@ -44,8 +46,30 @@ constexpr uint16_t angleFromResponse(uint16_t response) {
 constexpr AS5047D::ErrorFlags decodeErrors(uint16_t value) {
   return {(value & 0x04) != 0, (value & 0x02) != 0, (value & 0x01) != 0};
 }
+constexpr uint8_t chipSelectSetupCycles(uint32_t frequency_hz) {
+  return static_cast<uint8_t>(
+      (static_cast<uint64_t>(frequency_hz) * kChipSelectSetupNanoseconds +
+       999999999ULL) /
+      1000000000ULL);
+}
+constexpr bool isSensorDiagnosticFault(uint16_t diagnostics,
+                                       uint16_t zero_position) {
+  const bool magnetic_high_contributes =
+      (zero_position & 0x0040) != 0 && (diagnostics & 0x0400) != 0;
+  const bool magnetic_low_contributes =
+      (zero_position & 0x0080) != 0 && (diagnostics & 0x0800) != 0;
+  return magnetic_high_contributes || magnetic_low_contributes ||
+         (diagnostics & 0x0200) != 0 || (diagnostics & 0x0100) == 0;
+}
 static_assert(makeReadCommand(kAngleCompensated) == 0xFFFF);
 static_assert(makeReadCommand(kNop) == 0xC000);
+static_assert(makeReadCommand(kErrorFlags) == 0x4001);
+static_assert(chipSelectSetupCycles(8000000) == 3);
+static_assert(chipSelectSetupCycles(10000000) == 4);
+static_assert(!isSensorDiagnosticFault(0x0100, 0x0000));
+static_assert(isSensorDiagnosticFault(0x0400, 0x0040));
+static_assert(isSensorDiagnosticFault(0x0800, 0x0080));
+static_assert(isSensorDiagnosticFault(0x0200, 0x0000));
 static_assert(!hasOddParity(makeReadCommand(kAngleUncompensated)));
 static_assert(angleFromResponse(0xFFFF) == 0x3FFF);
 static_assert(decodeErrors(0x07).framing_error);
@@ -63,14 +87,26 @@ esp_err_t AS5047D::begin(SPICREATE &spi, int chip_select) {
 
 esp_err_t AS5047D::begin(SPICREATE &spi, int chip_select,
                          const Config &config) {
-  if (spi_ != nullptr || device_ != nullptr)
+  if (initialized_ || (spi_ == nullptr) != (device_ == nullptr))
     return ESP_ERR_INVALID_STATE;
+  if (device_ != nullptr) {
+    // 前回のcleanupだけが失敗していた場合は、次のbeginで安全に再試行する。
+    const esp_err_t cleanup = spi_->removeDevice(device_);
+    if (cleanup != ESP_OK)
+      return cleanup;
+    spi_ = nullptr;
+  }
   if (config.frequency_hz == 0 || config.frequency_hz > kMaximumFrequencyHz ||
       static_cast<uint8_t>(config.angle_source) > 1)
     return ESP_ERR_INVALID_ARG;
 
+  // CSn fallingからfirst clockまでdatasheet要求の350 ns以上を確保する。
+  const uint8_t cs_setup_cycles =
+      chipSelectSetupCycles(config.frequency_hz);
   esp_err_t result =
-      spi.addDevice({chip_select, config.frequency_hz, 1, 1}, device_);
+      spi.addDevice({chip_select, config.frequency_hz, 1, 1, 1,
+                     cs_setup_cycles},
+                    device_);
   if (result != ESP_OK)
     return result;
   spi_ = &spi;
@@ -78,8 +114,12 @@ esp_err_t AS5047D::begin(SPICREATE &spi, int chip_select,
   // 電源投入直後でも最初の有効角度が得られるまで有限時間待つ。
   avi_delay_ms(10);
 
+  // 前回reset以前のSPI errorを角度responseへ誤帰属させない。
+  ErrorFlags startup_errors{};
+  result = readErrorFlagsInternal(startup_errors);
   uint16_t angle{};
-  result = readRegister(config.angle_source == AngleSource::compensated
+  if (result == ESP_OK)
+    result = readRegister(config.angle_source == AngleSource::compensated
                             ? kAngleCompensated
                             : kAngleUncompensated,
                         angle);
@@ -90,7 +130,7 @@ esp_err_t AS5047D::begin(SPICREATE &spi, int chip_select,
     return cleanup == ESP_OK ? result : cleanup;
   }
   config_ = config;
-  last_error_flags_ = {};
+  last_error_flags_ = startup_errors;
   pipeline_active_ = false;
   initialized_ = true;
   return ESP_OK;
@@ -136,14 +176,8 @@ uint16_t AS5047D::angleReadCommand() const {
 }
 
 esp_err_t AS5047D::readRegister(uint16_t address, uint16_t &value) {
-  uint16_t previous_response{};
-  // 同じframeのMISOは1つ前のcommandへのresponseなので、parityだけ検証する。
-  esp_err_t result = transferFrame(makeReadCommand(address), previous_response);
-  if (result != ESP_OK)
-    return result;
   uint16_t response{};
-  // NOP readを送り、直前に送ったrequested registerのresponseを回収する。
-  result = transferFrame(makeReadCommand(kNop), response);
+  const esp_err_t result = readRegisterResponse(address, response);
   if (result != ESP_OK)
     return result;
   if ((response & kError) != 0)
@@ -152,13 +186,20 @@ esp_err_t AS5047D::readRegister(uint16_t address, uint16_t &value) {
   return ESP_OK;
 }
 
-esp_err_t AS5047D::readErrorFlagsInternal(ErrorFlags &flags) {
-  uint16_t ignored{};
-  esp_err_t result = transferFrame(makeReadCommand(kErrorFlags), ignored);
+esp_err_t AS5047D::readRegisterResponse(uint16_t address,
+                                        uint16_t &response) {
+  uint16_t previous_response{};
+  // 同じframeのMISOは1つ前のcommandへのresponseなので、parityだけ検証する。
+  esp_err_t result = transferFrame(makeReadCommand(address), previous_response);
   if (result != ESP_OK)
     return result;
+  // NOP readを送り、直前に送ったrequested registerのresponseを回収する。
+  return transferFrame(makeReadCommand(kNop), response);
+}
+
+esp_err_t AS5047D::readErrorFlagsInternal(ErrorFlags &flags) {
   uint16_t response{};
-  result = transferFrame(makeReadCommand(kNop), response);
+  const esp_err_t result = readRegisterResponse(kErrorFlags, response);
   if (result != ESP_OK)
     return result;
   flags = decodeErrors(angleFromResponse(response));
@@ -171,7 +212,28 @@ esp_err_t AS5047D::handleErrorFlag() {
   if (result != ESP_OK)
     return result;
   last_error_flags_ = flags;
-  return flags.parity_error ? ESP_ERR_INVALID_CRC : ESP_ERR_INVALID_RESPONSE;
+  if (flags.parity_error)
+    return ESP_ERR_INVALID_CRC;
+  if (flags.invalid_command || flags.framing_error)
+    return ESP_ERR_INVALID_RESPONSE;
+
+  // ERRFLに通信errorがないEFはsensor diagnostic由来かを確認する。
+  uint16_t diagnostics_response{};
+  esp_err_t diagnostic_result =
+      readRegisterResponse(kDiagnostics, diagnostics_response);
+  if (diagnostic_result != ESP_OK)
+    return diagnostic_result;
+  uint16_t zero_position_response{};
+  diagnostic_result =
+      readRegisterResponse(kZeroPositionLow, zero_position_response);
+  if (diagnostic_result != ESP_OK)
+    return diagnostic_result;
+
+  const uint16_t diagnostics = angleFromResponse(diagnostics_response);
+  const uint16_t zero_position = angleFromResponse(zero_position_response);
+  return isSensorDiagnosticFault(diagnostics, zero_position)
+             ? ESP_ERR_INVALID_STATE
+             : ESP_ERR_INVALID_RESPONSE;
 }
 
 esp_err_t AS5047D::readAndClearErrorFlags(ErrorFlags &flags) {

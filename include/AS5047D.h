@@ -58,6 +58,8 @@ public:
 
 private:
   [[nodiscard]] esp_err_t transferFrame(uint16_t tx, uint16_t &rx);
+  [[nodiscard]] esp_err_t readRegisterResponse(uint16_t address,
+                                               uint16_t &response);
   [[nodiscard]] esp_err_t readRegister(uint16_t address, uint16_t &value);
   [[nodiscard]] esp_err_t readErrorFlagsInternal(ErrorFlags &flags);
   [[nodiscard]] esp_err_t handleErrorFlag();

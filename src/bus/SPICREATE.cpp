@@ -112,7 +112,9 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
     return ESP_ERR_INVALID_STATE;
   if (!GPIO_IS_VALID_OUTPUT_GPIO(device_config.chip_select) ||
       device_config.frequency_hz == 0 || device_config.frequency_hz > INT_MAX ||
-      device_config.mode > 3 || device_config.queue_size == 0)
+      device_config.mode > 3 || device_config.queue_size == 0 ||
+      device_config.cs_ena_pretrans > 16 ||
+      device_config.cs_ena_posttrans > 16)
     return ESP_ERR_INVALID_ARG;
   LockGuard lock(*this);
   if (lock.result() != ESP_OK)
@@ -129,6 +131,7 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
   local.spics_io_num = device_config.chip_select;
   local.queue_size = device_config.queue_size;
   local.cs_ena_posttrans = device_config.cs_ena_posttrans;
+  local.cs_ena_pretrans = device_config.cs_ena_pretrans;
   const esp_err_t result = spi_bus_add_device(host_, &local, &device);
   if (result == ESP_OK)
     *slot = device;

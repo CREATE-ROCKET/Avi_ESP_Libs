@@ -54,6 +54,7 @@ private:
     uint8_t mode{0};
     uint8_t queue_size{1};
     uint8_t cs_ena_posttrans{0};
+    uint8_t cs_ena_pretrans{0};
   };
 
   friend class AS5047D;
