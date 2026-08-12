@@ -80,7 +80,7 @@ struct Backend {
   uint32_t dropped_rx{};
   uint32_t recovering{};
   uint32_t tx_success{};
-  bool allow_diagnostic{false};
+  uint32_t allow_diagnostic{};
 };
 
 Backend *createBackend() {
@@ -127,7 +127,9 @@ bool IRAM_ATTR receiveFrame(twai_node_handle_t node,
     __atomic_fetch_add(&backend->dropped_rx, 1U, __ATOMIC_RELAXED);
     return false;
   }
-  if (!backend->allow_diagnostic && !frame.header.ide &&
+  const bool allow_diagnostic =
+      __atomic_load_n(&backend->allow_diagnostic, __ATOMIC_ACQUIRE) != 0;
+  if (!allow_diagnostic && !frame.header.ide &&
       frame.header.id > CANCREATE::kApplicationIdMax)
     return false;
   raw.header = frame.header;
@@ -845,7 +847,7 @@ esp_err_t CANCREATE::test(TestResult &result) {
         test_error = avi::internal::timeoutToTicks(remaining, timeout_ticks);
 #if ESP_IDF_VERSION_MAJOR >= 6
       auto *backend = static_cast<Backend *>(backend_);
-      backend->allow_diagnostic = true;
+      __atomic_store_n(&backend->allow_diagnostic, 1U, __ATOMIC_RELEASE);
       if (test_error == ESP_OK &&
           xSemaphoreTake(backend->tx_available, timeout_ticks) == pdTRUE) {
         backend->tx_frame = {};
