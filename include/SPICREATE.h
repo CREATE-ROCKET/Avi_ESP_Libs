@@ -9,6 +9,7 @@
 #include "esp_err.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "soc/soc_caps.h"
 
 class AS5047D;
 class H3LIS331;
@@ -86,7 +87,7 @@ private:
     return max_transfer_size_;
   }
 
-  static constexpr std::size_t kMaxDevices = 8;
+  static constexpr std::size_t kMaxDevices = SOC_SPI_MAX_CS_NUM;
   spi_host_device_t host_{SPI2_HOST};
   std::size_t max_transfer_size_{0};
   avi::Timeout transaction_timeout_{avi::Timeout::noWait()};

@@ -119,9 +119,11 @@ esp_err_t SPICREATE::addDevice(const DeviceConfig &device_config,
   LockGuard lock(*this);
   if (lock.result() != ESP_OK)
     return lock.result();
-  if (device != nullptr) {
+  if (device != nullptr)
     return ESP_ERR_INVALID_STATE;
-  }
+  if (deviceCount() >=
+      static_cast<std::size_t>(SOC_SPI_PERIPH_CS_NUM(host_)))
+    return ESP_ERR_NOT_FOUND;
   auto slot = std::find(devices_.begin(), devices_.end(), nullptr);
   if (slot == devices_.end())
     return ESP_ERR_NO_MEM;
