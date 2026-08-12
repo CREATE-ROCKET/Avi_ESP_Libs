@@ -27,6 +27,9 @@ constexpr uint8_t kHeader = 0xFF;
 constexpr uint8_t kBroadcastId = 0xFE;
 constexpr std::size_t kMaximumParameters = 253;
 constexpr std::size_t kMaximumPacket = 259;
+constexpr int kTransmitBufferSize = 512;
+
+static_assert(kMaximumPacket < kTransmitBufferSize);
 
 constexpr uint64_t wireTimeMicroseconds(std::size_t bytes, uint32_t baudrate) {
   return (bytes * 10ULL * 1000000ULL + baudrate - 1) / baudrate;
@@ -191,7 +194,9 @@ esp_err_t STSCREATE::begin(const Config &config) {
     result = uart_set_pin(config.port, config.tx, config.rx, UART_PIN_NO_CHANGE,
                           UART_PIN_NO_CHANGE);
   if (result == ESP_OK)
-    result = uart_driver_install(config.port, 512, 0, 0, nullptr, 0);
+    // 1 packet全体をring bufferへ入れ、hardware送信完了だけを有限時間待つ。
+    result = uart_driver_install(config.port, 512, kTransmitBufferSize, 0,
+                                 nullptr, 0);
   if (result != ESP_OK) {
     vSemaphoreDelete(lock);
     return result;
