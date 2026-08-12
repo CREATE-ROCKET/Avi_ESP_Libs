@@ -20,16 +20,13 @@ void avi_delay_ms(uint32_t milliseconds) {
     if (remaining_us <= 0)
       return;
 
-    const uint64_t remaining_ms =
-        (static_cast<uint64_t>(remaining_us) + 999U) / 1000U;
-    const TickType_t ticks = pdMS_TO_TICKS(remaining_ms);
-    if (ticks > 1) {
-      // tick境界で早く復帰してもdeadlineを再確認できるよう、最後の1 tickは残す。
-      vTaskDelay(ticks - 1);
+    if (remaining_us > 2000) {
+      // tick境界で早く復帰してもdeadlineを再確認するため、1 tickずつ譲る。
+      vTaskDelay(1);
       continue;
     }
 
-    // データシートの最小待機時間を満たすため、最後の短時間だけbusy waitする。
+    // データシートの最小待機時間を保証しつつ、busy waitは末尾2 ms以下に限定する。
     esp_rom_delay_us(static_cast<uint32_t>(remaining_us));
   }
 }
