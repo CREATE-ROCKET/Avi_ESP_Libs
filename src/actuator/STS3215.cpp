@@ -579,6 +579,14 @@ esp_err_t STS3215::encodeMotion(float degrees, const Motion &motion,
     if (steps < -32766 || steps > 32766)
       return ESP_ERR_INVALID_ARG;
     target = encodeRelative(static_cast<int32_t>(steps));
+  } else if ((phase_ & kFeedbackBit) != 0) {
+    // STS3215は最高分解能のmulti-turn absoluteで正負7回転を保証する。
+    constexpr double kMaximumMultiTurnDegrees = 7.0 * 360.0;
+    if (degrees < -kMaximumMultiTurnDegrees ||
+        degrees > kMaximumMultiTurnDegrees || steps < -32766 ||
+        steps > 32766)
+      return ESP_ERR_INVALID_ARG;
+    target = encodeRelative(static_cast<int32_t>(steps));
   } else {
     if (steps < minimum_position_ || steps > maximum_position_ || steps > 65535)
       return ESP_ERR_INVALID_ARG;
