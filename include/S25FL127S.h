@@ -25,6 +25,7 @@ public:
   };
 
   static constexpr std::size_t kPageSize = 256;
+  static constexpr std::size_t kEccUnitSize = 16;
   static constexpr uint32_t kCapacity = 16U * 1024U * 1024U;
   static constexpr JedecId kExpectedJedecId{0x01, 0x20, 0x18};
 
@@ -83,6 +84,9 @@ public:
 private:
   [[nodiscard]] esp_err_t writeEnable();
   [[nodiscard]] esp_err_t waitReadyUntil(int64_t deadline_us);
+  [[nodiscard]] esp_err_t rangeErased(uint32_t address, std::size_t length,
+                                      bool &erased);
+  [[nodiscard]] esp_err_t blankCheckUntil(int64_t deadline_us);
   [[nodiscard]] esp_err_t eraseAddressed(uint8_t command, uint32_t address,
                                          std::size_t alignment,
                                          avi::Timeout timeout);

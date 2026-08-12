@@ -155,6 +155,47 @@ esp_err_t S25FL127S::waitReadyUntil(int64_t deadline_us) {
   }
 }
 
+esp_err_t S25FL127S::rangeErased(uint32_t address, std::size_t length,
+                                 bool &erased) {
+  erased = false;
+  if (!initialized() || length == 0 || address >= kCapacity ||
+      length > kCapacity - address)
+    return ESP_ERR_INVALID_ARG;
+
+  std::array<uint8_t, kPageSize> buffer{};
+  while (length != 0) {
+    const std::size_t chunk = std::min(length, buffer.size());
+    const esp_err_t result = read(address, buffer.data(), chunk);
+    if (result != ESP_OK)
+      return result;
+    if (!std::all_of(buffer.begin(), buffer.begin() + chunk,
+                     [](uint8_t value) { return value == 0xFF; }))
+      return ESP_OK;
+    address += static_cast<uint32_t>(chunk);
+    length -= chunk;
+  }
+  erased = true;
+  return ESP_OK;
+}
+
+esp_err_t S25FL127S::blankCheckUntil(int64_t deadline_us) {
+  uint32_t address = 0;
+  while (address < kCapacity) {
+    if (avi_micros() >= deadline_us)
+      return ESP_ERR_TIMEOUT;
+    const std::size_t chunk =
+        std::min<std::size_t>(kPageSize, kCapacity - address);
+    bool erased{};
+    const esp_err_t result = rangeErased(address, chunk, erased);
+    if (result != ESP_OK)
+      return result;
+    if (!erased)
+      return ESP_ERR_INVALID_RESPONSE;
+    address += static_cast<uint32_t>(chunk);
+  }
+  return ESP_OK;
+}
+
 esp_err_t S25FL127S::writeEnable() {
   esp_err_t result = spi_->sendCommand(device_, kWriteEnable);
   if (result != ESP_OK)
@@ -187,7 +228,10 @@ esp_err_t S25FL127S::eraseChip(avi::Timeout timeout) {
   if (result != ESP_OK)
     return result;
   result = spi_->sendCommand(device_, kErase);
-  return result == ESP_OK ? waitReadyUntil(deadline_us) : result;
+  if (result != ESP_OK)
+    return result;
+  result = waitReadyUntil(deadline_us);
+  return result == ESP_OK ? blankCheckUntil(deadline_us) : result;
 }
 
 esp_err_t S25FL127S::eraseAddressed(uint8_t command, uint32_t address,
@@ -236,11 +280,26 @@ esp_err_t S25FL127S::write(uint32_t address, const uint8_t *data,
       length > kCapacity - address)
     return ESP_ERR_INVALID_ARG;
 
+  // Automatic ECC unitへ2回programしない。最初のpartial programは許容するが、
+  // 触れる16-byte unitはすべてwrite前にerase状態でなければならない。
+  const uint32_t ecc_begin =
+      address - static_cast<uint32_t>(address % kEccUnitSize);
+  const uint32_t write_end = address + static_cast<uint32_t>(length);
+  const uint32_t ecc_end = static_cast<uint32_t>(
+      (static_cast<uint64_t>(write_end) + kEccUnitSize - 1U) /
+      kEccUnitSize * kEccUnitSize);
+  bool erased{};
+  esp_err_t result = rangeErased(ecc_begin, ecc_end - ecc_begin, erased);
+  if (result != ESP_OK)
+    return result;
+  if (!erased)
+    return ESP_ERR_INVALID_STATE;
+
   // 全ページで同じ期限を共有し、ページ数に応じてタイムアウトを延長しない。
   int64_t deadline_us{};
   if (finiteDeadline(timeout, deadline_us) != ESP_OK)
     return ESP_ERR_INVALID_ARG;
-  esp_err_t result = waitReadyUntil(deadline_us);
+  result = waitReadyUntil(deadline_us);
   if (result != ESP_OK)
     return result;
 
