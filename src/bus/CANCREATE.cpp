@@ -807,6 +807,11 @@ esp_err_t CANCREATE::recover(avi::Timeout timeout) {
 esp_err_t CANCREATE::test(TestResult &result) {
   if (!initialized_ || backend_ == nullptr)
     return ESP_ERR_INVALID_STATE;
+#if ESP_IDF_VERSION_MAJOR >= 6
+  // ESP-IDF #18803: node削除前にdeferred event-group更新をflushしないため、
+  // nodeを再生成する診断は修正済みdriverへ移行するまでfail-closedにする。
+  return ESP_ERR_NOT_SUPPORTED;
+#endif
   avi::internal::Deadline deadline{};
   if (avi::internal::makeDeadline(kTestTimeout, deadline) != ESP_OK)
     return ESP_ERR_INVALID_STATE;

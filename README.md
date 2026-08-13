@@ -146,6 +146,8 @@ standard ID `0x000`～`0x3FF`はapplication用です。`0x400`～`0x7FE`はdiagn
 
 `test()`は現在のbitrate/GPIOでnormal single-shot送信のACKを確認し、失敗時だけno-ack/self-receptionを試します。診断timeoutは内部で1秒に固定しています。`success`、`no_peer_response`、`controller_failure`を`TestResult`で返し、元Configへ復元します。起動時専用で、test中の通常trafficは保持されない可能性があります。複数nodeから同時に実行しないでください。
 
+ESP-IDF 6.0.xは[Espressif #18803](https://github.com/espressif/esp-idf/issues/18803)のTWAI node delete use-after-freeを含み、2026-08-13時点の`release/v6.0`にもupstream修正`6e0d480b2a630419456a04e3eb71d1a4062063ae`が未収録です。修正済みreleaseを確認できるまでは未知のfuture versionもsafe扱いせず、ESP-IDF 6以上で`test()`を`ESP_ERR_NOT_SUPPORTED`としてfail-closedにします。通常の`begin()`/`end()` APIは変更しません。
+
 ## ディレクトリ構成
 
 ```text
