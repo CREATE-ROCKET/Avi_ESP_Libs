@@ -117,6 +117,7 @@ public:
   [[nodiscard]] esp_err_t verifyOperatingMode(OperatingMode expected) const;
   [[nodiscard]] esp_err_t setOperatingMode(OperatingMode mode,
                                            Persistence persistence);
+  [[nodiscard]] esp_err_t configurePositionMode(Persistence persistence);
   [[nodiscard]] esp_err_t configureStepMode(Persistence persistence);
   [[nodiscard]] esp_err_t setDirection(Direction direction,
                                        Persistence persistence);

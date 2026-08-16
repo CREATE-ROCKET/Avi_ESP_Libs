@@ -446,6 +446,36 @@ esp_err_t STS3215::setOperatingMode(OperatingMode mode,
   return operating_mode_ == mode ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
 }
 
+esp_err_t STS3215::configurePositionMode(Persistence persistence) {
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
+  if (!validPersistence(persistence))
+    return ESP_ERR_INVALID_ARG;
+
+  // Step modeがminimum/maximum positionを0へ変更するため、
+  // position modeへ戻す際は360度の通常範囲も同時に復元する。
+  const uint8_t minimum[]{0x00, 0x00};
+  const uint8_t maximum[]{0xFF, 0x0F};
+  esp_err_t operation =
+      writeEpRom(kMinimumPosition, minimum, sizeof(minimum), persistence);
+  if (operation == ESP_OK)
+    operation =
+        writeEpRom(kMaximumPosition, maximum, sizeof(maximum), persistence);
+  const uint8_t mode = static_cast<uint8_t>(OperatingMode::position);
+  if (operation == ESP_OK)
+    operation = writeEpRom(kOperatingMode, &mode, 1, persistence);
+
+  const esp_err_t refresh = refreshConfiguration();
+  if (refresh != ESP_OK)
+    return refresh;
+  if (operation != ESP_OK)
+    return operation;
+  return minimum_position_ == 0 && maximum_position_ == 4095 &&
+                 operating_mode_ == OperatingMode::position
+             ? ESP_OK
+             : ESP_ERR_INVALID_RESPONSE;
+}
+
 esp_err_t STS3215::configureStepMode(Persistence persistence) {
   if (!initialized_ || !configuration_valid_)
     return ESP_ERR_INVALID_STATE;
