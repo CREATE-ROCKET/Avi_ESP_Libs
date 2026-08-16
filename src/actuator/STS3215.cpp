@@ -476,6 +476,39 @@ esp_err_t STS3215::configurePositionMode(Persistence persistence) {
              : ESP_ERR_INVALID_RESPONSE;
 }
 
+esp_err_t STS3215::configureMultiTurnPositionMode(
+    Persistence persistence) {
+  if (!initialized_ || !configuration_valid_)
+    return ESP_ERR_INVALID_STATE;
+  if (!validPersistence(persistence))
+    return ESP_ERR_INVALID_ARG;
+
+  // STS3215のmulti-turn absolute position controlではangle limitを
+  // min=0/max=0にし、Mode 0とPhase BIT4を組み合わせる。
+  // 単回転position modeの0..4095 limitとは別設定なので混同しない。
+  const uint8_t limits[]{0, 0, 0, 0};
+  esp_err_t operation =
+      writeEpRom(kMinimumPosition, limits, sizeof(limits), persistence);
+  const uint8_t mode = static_cast<uint8_t>(OperatingMode::position);
+  if (operation == ESP_OK)
+    operation = writeEpRom(kOperatingMode, &mode, 1, persistence);
+
+  const esp_err_t refresh = refreshConfiguration();
+  if (refresh != ESP_OK)
+    return refresh;
+  if (operation != ESP_OK)
+    return operation;
+  if (minimum_position_ != 0 || maximum_position_ != 0 ||
+      operating_mode_ != OperatingMode::position)
+    return ESP_ERR_INVALID_RESPONSE;
+
+  const esp_err_t feedback =
+      setFeedbackMode(FeedbackMode::multi_turn, persistence);
+  if (feedback != ESP_OK)
+    return feedback;
+  return (phase_ & kFeedbackBit) != 0U ? ESP_OK : ESP_ERR_INVALID_RESPONSE;
+}
+
 esp_err_t STS3215::configureStepMode(Persistence persistence) {
   if (!initialized_ || !configuration_valid_)
     return ESP_ERR_INVALID_STATE;
