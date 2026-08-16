@@ -139,8 +139,8 @@ static_assert(decodeSignedMagnitude10(0x0064) == 100);
 static_assert(decodeSignedMagnitude10(0x0464) == -100);
 static_assert(absolute(decodeSignedMagnitude15(0x0064) * 0.0065F - 0.65F) <
               0.00001F);
-static_assert(absolute(decodeSignedMagnitude15(0x8064) * 0.0065F + 0.65F) <
-              0.00001F);
+static_assert(absolute(decodeSignedMagnitude15(0x8064) * 0.0065F +
+                       0.65F) < 0.00001F);
 static_assert(absolute(decodeSignedMagnitude15(0x0064) * degreesPerStep(1) -
                        8.7890625F) < 0.00001F);
 static_assert(absolute(decodeSignedMagnitude15(0x8064) * degreesPerStep(1) +
@@ -554,10 +554,10 @@ esp_err_t STS3215::holdCurrentPosition(const HoldConfig &config) {
     if (result == ESP_OK)
       result = setTorqueLimit(config.torque_limit);
   } else if (operating_mode_ == OperatingMode::step) {
-    const uint8_t zero[2]{};
-    result = writeBytes(0x2A, zero, sizeof(zero));
-    if (result == ESP_OK)
-      result = setTorqueLimit(config.torque_limit);
+    // step modeのtarget positionは相対移動commandである。保持開始時に0を
+    // 再送するとcurrent-position feedbackが0へ戻るfirmwareがあるため、
+    // 新しいtargetを書かず、完了済み位置のtorqueだけを有効化する。
+    result = setTorqueLimit(config.torque_limit);
   } else {
     return ESP_ERR_INVALID_STATE;
   }
