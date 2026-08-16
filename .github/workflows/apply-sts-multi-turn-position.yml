@@ -1,0 +1,40 @@
+name: Apply STS multi-turn position mode
+
+on:
+  push:
+    branches: [refactor]
+    paths:
+      - tools/apply_sts_multi_turn_position_mode.py
+      - .github/workflows/apply-sts-multi-turn-position.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Sync refactor
+        run: git pull --rebase origin refactor
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Apply targeted patch
+        run: python tools/apply_sts_multi_turn_position_mode.py
+      - name: Check diff
+        run: git diff --check
+      - name: Install PlatformIO
+        run: python -m pip install platformio==6.1.19
+      - name: Build Arduino API smoke
+        run: pio run -d test_apps/platformio_arduino
+      - name: Commit verified change
+        run: |
+          git config user.name "hotaru"
+          git config user.email "69021496+Natsu-B@users.noreply.github.com"
+          git add include/STS3215.h src/actuator/STS3215.cpp
+          git rm tools/apply_sts_multi_turn_position_mode.py .github/workflows/apply-sts-multi-turn-position.yml
+          git commit -m "fix(sts): configure multi-turn position mode"
+          git push origin HEAD:refactor
