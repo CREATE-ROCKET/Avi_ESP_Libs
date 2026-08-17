@@ -4,6 +4,8 @@
 
 namespace {
 constexpr uint8_t kAddress = 0x28;
+constexpr uint32_t kMinimumI2cFrequencyHz = 100000;
+constexpr uint32_t kMaximumI2cFrequencyHz = 400000;
 constexpr uint16_t kPressureMinimumCount = 1638;
 constexpr uint16_t kPressureMaximumCount = 14746;
 constexpr float kMinimumPsi = -5.0F;
@@ -14,6 +16,10 @@ constexpr SSCDRRN005PD2A5::RawData decode(const std::array<uint8_t, 4> &raw) {
   return {static_cast<uint16_t>(((raw[0] & 0x3FU) << 8) | raw[1]),
           static_cast<uint16_t>((uint16_t{raw[2]} << 3) | (raw[3] >> 5)),
           static_cast<SSCDRRN005PD2A5::SensorStatus>(raw[0] >> 6)};
+}
+
+constexpr bool pressureCountWithinCalibratedRange(uint16_t count) {
+  return count >= kPressureMinimumCount && count <= kPressureMaximumCount;
 }
 
 constexpr float pressurePa(uint16_t count) {
@@ -28,10 +34,17 @@ constexpr float temperatureCelsius(uint16_t count) {
 }
 
 constexpr float absolute(float value) { return value < 0 ? -value : value; }
+static_assert(pressureCountWithinCalibratedRange(kPressureMinimumCount));
+static_assert(pressureCountWithinCalibratedRange(kPressureMaximumCount));
+static_assert(!pressureCountWithinCalibratedRange(kPressureMinimumCount - 1U));
+static_assert(!pressureCountWithinCalibratedRange(kPressureMaximumCount + 1U));
 static_assert(absolute(pressurePa(1638) + 34473.786F) < 0.01F);
 static_assert(absolute(pressurePa(14746) - 34473.786F) < 0.01F);
 static_assert(temperatureCelsius(0) == -50.0F);
 static_assert(temperatureCelsius(2047) == 150.0F);
+static_assert(decode({0x06, 0x66, 0x00, 0x00}).pressure_counts == 1638U);
+static_assert(decode({0x39, 0x9A, 0x00, 0x00}).pressure_counts == 14746U);
+static_assert(decode({0x3F, 0xFF, 0x00, 0x00}).pressure_counts == 16383U);
 static_assert(decode({0x00, 0x00, 0x00, 0x00}).status ==
               SSCDRRN005PD2A5::SensorStatus::normal);
 static_assert(decode({0x40, 0x00, 0x00, 0x00}).status ==
@@ -50,7 +63,8 @@ SSCDRRN005PD2A5::~SSCDRRN005PD2A5() {
 esp_err_t SSCDRRN005PD2A5::begin(I2CCREATE &i2c) {
   if (i2c_ != nullptr || device_ != I2CCREATE::kInvalidDevice)
     return ESP_ERR_INVALID_STATE;
-  if (!i2c.initialized() || i2c.frequencyHz() > 400000)
+  if (!i2c.initialized() || i2c.frequencyHz() < kMinimumI2cFrequencyHz ||
+      i2c.frequencyHz() > kMaximumI2cFrequencyHz)
     return ESP_ERR_INVALID_ARG;
   esp_err_t result = i2c.probe(kAddress);
   if (result != ESP_OK)
@@ -99,6 +113,13 @@ esp_err_t SSCDRRN005PD2A5::read(Data &data) {
   case SensorStatus::diagnostic_fault:
     return ESP_ERR_INVALID_RESPONSE;
   }
+
+  // transfer function Aの校正圧力範囲は10 %～90 %出力である。
+  // readRaw()では飽和値を診断用に取得できるが、read()では校正範囲外を
+  // 有効な圧力値として上位層へ渡さない。
+  if (!pressureCountWithinCalibratedRange(raw.pressure_counts))
+    return ESP_ERR_INVALID_RESPONSE;
+
   Data next{};
   next.differential_pressure_pa = pressurePa(raw.pressure_counts);
   next.temperature_celsius = temperatureCelsius(raw.temperature_counts);
