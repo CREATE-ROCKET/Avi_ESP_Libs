@@ -1,0 +1,49 @@
+# Scheduled workflows run only from the repository's default branch (main).
+# Check out refactor explicitly so the monthly job tests the development branch.
+name: Monthly ESP-IDF compatibility (refactor)
+
+on:
+  schedule:
+    - cron: "17 3 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  espidf:
+    name: ESP32-S3 / ESP-IDF ${{ matrix.idf_tag }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        idf_tag:
+          - release-v6.1
+          - latest
+
+    container:
+      image: espressif/idf:${{ matrix.idf_tag }}
+
+    steps:
+      - name: Check out refactor
+        uses: actions/checkout@v6
+        with:
+          ref: refactor
+          persist-credentials: false
+
+      - name: Show tested revisions
+        shell: bash
+        run: |
+          git log -1 --format='%h %s'
+          echo "ESP-IDF image: espressif/idf:${{ matrix.idf_tag }}"
+
+      - name: Build ESP-IDF smoke test
+        shell: bash
+        working-directory: test_apps/espidf
+        run: |
+          set -eo pipefail
+          source "${IDF_PATH}/export.sh"
+          idf.py --version
+          idf.py set-target esp32s3
+          idf.py -B build-monthly build
